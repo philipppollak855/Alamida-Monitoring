@@ -40,7 +40,9 @@ public sealed class FirestoreSyncService : IAsyncDisposable
         var contentHash = snapshot.ContentHash();
         var sterbefallRef = _db.Collection("sterbefaelle").Document(sterbefallId);
         var existing = await sterbefallRef.GetSnapshotAsync(ct);
-        var oldHash = existing.Exists ? existing.GetValue<string>("contentHash") : null;
+        var oldHash = existing.Exists && existing.ContainsField("contentHash")
+            ? existing.GetValue<string>("contentHash")
+            : null;
         var now = Timestamp.FromDateTime(DateTime.UtcNow);
 
         if (oldHash == contentHash)

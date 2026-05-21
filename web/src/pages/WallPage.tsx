@@ -5,11 +5,12 @@ import { LiveIndicator } from '../components/LiveIndicator';
 import { useFirestoreCollection } from '../hooks/useFirestoreCollection';
 import { firebaseConfigured } from '../firebase';
 import { buildGrafenbachSlots, flattenOffene } from '../board/boardUtils';
+import { buildExternGruppen, externGesamt } from '../board/wallExternUtils';
 import { SchrittBadge } from '../ui/SchrittBadge';
 import { RouteFlow } from '../ui/RouteFlow';
 import type { Sterbefall } from '../types';
 
-type WallView = 'kuehlraum' | 'abholungen' | 'offen';
+type WallView = 'kuehlraum' | 'extern' | 'abholungen' | 'offen';
 
 const ROTATE_MS = 18_000;
 
@@ -32,11 +33,13 @@ export function WallPage() {
   const { items: sterbefaelle, lastSyncAt, isLive, loading } = sterbefaelleQuery;
 
   const { cfg, slots } = useMemo(() => buildGrafenbachSlots(sterbefaelle), [sterbefaelle]);
+  const externGruppen = useMemo(() => buildExternGruppen(sterbefaelle), [sterbefaelle]);
+  const externTotal = useMemo(() => externGesamt(externGruppen), [externGruppen]);
   const offene = useMemo(() => flattenOffene(sterbefaelle), [sterbefaelle]);
   const heuteOffen = useMemo(() => offene.filter((o) => o.status === 'heute'), [offene]);
   const belegt = slots.filter(Boolean).length;
 
-  const views: WallView[] = ['kuehlraum', 'abholungen', 'offen'];
+  const views: WallView[] = ['kuehlraum', 'extern', 'abholungen', 'offen'];
 
   useEffect(() => {
     const t = setInterval(() => {
@@ -107,9 +110,11 @@ export function WallPage() {
           >
             {v === 'kuehlraum'
               ? `Kühlraum (${belegt}/${cfg.plaetze})`
-              : v === 'abholungen'
-                ? `Heute (${heuteOffen.length})`
-                : `Offen (${offene.length})`}
+              : v === 'extern'
+                ? `Extern (${externTotal})`
+                : v === 'abholungen'
+                  ? `Heute (${heuteOffen.length})`
+                  : `Offen (${offene.length})`}
           </button>
         ))}
       </div>
@@ -138,6 +143,47 @@ export function WallPage() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {view === 'extern' && (
+          <div className="wall-extern-stage">
+            <h2 className="wall-stage-title">Extern — Krankenhäuser & Kremation</h2>
+            <p className="wall-stage-sub">
+              Verstorbene außerhalb des Firmenkühlraums, noch am Sterbeort oder im
+              Krematorium
+            </p>
+            {externGruppen.length === 0 ? (
+              <p className="wall-empty">Keine externen Verstorbenen</p>
+            ) : (
+              <div className="wall-extern-grid">
+                {externGruppen.map((g) => (
+                  <article
+                    key={g.key}
+                    className={`wall-extern-card wall-extern-card--${g.typ}`}
+                  >
+                    <header className="wall-extern-card-head">
+                      <span className={`wall-extern-badge wall-extern-badge--${g.typ}`}>
+                        {g.typ === 'krankenhaus' ? 'Krankenhaus' : 'Kremation'}
+                      </span>
+                      <h3 className="wall-extern-ort">{g.ort}</h3>
+                      <span className="wall-extern-count">{g.faelle.length}</span>
+                    </header>
+                    <ul className="wall-extern-list">
+                      {g.faelle.map((f) => (
+                        <li key={f.sterbefallId} className="wall-extern-person">
+                          <span className="wall-extern-name">{f.name}</span>
+                          <span className="wall-extern-meta">
+                            {f.hinweis}
+                            {f.terminAm ? ` · ${f.terminAm}` : ''}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </article>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
