@@ -89,4 +89,12 @@ public sealed record DetailSnapshot
         !string.IsNullOrWhiteSpace(VerstorbenerName) ||
         (!string.IsNullOrWhiteSpace(VerstorbenerVorname) &&
          !string.IsNullOrWhiteSpace(VerstorbenerNachname));
+
+    public bool IsDetailMaske =>
+        string.Equals(QuelleMaske, "detail_ueberfuehrung", StringComparison.Ordinal);
+
+    /// <summary>Verlässliche Detail-Erfassung mit Sterbeort oder Überführungszeilen.</summary>
+    public bool IsReliableDetailCapture =>
+        IsDetailMaske &&
+        (Schritte.Count > 0 || !string.IsNullOrWhiteSpace(Sterbeort));
 }

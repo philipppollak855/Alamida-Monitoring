@@ -42,8 +42,8 @@ public sealed class AlamidaMaskWatcher
             return NeuerSterbefallSnapshotBuilder.Build(fields, maxZeilen);
         }
 
-        if (maske == MaskKind.DetailUeberfuehrung ||
-            _profile.Detailmaske.Ueberfuehrung.Fields.Count > 0)
+        // Nur echte Termine/Überführungs-Maske — sonst keine Felder auslesen (verhindert Leer-Sync).
+        if (maske == MaskKind.DetailUeberfuehrung)
         {
             var detailMask = _profile.Detailmaske.Ueberfuehrung;
             var fields = UiaFieldExtractor.ExtractFields(window, detailMask.Fields);

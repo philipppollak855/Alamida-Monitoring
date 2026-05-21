@@ -21,7 +21,16 @@ export interface ExternOrtGruppe {
 }
 
 function isAktiv(s: Sterbefall): boolean {
+  if (s.inHistory === true) return false;
   return s.aktivInAlamida !== false;
+}
+
+/** Letzter bekannter KH-Standort aus Firestore, falls Positionsfelder leer sind. */
+function letzterBekannterKrankenhausOrt(s: Sterbefall): string | null {
+  if (!s.abholortIstKrankenhaus) return null;
+  const ort = s.sterbeort || s.abholort || s.aktuellePosition;
+  if (ort && istKrankenhaus(ort)) return ortLabel(ort);
+  return null;
 }
 
 function hatOffeneAbholungVomSterbeort(s: Sterbefall): boolean {
@@ -149,6 +158,9 @@ export function resolveExternStandort(
 
   if (kh) return kh;
   if (krem) return krem;
+
+  const letzterKh = letzterBekannterKrankenhausOrt(s);
+  if (letzterKh) return { typ: 'krankenhaus', ort: letzterKh };
 
   if (isImEigenenKuehlraum(s)) return null;
 

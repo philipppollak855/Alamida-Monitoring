@@ -47,36 +47,37 @@ public sealed class FirestoreSyncService : IAsyncDisposable
             : null;
         var now = Timestamp.FromDateTime(DateTime.UtcNow);
 
-        var inHistory = snapshot.InHistory;
+        if (ShouldOnlyTouchLastSeen(snapshot, existing))
+        {
+            await sterbefallRef.SetAsync(
+                BuildLastSeenPayload(sterbefallId, snapshot, _workstationId, now),
+                SetOptions.MergeAll,
+                ct);
+            return new SyncResult
+            {
+                Kind = SyncResultKind.Heartbeat,
+                SterbefallId = sterbefallId,
+                SterbefallWechsel = sterbefallWechsel,
+            };
+        }
+
+        snapshot = MergeSnapshotWithExisting(snapshot, existing);
+        contentHash = snapshot.ContentHash();
+        oldHash = existing.Exists && existing.ContainsField("contentHash")
+            ? existing.GetValue<string>("contentHash")
+            : null;
+
+        var inHistory = ResolveInHistory(snapshot, existing);
         Timestamp? sichtbarBis = snapshot.SichtbarBis.HasValue
             ? Timestamp.FromDateTime(snapshot.SichtbarBis.Value.ToUniversalTime())
             : null;
 
         if (oldHash == contentHash)
         {
-            var heartbeatKuehlraum = snapshot.Kuehlraum ?? "";
-            var heartbeatStatus = ResolveStatus(inHistory, heartbeatKuehlraum, snapshot.AktuellePositionTyp);
-            await sterbefallRef.SetAsync(new Dictionary<string, object>
-            {
-                ["sterbefallId"] = sterbefallId,
-                ["aktivInAlamida"] = true,
-                ["aktivInDisposition"] = !inHistory,
-                ["inHistory"] = inHistory,
-                ["status"] = heartbeatStatus,
-                ["sterbeort"] = snapshot.Sterbeort ?? "",
-                ["abholort"] = snapshot.Abholort ?? "",
-                ["abholortIstKrankenhaus"] = snapshot.AbholortIstKrankenhaus,
-                ["aktuellePosition"] = snapshot.AktuellePosition ?? "",
-                ["aktuellePositionTyp"] = snapshot.AktuellePositionTyp ?? "",
-                ["kuehlraumId"] = inHistory ? "" : heartbeatKuehlraum,
-                ["kuehlplatz"] = inHistory ? "" : snapshot.Kuehlplatz ?? "",
-                ["ausstehend"] = BuildAusstehendPayload(snapshot.Ausstehend),
-                ["lastSeenAt"] = now,
-                ["workstationId"] = _workstationId,
-                ["verstorbenerName"] = snapshot.VerstorbenerName ?? "",
-                ["quelleMaske"] = snapshot.QuelleMaske ?? "",
-                ["erfassungsPhase"] = snapshot.ErfassungsPhase ?? "",
-            }, SetOptions.MergeAll, ct);
+            await sterbefallRef.SetAsync(
+                BuildHeartbeatPayload(sterbefallId, snapshot, inHistory, _workstationId, now),
+                SetOptions.MergeAll,
+                ct);
 
             if (inHistory)
                 await ArchiveToHistoryAsync(sterbefallRef, sterbefallId, snapshot, now, ct);
@@ -217,6 +218,129 @@ public sealed class FirestoreSyncService : IAsyncDisposable
             SterbefallId = sterbefallId,
             SterbefallWechsel = sterbefallWechsel || !existing.Exists,
         };
+    }
+
+    private static bool ShouldOnlyTouchLastSeen(DetailSnapshot snapshot, DocumentSnapshot existing)
+    {
+        if (!existing.Exists) return false;
+        if (snapshot.IsReliableDetailCapture) return false;
+        if (string.Equals(snapshot.QuelleMaske, "neuer_sterbefall", StringComparison.Ordinal))
+            return false;
+        return ExistingHasDispositionData(existing);
+    }
+
+    private static bool ExistingHasDispositionData(DocumentSnapshot existing)
+    {
+        if (!string.IsNullOrWhiteSpace(existing.GetValue<string>("sterbeort")))
+            return true;
+        if (existing.ContainsField("abholortIstKrankenhaus") && existing.GetValue<bool>("abholortIstKrankenhaus"))
+            return true;
+        if (existing.ContainsField("ausstehend") &&
+            existing.GetValue<List<object>>("ausstehend") is { Count: > 0 })
+            return true;
+        return false;
+    }
+
+    private static bool ResolveInHistory(DetailSnapshot snapshot, DocumentSnapshot existing)
+    {
+        if (snapshot.IsDetailMaske)
+            return snapshot.InHistory;
+        if (existing.Exists && existing.ContainsField("inHistory"))
+            return existing.GetValue<bool>("inHistory");
+        return false;
+    }
+
+    private static Dictionary<string, object> BuildLastSeenPayload(
+        string sterbefallId,
+        DetailSnapshot snapshot,
+        string workstationId,
+        Timestamp now) =>
+        new()
+        {
+            ["sterbefallId"] = sterbefallId,
+            ["aktivInAlamida"] = true,
+            ["lastSeenAt"] = now,
+            ["workstationId"] = workstationId,
+            ["verstorbenerName"] = snapshot.VerstorbenerName ?? "",
+        };
+
+    private static Dictionary<string, object> BuildHeartbeatPayload(
+        string sterbefallId,
+        DetailSnapshot snapshot,
+        bool inHistory,
+        string workstationId,
+        Timestamp now)
+    {
+        var heartbeatKuehlraum = snapshot.Kuehlraum ?? "";
+        var heartbeatStatus = ResolveStatus(inHistory, heartbeatKuehlraum, snapshot.AktuellePositionTyp);
+        var payload = new Dictionary<string, object>
+        {
+            ["sterbefallId"] = sterbefallId,
+            ["aktivInAlamida"] = true,
+            ["aktivInDisposition"] = !inHistory,
+            ["inHistory"] = inHistory,
+            ["status"] = heartbeatStatus,
+            ["lastSeenAt"] = now,
+            ["workstationId"] = workstationId,
+            ["quelleMaske"] = snapshot.QuelleMaske ?? "",
+            ["erfassungsPhase"] = snapshot.ErfassungsPhase ?? "",
+        };
+
+        AddStringIfPresent(payload, "verstorbenerName", snapshot.VerstorbenerName);
+        AddStringIfPresent(payload, "sterbeort", snapshot.Sterbeort);
+        AddStringIfPresent(payload, "abholort", snapshot.Abholort);
+        AddStringIfPresent(payload, "aktuellePosition", snapshot.AktuellePosition);
+        AddStringIfPresent(payload, "aktuellePositionTyp", snapshot.AktuellePositionTyp);
+
+        if (snapshot.AbholortIstKrankenhaus)
+            payload["abholortIstKrankenhaus"] = true;
+
+        if (!inHistory && !string.IsNullOrWhiteSpace(heartbeatKuehlraum))
+            payload["kuehlraumId"] = heartbeatKuehlraum;
+
+        if (!inHistory && !string.IsNullOrWhiteSpace(snapshot.Kuehlplatz))
+            payload["kuehlplatz"] = snapshot.Kuehlplatz;
+
+        if (snapshot.Ausstehend.Count > 0)
+            payload["ausstehend"] = BuildAusstehendPayload(snapshot.Ausstehend);
+
+        return payload;
+    }
+
+    private static DetailSnapshot MergeSnapshotWithExisting(
+        DetailSnapshot snapshot,
+        DocumentSnapshot existing)
+    {
+        if (!existing.Exists || snapshot.IsReliableDetailCapture)
+            return snapshot;
+
+        var sterbeort = snapshot.Sterbeort;
+        if (string.IsNullOrWhiteSpace(sterbeort) && existing.ContainsField("sterbeort"))
+            sterbeort = existing.GetValue<string>("sterbeort");
+
+        var abholort = snapshot.Abholort;
+        if (string.IsNullOrWhiteSpace(abholort) && existing.ContainsField("abholort"))
+            abholort = existing.GetValue<string>("abholort");
+
+        var abholortKh = snapshot.AbholortIstKrankenhaus;
+        if (!abholortKh && existing.ContainsField("abholortIstKrankenhaus"))
+            abholortKh = existing.GetValue<bool>("abholortIstKrankenhaus");
+
+        return snapshot with
+        {
+            Sterbeort = sterbeort,
+            Abholort = abholort,
+            AbholortIstKrankenhaus = abholortKh,
+        };
+    }
+
+    private static void AddStringIfPresent(
+        Dictionary<string, object> payload,
+        string key,
+        string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+            payload[key] = value.Trim();
     }
 
     private static string ResolveStatus(bool inHistory, string kuehlraum, string? aktuellePositionTyp) =>
