@@ -22,6 +22,43 @@ export default defineConfig({
         scope: '/',
         start_url: '/',
         categories: ['business', 'medical', 'productivity'],
+        shortcuts: [
+          {
+            name: 'Übersicht',
+            short_name: 'Übersicht',
+            description: 'Kühlraum, Extern und Termine heute',
+            url: '/widget/summary',
+            icons: [{ src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' }],
+          },
+          {
+            name: 'Kühlraum',
+            short_name: 'Kühlraum',
+            description: 'Belegung Grafenbach',
+            url: '/widget/kuehlraum',
+            icons: [{ src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' }],
+          },
+          {
+            name: 'Extern',
+            short_name: 'Extern',
+            description: 'Fälle außerhalb',
+            url: '/widget/extern',
+            icons: [{ src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' }],
+          },
+          {
+            name: 'Heute',
+            short_name: 'Heute',
+            description: 'Termine und Abholungen heute',
+            url: '/widget/heute',
+            icons: [{ src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' }],
+          },
+          {
+            name: 'Disposition',
+            short_name: 'Board',
+            description: 'Disposition öffnen',
+            url: '/',
+            icons: [{ src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' }],
+          },
+        ],
         icons: [
           {
             src: 'pwa-192x192.png',

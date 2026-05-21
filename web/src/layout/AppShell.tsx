@@ -27,6 +27,9 @@ export function AppShell() {
           <NavLink to="/wall" className={({ isActive }) => (isActive ? 'nav-pill active' : 'nav-pill')}>
             Wandmonitor
           </NavLink>
+          <NavLink to="/widgets" className={({ isActive }) => (isActive ? 'nav-pill active' : 'nav-pill')}>
+            Widgets
+          </NavLink>
         </nav>
         <ThemeSwitch />
         <UserMenu />

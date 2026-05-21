@@ -5,6 +5,7 @@ import { App } from './App';
 import './styles.css';
 import './theme-alamida.css';
 import './mobile.css';
+import './widget.css';
 import { registerSW } from 'virtual:pwa-register';
 
 registerSW({
