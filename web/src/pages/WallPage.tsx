@@ -45,7 +45,10 @@ export function WallPage() {
     () => buildPrimaerKuehlraumSlots(sterbefaelle),
     [sterbefaelle, settings]
   );
-  const externGruppen = useMemo(() => buildExternGruppen(sterbefaelle), [sterbefaelle]);
+  const externGruppen = useMemo(
+    () => buildExternGruppen(sterbefaelle),
+    [sterbefaelle, settings]
+  );
   const externTotal = useMemo(() => externGesamt(externGruppen), [externGruppen]);
   const offene = useMemo(() => flattenOffene(sterbefaelle), [sterbefaelle]);
   const heuteOffen = useMemo(() => offene.filter((o) => o.status === 'heute'), [offene]);

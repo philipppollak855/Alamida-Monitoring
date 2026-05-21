@@ -32,19 +32,39 @@ function positionIstImKuehlraum(pos?: string): boolean {
   return !!matchEigenerKuehlraum(pos) || /kühlr|kuehlr/i.test(pos);
 }
 
-/** Physisch im Firmenkühlraum — nicht nur in Alamida vorgebucht. */
-export function isImEigenenKuehlraum(s: Sterbefall): boolean {
-  if (s.status !== 'im_kuehlraum') return false;
-  const pos = s.aktuellePosition?.trim() ?? '';
-  if (pos && !positionIstImKuehlraum(pos)) return false;
-  if (!matchEigenerKuehlraum(s.kuehlraumId) && !positionIstImKuehlraum(pos)) return false;
-  if (s.aktuellePositionTyp === 'sterbeort') return false;
-  const khOrt = s.sterbeort || s.abholort;
-  if (
-    (istKrankenhaus(khOrt) || s.abholortIstKrankenhaus) &&
-    hatAusstehendeUeberfuehrungInsEigeneKr(s)
-  ) {
-    return false;
+/** Noch am Sterbeort oder in einem Krankenhaus (nicht im Firmenkühlraum). */
+export function isAmKrankenhausOderSterbeort(s: Sterbefall): boolean {
+  if (s.aktuellePositionTyp === 'sterbeort') return true;
+
+  const pos = s.aktuellePosition?.trim();
+  if (pos && istKrankenhaus(pos)) return true;
+
+  if (istKrankenhaus(s.sterbeort) || istKrankenhaus(s.abholort) || s.abholortIstKrankenhaus) {
+    return true;
   }
-  return true;
+
+  return (s.ausstehend ?? []).some(
+    (a) =>
+      a.istAbholungVomSterbeort ||
+      a.status === 'abholung_noetig' ||
+      (a.schrittTyp === 'abholung' &&
+        (a.status === 'heute' || a.status === 'geplant') &&
+        a.vonOrt &&
+        istKrankenhaus(a.vonOrt))
+  );
+}
+
+/**
+ * Physisch im Firmenkühlraum — nicht nur vorgebuchter Platz, solange der Verstorbene
+ * noch am KH/Sterbeort liegt.
+ */
+export function isImEigenenKuehlraum(s: Sterbefall): boolean {
+  if (isAmKrankenhausOderSterbeort(s)) return false;
+
+  const pos = s.aktuellePosition?.trim() ?? '';
+  if (pos && (positionIstImKuehlraum(pos) || matchEigenerKuehlraum(pos))) return true;
+
+  if (s.kuehlplatz?.trim() && matchEigenerKuehlraum(s.kuehlraumId)) return true;
+
+  return false;
 }

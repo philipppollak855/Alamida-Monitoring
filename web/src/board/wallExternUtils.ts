@@ -2,6 +2,7 @@ import type { Sterbefall } from '../types';
 import { istKrankenhaus, istKrematorium, ortLabel } from './ortKeywords';
 import {
   hatAusstehendeUeberfuehrungInsEigeneKr,
+  isAmKrankenhausOderSterbeort,
   isImEigenenKuehlraum,
 } from './kuehlraumLogic';
 
@@ -55,36 +56,24 @@ function hinweisFuerFall(s: Sterbefall, typ: 'krankenhaus' | 'kremation'): strin
   return 'Wartend';
 }
 
-/**
- * Ermittelt externen Standort (Krankenhaus oder Krematorium), sofern der Verstorbene
- * nicht im eigenen Kühlraum liegt.
- */
-export function resolveExternStandort(
+function resolveKrankenhausStandort(
   s: Sterbefall
-): { typ: 'krankenhaus' | 'kremation'; ort: string } | null {
-  if (!isAktiv(s) || isImEigenenKuehlraum(s)) return null;
+): { typ: 'krankenhaus'; ort: string } | null {
+  const pos = s.aktuellePosition?.trim();
+  if (pos && istKrankenhaus(pos)) {
+    return { typ: 'krankenhaus', ort: ortLabel(pos) };
+  }
 
   if (s.aktuellePositionTyp === 'sterbeort' || hatAusstehendeUeberfuehrungInsEigeneKr(s)) {
     const khOrt = s.sterbeort || s.abholort;
     if (khOrt && istKrankenhaus(khOrt)) {
       return { typ: 'krankenhaus', ort: ortLabel(khOrt) };
     }
-    const vonKh = (s.ausstehend ?? []).find(
-      (a) => a.vonOrt && istKrankenhaus(a.vonOrt)
-    )?.vonOrt;
+    const vonKh = (s.ausstehend ?? []).find((a) => a.vonOrt && istKrankenhaus(a.vonOrt))?.vonOrt;
     if (vonKh) return { typ: 'krankenhaus', ort: ortLabel(vonKh) };
   }
 
-  const pos = s.aktuellePosition?.trim();
-
-  if (pos && istKrematorium(pos)) {
-    return { typ: 'kremation', ort: ortLabel(pos) };
-  }
-  if (pos && istKrankenhaus(pos)) {
-    return { typ: 'krankenhaus', ort: ortLabel(pos) };
-  }
-
-  if (s.aktuellePositionTyp === 'sterbeort' && s.sterbeort && istKrankenhaus(s.sterbeort)) {
+  if (s.sterbeort && istKrankenhaus(s.sterbeort)) {
     return { typ: 'krankenhaus', ort: ortLabel(s.sterbeort) };
   }
 
@@ -99,9 +88,36 @@ export function resolveExternStandort(
   }
 
   const naechster = naechsterSchritt(s);
-  if (naechster?.schrittTyp === 'abholung' && naechster.vonOrt && istKrankenhaus(naechster.vonOrt)) {
+  if (
+    naechster?.schrittTyp === 'abholung' &&
+    naechster.vonOrt &&
+    istKrankenhaus(naechster.vonOrt)
+  ) {
     return { typ: 'krankenhaus', ort: ortLabel(naechster.vonOrt) };
   }
+
+  if (isAmKrankenhausOderSterbeort(s)) {
+    const fallback = s.sterbeort || s.abholort;
+    if (fallback && istKrankenhaus(fallback)) {
+      return { typ: 'krankenhaus', ort: ortLabel(fallback) };
+    }
+    if (s.abholortIstKrankenhaus && s.abholort) {
+      return { typ: 'krankenhaus', ort: ortLabel(s.abholort) };
+    }
+  }
+
+  return null;
+}
+
+function resolveKremationStandort(
+  s: Sterbefall
+): { typ: 'kremation'; ort: string } | null {
+  const pos = s.aktuellePosition?.trim();
+  if (pos && istKrematorium(pos)) {
+    return { typ: 'kremation', ort: ortLabel(pos) };
+  }
+
+  const naechster = naechsterSchritt(s);
   if (naechster?.schrittTyp === 'kremation') {
     const kremOrt =
       (naechster.vonOrt && istKrematorium(naechster.vonOrt) ? naechster.vonOrt : null) ||
@@ -115,6 +131,26 @@ export function resolveExternStandort(
   if (s.endziel && istKrematorium(s.endziel) && s.aktuellePositionTyp === 'kremation') {
     return { typ: 'kremation', ort: ortLabel(s.endziel) };
   }
+
+  return null;
+}
+
+/**
+ * Ermittelt externen Standort (Krankenhaus oder Krematorium), sofern der Verstorbene
+ * nicht im eigenen Kühlraum liegt.
+ */
+export function resolveExternStandort(
+  s: Sterbefall
+): { typ: 'krankenhaus' | 'kremation'; ort: string } | null {
+  if (!isAktiv(s)) return null;
+
+  const kh = resolveKrankenhausStandort(s);
+  const krem = resolveKremationStandort(s);
+
+  if (kh) return kh;
+  if (krem) return krem;
+
+  if (isImEigenenKuehlraum(s)) return null;
 
   return null;
 }

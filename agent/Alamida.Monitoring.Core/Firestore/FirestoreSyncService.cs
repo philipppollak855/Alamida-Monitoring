@@ -54,16 +54,26 @@ public sealed class FirestoreSyncService : IAsyncDisposable
 
         if (oldHash == contentHash)
         {
+            var heartbeatKuehlraum = snapshot.Kuehlraum ?? "";
+            var heartbeatStatus = ResolveStatus(inHistory, heartbeatKuehlraum, snapshot.AktuellePositionTyp);
             await sterbefallRef.SetAsync(new Dictionary<string, object>
             {
                 ["sterbefallId"] = sterbefallId,
                 ["aktivInAlamida"] = true,
                 ["aktivInDisposition"] = !inHistory,
                 ["inHistory"] = inHistory,
+                ["status"] = heartbeatStatus,
+                ["sterbeort"] = snapshot.Sterbeort ?? "",
+                ["abholort"] = snapshot.Abholort ?? "",
+                ["abholortIstKrankenhaus"] = snapshot.AbholortIstKrankenhaus,
+                ["aktuellePosition"] = snapshot.AktuellePosition ?? "",
+                ["aktuellePositionTyp"] = snapshot.AktuellePositionTyp ?? "",
+                ["kuehlraumId"] = inHistory ? "" : heartbeatKuehlraum,
+                ["kuehlplatz"] = inHistory ? "" : snapshot.Kuehlplatz ?? "",
+                ["ausstehend"] = BuildAusstehendPayload(snapshot.Ausstehend),
                 ["lastSeenAt"] = now,
                 ["workstationId"] = _workstationId,
                 ["verstorbenerName"] = snapshot.VerstorbenerName ?? "",
-                ["aktuellePosition"] = snapshot.AktuellePosition ?? "",
                 ["quelleMaske"] = snapshot.QuelleMaske ?? "",
                 ["erfassungsPhase"] = snapshot.ErfassungsPhase ?? "",
             }, SetOptions.MergeAll, ct);
@@ -79,9 +89,7 @@ public sealed class FirestoreSyncService : IAsyncDisposable
             };
         }
         var kuehlraum = snapshot.Kuehlraum ?? "";
-        var status = inHistory
-            ? "archiviert"
-            : string.IsNullOrWhiteSpace(kuehlraum) ? "unterwegs" : "im_kuehlraum";
+        var status = ResolveStatus(inHistory, kuehlraum, snapshot.AktuellePositionTyp);
 
         var verlauf = snapshot.Verlauf.Select(v => new Dictionary<string, object>
         {
@@ -95,17 +103,7 @@ public sealed class FirestoreSyncService : IAsyncDisposable
             ["kuehlraum"] = v.Kuehlraum ?? "",
         }).ToList();
 
-        var ausstehend = snapshot.Ausstehend.Select(a => new Dictionary<string, object>
-        {
-            ["zeile"] = a.Zeile,
-            ["schrittTyp"] = a.SchrittTyp,
-            ["vonOrt"] = a.VonOrt ?? "",
-            ["nachOrt"] = a.NachOrt ?? "",
-            ["terminAm"] = a.TerminAm ?? "",
-            ["abholungAm"] = a.TerminAm ?? "",
-            ["status"] = a.Status,
-            ["istAbholungVomSterbeort"] = a.IstAbholungVomSterbeort,
-        }).ToList();
+        var ausstehend = BuildAusstehendPayload(snapshot.Ausstehend);
 
         var sterbefallData = new Dictionary<string, object>
         {
@@ -220,6 +218,27 @@ public sealed class FirestoreSyncService : IAsyncDisposable
             SterbefallWechsel = sterbefallWechsel || !existing.Exists,
         };
     }
+
+    private static string ResolveStatus(bool inHistory, string kuehlraum, string? aktuellePositionTyp) =>
+        inHistory
+            ? "archiviert"
+            : !string.IsNullOrWhiteSpace(kuehlraum) && aktuellePositionTyp != "sterbeort"
+                ? "im_kuehlraum"
+                : "unterwegs";
+
+    private static List<Dictionary<string, object>> BuildAusstehendPayload(
+        IReadOnlyList<AusstehendeUeberfuehrung> eintraege) =>
+        eintraege.Select(a => new Dictionary<string, object>
+        {
+            ["zeile"] = a.Zeile,
+            ["schrittTyp"] = a.SchrittTyp,
+            ["vonOrt"] = a.VonOrt ?? "",
+            ["nachOrt"] = a.NachOrt ?? "",
+            ["terminAm"] = a.TerminAm ?? "",
+            ["abholungAm"] = a.TerminAm ?? "",
+            ["status"] = a.Status,
+            ["istAbholungVomSterbeort"] = a.IstAbholungVomSterbeort,
+        }).ToList();
 
     private static string ResolveSterbefallDocumentId(DetailSnapshot snapshot)
     {
