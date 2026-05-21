@@ -53,6 +53,7 @@ export function WallPage() {
   const offene = useMemo(() => flattenOffene(sterbefaelle), [sterbefaelle]);
   const heuteOffen = useMemo(() => offene.filter((o) => o.status === 'heute'), [offene]);
   const belegt = slots.filter(Boolean).length;
+  const kuehlraumRows = Math.max(1, Math.ceil(cfg.plaetze / 3));
 
   const views: WallView[] = ['kuehlraum', 'extern', 'abholungen', 'offen'];
 
@@ -140,7 +141,15 @@ export function WallPage() {
         {view === 'kuehlraum' && (
           <div className="wall-kuehlraum-stage">
             <h2 className="wall-stage-title">{cfg.label}</h2>
-            <div className="wall-cool-grid">
+            <div
+              className="wall-cool-grid"
+              style={
+                {
+                  '--kr-cols': 3,
+                  '--kr-rows': kuehlraumRows,
+                } as React.CSSProperties
+              }
+            >
               {slots.map((fall, i) => (
                 <div
                   key={i}

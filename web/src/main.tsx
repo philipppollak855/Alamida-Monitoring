@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { App } from './App';
 import './styles.css';
 import './theme-alamida.css';
+import './mobile.css';
 import { registerSW } from 'virtual:pwa-register';
 
 registerSW({
