@@ -13,6 +13,14 @@ public sealed record DetailSnapshot
     public string? Bestattungsart { get; init; }
     public string? Endziel { get; init; }
     public string? EndzielTyp { get; init; }
+    public string? BeisetzungsDatum { get; init; }
+    public string? BeisetzungsZeit { get; init; }
+    public string? TrauerfeierDatum { get; init; }
+    public string? TrauerfeierZeit { get; init; }
+    public bool ImAnschluss { get; init; }
+    public bool InHistory { get; init; }
+    public DateTime? SichtbarBis { get; init; }
+    public string? HistorieGrund { get; init; }
     public string? Kuehlraum { get; init; }
     public string? Kuehlplatz { get; init; }
     public string? AktuellePosition { get; init; }
@@ -61,6 +69,12 @@ public sealed record DetailSnapshot
             AbholortIstKrankenhaus ? "kh" : "",
             Bestattungsart ?? "",
             Endziel ?? "",
+            BeisetzungsDatum ?? "",
+            BeisetzungsZeit ?? "",
+            TrauerfeierDatum ?? "",
+            TrauerfeierZeit ?? "",
+            ImAnschluss ? "1" : "",
+            InHistory ? "hist" : "",
             Kuehlraum ?? "",
             Kuehlplatz ?? "",
             AktuellePosition ?? "",

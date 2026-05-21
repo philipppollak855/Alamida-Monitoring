@@ -8,6 +8,7 @@ public sealed class WatcherLoop
 {
     private readonly AlamidaMaskWatcher _watcher;
     private readonly FirestoreSyncService? _firestore;
+    private readonly DispositionSettingsLoader? _settingsLoader;
     private readonly OfflineQueue _offlineQueue = new();
     private readonly SterbefallTracker _tracker = new();
     private readonly int _pollIntervalMs;
@@ -25,10 +26,12 @@ public sealed class WatcherLoop
     public WatcherLoop(
         FieldMappingProfile profile,
         FirestoreSyncService? firestore,
+        DispositionSettingsLoader? settingsLoader,
         int pollIntervalMs)
     {
         _watcher = new AlamidaMaskWatcher(profile);
         _firestore = firestore;
+        _settingsLoader = settingsLoader;
         _pollIntervalMs = Math.Max(500, pollIntervalMs);
     }
 
@@ -83,12 +86,15 @@ public sealed class WatcherLoop
 
         try
         {
+            if (_settingsLoader != null)
+            {
+                await _settingsLoader.RefreshAsync(ct);
+                OrtErkennung.Apply(_settingsLoader.Current);
+            }
             await _offlineQueue.FlushAsync(_firestore, ct);
-            var (fallWechsel, vorherigerFall) = _tracker.Register(snapshot);
-            if (fallWechsel && !string.IsNullOrWhiteSpace(vorherigerFall))
-                await _firestore.MarkSterbefallInactiveAsync(vorherigerFall, ct);
+            _tracker.Register(snapshot);
 
-            var result = await _firestore.SyncSnapshotAsync(snapshot, fallWechsel, ct);
+            var result = await _firestore.SyncSnapshotAsync(snapshot, sterbefallWechsel: false, ct);
             var id = result.SterbefallId ?? SterbefallTracker.Schluessel(snapshot) ?? "?";
             SetStatus(result.Kind == SyncResultKind.Updated
                 ? $"Manuell aktualisiert — {id}"
@@ -133,7 +139,7 @@ public sealed class WatcherLoop
                 }
                 else
                 {
-                    var (fallWechsel, vorherigerFall) = _tracker.Register(snapshot);
+                    var (fallWechsel, _) = _tracker.Register(snapshot);
                     if (fallWechsel)
                         sofortWeiter = true;
 
@@ -141,10 +147,12 @@ public sealed class WatcherLoop
                     {
                         try
                         {
+                            if (_settingsLoader != null)
+                            {
+                                await _settingsLoader.RefreshAsync(ct);
+                                OrtErkennung.Apply(_settingsLoader.Current);
+                            }
                             await _offlineQueue.FlushAsync(_firestore, ct);
-
-                            if (fallWechsel && !string.IsNullOrWhiteSpace(vorherigerFall))
-                                await _firestore.MarkSterbefallInactiveAsync(vorherigerFall, ct);
 
                             var result = await _firestore.SyncSnapshotAsync(snapshot, fallWechsel, ct);
                             var id = result.SterbefallId

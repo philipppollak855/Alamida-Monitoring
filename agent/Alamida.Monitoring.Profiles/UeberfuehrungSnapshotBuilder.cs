@@ -30,6 +30,16 @@ public static class UeberfuehrungSnapshotBuilder
 
         string? kuehlplatzField,
 
+        string? beisetzungsDatum,
+
+        string? beisetzungsZeit,
+
+        string? trauerfeierDatum,
+
+        string? trauerfeierZeit,
+
+        string? imAnschlussRaw,
+
         IReadOnlyList<(string? RouteText, string? Datum)> rohdaten)
 
     {
@@ -97,11 +107,17 @@ public static class UeberfuehrungSnapshotBuilder
 
         var (aktuell, naechste) = PositionsResolver.ResolveAktuell(effektiverSterbeort, schritte, heute);
 
-        var (krName, platz) = KuehlplatzResolver.Parse(kuehlraumRaw ?? aktuell?.Kuehlraum, kuehlplatzField);
-
-        var kuehlraum = krName ?? PositionsResolver.ResolveKuehlraumAusPosition(aktuell);
+        var (kuehlraum, platz) = KuehlraumEffektivResolver.Resolve(aktuell, kuehlraumRaw, kuehlplatzField);
 
         var ausstehend = AusstehendeUeberfuehrungenResolver.Resolve(effektiverSterbeort, schritte, heute);
+
+        var historie = SterbefallHistorieResolver.Resolve(
+            beisetzungsDatum,
+            beisetzungsZeit,
+            trauerfeierDatum,
+            trauerfeierZeit,
+            imAnschlussRaw,
+            DateTime.Now);
 
 
 
@@ -155,6 +171,22 @@ public static class UeberfuehrungSnapshotBuilder
             NaechsterSchrittNach = naechste?.NachOrt,
 
             NaechsterSchrittTyp = naechste?.SchrittTyp,
+
+            BeisetzungsDatum = beisetzungsDatum,
+
+            BeisetzungsZeit = beisetzungsZeit,
+
+            TrauerfeierDatum = trauerfeierDatum,
+
+            TrauerfeierZeit = trauerfeierZeit,
+
+            ImAnschluss = SterbefallHistorieResolver.IstImAnschluss(imAnschlussRaw),
+
+            InHistory = historie.InHistory,
+
+            SichtbarBis = historie.SichtbarBis,
+
+            HistorieGrund = historie.Grund,
 
         };
 

@@ -23,7 +23,8 @@ public sealed class TrayApplicationContext : ApplicationContext
             out var fsError);
         _firestoreHinweis = fsError;
 
-        _loop = new WatcherLoop(profile, firestore, config.PollIntervalMs);
+        var settingsLoader = firestore?.CreateSettingsLoader();
+        _loop = new WatcherLoop(profile, firestore, settingsLoader, config.PollIntervalMs);
         _loop.StatusChanged += OnStatusChanged;
         _loop.ErrorOccurred += ex => ShowBalloon($"Fehler: {ex.Message}", ToolTipIcon.Error);
 

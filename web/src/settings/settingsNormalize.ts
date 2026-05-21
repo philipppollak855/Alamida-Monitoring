@@ -1,0 +1,47 @@
+import type { DispositionSettings, EigenerKuehlraumConfig } from '../types/dispositionSettings';
+import { DEFAULT_DISPOSITION_SETTINGS } from '../config/defaultDispositionSettings';
+import { dedupeKeywords } from './recognitionEngine';
+
+export function normalizeDispositionSettings(
+  raw: Partial<DispositionSettings> | undefined
+): DispositionSettings {
+  if (!raw) return { ...DEFAULT_DISPOSITION_SETTINGS };
+
+  const eigeneKuehlraeume: EigenerKuehlraumConfig[] =
+    raw.eigeneKuehlraeume?.length
+      ? raw.eigeneKuehlraeume.map((k, i) => {
+          const keywords = dedupeKeywords(k.matchKeywords ?? []);
+          const alamida = k.alamidaName?.trim();
+          if (alamida && !keywords.some((kw) => kw.toLowerCase() === alamida.toLowerCase())) {
+            keywords.unshift(alamida);
+          }
+          return {
+            id: (k.id || `kr-${i}`).trim() || `kr-${i}`,
+            label: (k.label || 'Kühlraum').trim(),
+            alamidaName: alamida || undefined,
+            matchKeywords: keywords,
+            plaetze: Math.max(1, Math.min(99, Number(k.plaetze) || 1)),
+          };
+        })
+      : [...DEFAULT_DISPOSITION_SETTINGS.eigeneKuehlraeume];
+
+  return {
+    kremationKeywords: dedupeKeywords(
+      raw.kremationKeywords?.length
+        ? raw.kremationKeywords
+        : DEFAULT_DISPOSITION_SETTINGS.kremationKeywords
+    ),
+    krankenhausPrefixe: dedupeKeywords(
+      raw.krankenhausPrefixe?.length
+        ? raw.krankenhausPrefixe
+        : DEFAULT_DISPOSITION_SETTINGS.krankenhausPrefixe
+    ),
+    krankenhausKeywords: dedupeKeywords(
+      raw.krankenhausKeywords?.length
+        ? raw.krankenhausKeywords
+        : DEFAULT_DISPOSITION_SETTINGS.krankenhausKeywords
+    ),
+    eigeneKuehlraeume,
+    updatedAt: raw.updatedAt,
+  };
+}

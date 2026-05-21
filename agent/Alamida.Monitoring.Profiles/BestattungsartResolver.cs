@@ -38,12 +38,11 @@ public static class BestattungsartResolver
         if (lowerArt.Contains("urne") || lowerArt.Contains("feuer") || lowerArt.Contains("kremation"))
             return true;
 
-        foreach (var kw in OrtSchluesselwoerter.Kremation)
-        {
-            if (lowerArt.Contains(kw, StringComparison.Ordinal)) return true;
-            if (OrtSchluesselwoerter.IstKrematorium(krem)) return true;
-            if (OrtSchluesselwoerter.IstKrematorium(feuer)) return true;
-        }
+        if (OrtSchluesselwoerter.IstKrematorium(krem) || OrtSchluesselwoerter.IstKrematorium(feuer))
+            return true;
+
+        if (OrtSchluesselwoerter.IstKrematorium(lowerArt))
+            return true;
 
         return false;
     }

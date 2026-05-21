@@ -66,6 +66,11 @@ public sealed class AlamidaMaskWatcher
                 fields.GetValueOrDefault("feuerbestattungOrt"),
                 fields.GetValueOrDefault("kuehlraum"),
                 fields.GetValueOrDefault("kuehlplatz"),
+                fields.GetValueOrDefault("beisetzungsdatum"),
+                fields.GetValueOrDefault("beisetzungszeit"),
+                fields.GetValueOrDefault("trauerfeierdatum"),
+                fields.GetValueOrDefault("trauerfeierzeit"),
+                fields.GetValueOrDefault("imAnschluss"),
                 rohdaten);
 
             return snap with

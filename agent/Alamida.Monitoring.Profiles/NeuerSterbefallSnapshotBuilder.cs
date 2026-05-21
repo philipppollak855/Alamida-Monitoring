@@ -33,6 +33,11 @@ public static class NeuerSterbefallSnapshotBuilder
             fields.GetValueOrDefault("feuerbestattungOrt"),
             fields.GetValueOrDefault("kuehlraum"),
             fields.GetValueOrDefault("kuehlplatz"),
+            fields.GetValueOrDefault("beisetzungsdatum"),
+            fields.GetValueOrDefault("beisetzungszeit"),
+            fields.GetValueOrDefault("trauerfeierdatum"),
+            fields.GetValueOrDefault("trauerfeierzeit"),
+            fields.GetValueOrDefault("imAnschluss"),
             rohdaten);
 
         var erfassungSchluessel = !string.IsNullOrWhiteSpace(id)

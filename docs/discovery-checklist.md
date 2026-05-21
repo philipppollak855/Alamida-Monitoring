@@ -25,6 +25,13 @@ c:\Users\offic\Alamida-Monitoring\scripts\inspect.bat
 3. In `docs/inspector-dump.txt` nach `Sterbeort`, `Todesort`, `Verstorben` suchen
 4. Gefundene `AutomationId` in `docs/field-mapping-9.2.1.json` unter `sterbeort` eintragen
 
+## History (Disposition / Wall)
+
+- **Beisetzung mit Uhrzeit**: sichtbar bis Beisetzungszeit **+ 2 Stunden**
+- **Nur Beisetzungsdatum** (ohne Uhrzeit): sichtbar bis **Tagesende** (23:59)
+- **„Im Anschluss“**: sichtbar bis **Trauerfeier-Uhrzeit + 2 Stunden** (Felder `trauerfeierdatum`, `trauerfeierzeit`, `imAnschluss`)
+- **Alle anderen Fälle bleiben sichtbar** — Wechsel in Alamida deaktiviert frühere Fälle nicht mehr (`aktivInAlamida` bleibt true)
+
 ## Bestattungsart / Endziel
 
 | Art | Endziel in Monitoring |
@@ -34,10 +41,17 @@ c:\Users\offic\Alamida-Monitoring\scripts\inspect.bat
 
 Felder: `bestattungsart`, `beisetzungsort`, `krematoriumOrt` — ggf. Tab **Verstorbener** / **Sterbefalldaten** per Inspector ergänzen.
 
-## Kühlplatz Grafenbach
+## Erkennung & Kühlraum (Disposition)
 
-In `web/src/kuehlraumConfig.ts`: Anzahl Plätze (Standard **9**) anpassen.  
-Alamida-Feld `kuehlplatz` / `Kuehlraum_Nr` per Inspector mappen.
+In der Web-App unter **Disposition → „Erkennung & Kühlraum“** (Firestore `settings/disposition`):
+
+- **Ort prüfen**: Testfeld mit Beispiel-Orten, zeigt Treffer vor dem Speichern
+- Keywords **Kremation**, **Krankenhaus** (Präfixe + Keywords), Duplikate werden entfernt
+- Kurze Keywords (2–3 Zeichen) mit **Wortgrenzen**, längere mit Enthält-Match
+- **Eigene Kühlräume**: Bezeichnung, Plätze (1–99), Keywords; Alamida-Name wird als Keyword übernommen
+- Validierung + Hinweise vor dem Speichern; Agent lädt bei `settingsVersion`-Änderung neu (Cache ~30 s)
+
+Alamida-Feld `kuehlplatz` / `Kuehlraum_Nr` weiter per Inspector in `field-mapping-9.2.1.json` mappen.
 
 ## Positionslogik (Agent)
 

@@ -23,6 +23,8 @@ public sealed class FirestoreSyncService : IAsyncDisposable
         _workstationId = workstationId;
     }
 
+    public DispositionSettingsLoader CreateSettingsLoader() => new(_db);
+
     public Task<bool> SyncSnapshotAsync(DetailSnapshot snapshot, CancellationToken ct = default) =>
         SyncSnapshotAsync(snapshot, sterbefallWechsel: false, ct).ContinueWith(
             t => t.Result.Kind != SyncResultKind.Skipped, ct);
@@ -45,12 +47,19 @@ public sealed class FirestoreSyncService : IAsyncDisposable
             : null;
         var now = Timestamp.FromDateTime(DateTime.UtcNow);
 
+        var inHistory = snapshot.InHistory;
+        Timestamp? sichtbarBis = snapshot.SichtbarBis.HasValue
+            ? Timestamp.FromDateTime(snapshot.SichtbarBis.Value.ToUniversalTime())
+            : null;
+
         if (oldHash == contentHash)
         {
             await sterbefallRef.SetAsync(new Dictionary<string, object>
             {
                 ["sterbefallId"] = sterbefallId,
                 ["aktivInAlamida"] = true,
+                ["aktivInDisposition"] = !inHistory,
+                ["inHistory"] = inHistory,
                 ["lastSeenAt"] = now,
                 ["workstationId"] = _workstationId,
                 ["verstorbenerName"] = snapshot.VerstorbenerName ?? "",
@@ -58,6 +67,9 @@ public sealed class FirestoreSyncService : IAsyncDisposable
                 ["quelleMaske"] = snapshot.QuelleMaske ?? "",
                 ["erfassungsPhase"] = snapshot.ErfassungsPhase ?? "",
             }, SetOptions.MergeAll, ct);
+
+            if (inHistory)
+                await ArchiveToHistoryAsync(sterbefallRef, sterbefallId, snapshot, now, ct);
 
             return new SyncResult
             {
@@ -67,7 +79,9 @@ public sealed class FirestoreSyncService : IAsyncDisposable
             };
         }
         var kuehlraum = snapshot.Kuehlraum ?? "";
-        var status = string.IsNullOrWhiteSpace(kuehlraum) ? "unterwegs" : "im_kuehlraum";
+        var status = inHistory
+            ? "archiviert"
+            : string.IsNullOrWhiteSpace(kuehlraum) ? "unterwegs" : "im_kuehlraum";
 
         var verlauf = snapshot.Verlauf.Select(v => new Dictionary<string, object>
         {
@@ -93,7 +107,7 @@ public sealed class FirestoreSyncService : IAsyncDisposable
             ["istAbholungVomSterbeort"] = a.IstAbholungVomSterbeort,
         }).ToList();
 
-        await sterbefallRef.SetAsync(new Dictionary<string, object>
+        var sterbefallData = new Dictionary<string, object>
         {
             ["sterbefallId"] = sterbefallId,
             ["verstorbenerName"] = snapshot.VerstorbenerName ?? "",
@@ -110,10 +124,18 @@ public sealed class FirestoreSyncService : IAsyncDisposable
             ["bestattungsart"] = snapshot.Bestattungsart ?? "",
             ["endziel"] = snapshot.Endziel ?? "",
             ["endzielTyp"] = snapshot.EndzielTyp ?? "",
-            ["kuehlplatz"] = snapshot.Kuehlplatz ?? "",
+            ["kuehlplatz"] = inHistory ? "" : snapshot.Kuehlplatz ?? "",
+            ["beisetzungsdatum"] = snapshot.BeisetzungsDatum ?? "",
+            ["beisetzungszeit"] = snapshot.BeisetzungsZeit ?? "",
+            ["trauerfeierdatum"] = snapshot.TrauerfeierDatum ?? "",
+            ["trauerfeierzeit"] = snapshot.TrauerfeierZeit ?? "",
+            ["imAnschluss"] = snapshot.ImAnschluss,
+            ["inHistory"] = inHistory,
+            ["aktivInDisposition"] = !inHistory,
+            ["historieGrund"] = snapshot.HistorieGrund ?? "",
             ["aktuellePosition"] = snapshot.AktuellePosition ?? "",
             ["aktuellePositionTyp"] = snapshot.AktuellePositionTyp ?? "",
-            ["kuehlraumId"] = kuehlraum,
+            ["kuehlraumId"] = inHistory ? "" : kuehlraum,
             ["kuehlraumQuelle"] = "alamida_detail",
             ["status"] = status,
             ["naechsterSchrittAm"] = snapshot.NaechsterSchrittAm ?? "",
@@ -133,7 +155,16 @@ public sealed class FirestoreSyncService : IAsyncDisposable
             ["erkanntAm"] = existing.Exists && existing.ContainsField("erkanntAm")
                 ? existing.GetValue<Timestamp>("erkanntAm")
                 : now,
-        }, SetOptions.MergeAll, ct);
+        };
+        if (sichtbarBis != null)
+            sterbefallData["sichtbarBis"] = sichtbarBis;
+        if (inHistory)
+            sterbefallData["archiviertAm"] = now;
+
+        await sterbefallRef.SetAsync(sterbefallData, SetOptions.MergeAll, ct);
+
+        if (inHistory)
+            await ArchiveToHistoryAsync(sterbefallRef, sterbefallId, snapshot, now, ct);
 
         var schritte = snapshot.Schritte.Count > 0
             ? snapshot.Schritte
@@ -208,6 +239,29 @@ public sealed class FirestoreSyncService : IAsyncDisposable
     {
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(schluessel.Trim()));
         return $"NEU-{Convert.ToHexString(hash)[..12]}";
+    }
+
+    private async Task ArchiveToHistoryAsync(
+        DocumentReference sterbefallRef,
+        string sterbefallId,
+        DetailSnapshot snapshot,
+        Timestamp now,
+        CancellationToken ct)
+    {
+        var snap = await sterbefallRef.GetSnapshotAsync(ct);
+        var data = snap.Exists
+            ? new Dictionary<string, object>(snap.ToDictionary())
+            : new Dictionary<string, object>();
+
+        data["sterbefallId"] = sterbefallId;
+        data["verstorbenerName"] = snapshot.VerstorbenerName ?? "";
+        data["inHistory"] = true;
+        data["archiviertAm"] = now;
+        data["historieGrund"] = snapshot.HistorieGrund ?? "beisetzung";
+        if (snapshot.SichtbarBis.HasValue)
+            data["sichtbarBis"] = Timestamp.FromDateTime(snapshot.SichtbarBis.Value.ToUniversalTime());
+
+        await _db.Collection("sterbefaelle_history").Document(sterbefallId).SetAsync(data, SetOptions.MergeAll, ct);
     }
 
     public async Task MarkSterbefallInactiveAsync(string sterbefallId, CancellationToken ct = default)

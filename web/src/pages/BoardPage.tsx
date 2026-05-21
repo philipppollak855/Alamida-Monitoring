@@ -4,18 +4,26 @@ import { useFirestoreCollection } from '../hooks/useFirestoreCollection';
 import { firebaseConfigured } from '../firebase';
 import {
   boardStats,
-  buildGrafenbachSlots,
+  buildPrimaerKuehlraumSlots,
   flattenOffene,
 } from '../board/boardUtils';
+import { filterAktiveSterbefaelle } from '../board/historieLogic';
+import { DispositionSettingsPanel } from '../components/DispositionSettingsPanel';
 import { EndzielChip, SchrittBadge, StatusChip } from '../ui/SchrittBadge';
 import { RouteFlow } from '../ui/RouteFlow';
 import { StatCard } from '../ui/StatCard';
+import { useDispositionSettings } from '../settings/SettingsProvider';
+import { matchEigenerKuehlraum } from '../settings/ortMatchers';
 import type { Sterbefall, MonitoringEvent } from '../types';
-import { matchKuehlraumConfig } from '../kuehlraumConfig';
 
 export function BoardPage() {
-  const { items: sterbefaelle, loading, error } =
+  const { settings } = useDispositionSettings();
+  const { items: sterbefaelleRaw, loading, error } =
     useFirestoreCollection<Sterbefall>('sterbefaelle', 'updatedAt');
+  const sterbefaelle = useMemo(
+    () => filterAktiveSterbefaelle(sterbefaelleRaw),
+    [sterbefaelleRaw]
+  );
   const { items: events } = useFirestoreCollection<MonitoringEvent>(
     'events',
     'createdAt',
@@ -27,8 +35,8 @@ export function BoardPage() {
   const offene = useMemo(() => flattenOffene(sterbefaelle), [sterbefaelle]);
   const stats = useMemo(() => boardStats(sterbefaelle, offene), [sterbefaelle, offene]);
   const { cfg: grafenbachCfg, slots: grafenbachSlots } = useMemo(
-    () => buildGrafenbachSlots(sterbefaelle),
-    [sterbefaelle]
+    () => buildPrimaerKuehlraumSlots(sterbefaelle),
+    [sterbefaelle, settings]
   );
 
   const filteredOffene = useMemo(() => {
@@ -42,7 +50,7 @@ export function BoardPage() {
     const map = new Map<string, Sterbefall[]>();
     for (const s of sterbefaelle) {
       if (s.status !== 'im_kuehlraum' || !s.kuehlraumId) continue;
-      if (matchKuehlraumConfig(s.kuehlraumId)) continue;
+      if (matchEigenerKuehlraum(s.kuehlraumId)) continue;
       const kr = s.kuehlraumId.trim();
       if (!map.has(kr)) map.set(kr, []);
       map.get(kr)!.push(s);
@@ -71,6 +79,8 @@ export function BoardPage() {
       </header>
 
       {error && <div className="alert alert-danger">{error}</div>}
+
+      <DispositionSettingsPanel />
 
       <div className="kpi-grid">
         <StatCard label="Offen" value={stats.offen} hint="geplante Schritte" accent="accent" />
@@ -159,7 +169,12 @@ export function BoardPage() {
                 </p>
               </div>
             </div>
-            <div className="cool-grid cool-grid-9">
+            <div
+              className="cool-grid"
+              style={{
+                gridTemplateColumns: `repeat(${Math.min(grafenbachCfg.plaetze, 6)}, 1fr)`,
+              }}
+            >
               {grafenbachSlots.map((fall, i) => (
                 <div
                   key={i}

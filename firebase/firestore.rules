@@ -38,5 +38,14 @@ service cloud.firestore {
       allow read: if isActivatedUser();
       allow write: if false;
     }
+    match /sterbefaelle_history/{id} {
+      allow read: if isActivatedUser();
+      allow write: if false;
+    }
+
+    match /settings/{docId} {
+      allow read: if isActivatedUser();
+      allow write: if isActivatedUser();
+    }
   }
 }

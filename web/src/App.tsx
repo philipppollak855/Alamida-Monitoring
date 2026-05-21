@@ -1,5 +1,6 @@
 import { Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthProvider';
+import { SettingsProvider } from './settings/SettingsProvider';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AppShell } from './layout/AppShell';
 import { BoardPage } from './pages/BoardPage';
@@ -14,7 +15,13 @@ export function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/pending" element={<PendingPage />} />
         <Route element={<ProtectedRoute />}>
-          <Route element={<AppShell />}>
+          <Route
+            element={
+              <SettingsProvider>
+                <AppShell />
+              </SettingsProvider>
+            }
+          >
             <Route path="/" element={<BoardPage />} />
             <Route path="/wall" element={<WallPage />} />
           </Route>

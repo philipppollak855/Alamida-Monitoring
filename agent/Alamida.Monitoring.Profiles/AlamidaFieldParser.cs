@@ -63,4 +63,74 @@ public static class AlamidaFieldParser
 
         return false;
     }
+
+    /// <summary>Datum + optionale Uhrzeit (Felder oder kombiniert „dd.MM.yyyy HH:mm“).</summary>
+    public static bool TryParseDatumZeit(
+        string? datumText,
+        string? zeitText,
+        out DateTime ergebnis,
+        out bool hatExpliziteUhrzeit)
+    {
+        ergebnis = default;
+        hatExpliziteUhrzeit = false;
+
+        if (!string.IsNullOrWhiteSpace(datumText) &&
+            TryParseDatumZeitKombiniert(datumText.Trim(), out ergebnis, out hatExpliziteUhrzeit))
+            return true;
+
+        if (!TryParseDatum(datumText, out var datumOnly))
+            return false;
+
+        ergebnis = datumOnly;
+        if (string.IsNullOrWhiteSpace(zeitText))
+            return true;
+
+        if (!TryParseUhrzeit(zeitText, out var h, out var m))
+            return true;
+
+        ergebnis = datumOnly.Date.AddHours(h).AddMinutes(m);
+        hatExpliziteUhrzeit = true;
+        return true;
+    }
+
+    private static bool TryParseDatumZeitKombiniert(string s, out DateTime ergebnis, out bool hatUhrzeit)
+    {
+        hatUhrzeit = false;
+        ergebnis = default;
+
+        var formats = new[]
+        {
+            "dd.MM.yyyy HH:mm",
+            "dd.MM.yyyy H:mm",
+            "dd.MM.yyyy HH:mm:ss",
+        };
+        foreach (var fmt in formats)
+        {
+            if (DateTime.TryParseExact(s, fmt, CultureInfo.InvariantCulture, DateTimeStyles.None, out ergebnis))
+            {
+                hatUhrzeit = ergebnis.TimeOfDay != TimeSpan.Zero;
+                return true;
+            }
+        }
+
+        if (TryParseDatum(s, out ergebnis))
+            return true;
+
+        return false;
+    }
+
+    private static bool TryParseUhrzeit(string? text, out int stunden, out int minuten)
+    {
+        stunden = 0;
+        minuten = 0;
+        if (string.IsNullOrWhiteSpace(text)) return false;
+
+        var s = text.Trim();
+        var m = Regex.Match(s, @"^(\d{1,2})[:\.](\d{2})");
+        if (!m.Success) return false;
+
+        stunden = int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture);
+        minuten = int.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture);
+        return stunden is >= 0 and < 24 && minuten is >= 0 and < 60;
+    }
 }

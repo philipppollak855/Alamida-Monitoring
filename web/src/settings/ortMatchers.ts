@@ -1,0 +1,36 @@
+import type { DispositionSettings, EigenerKuehlraumConfig } from '../types/dispositionSettings';
+import { getDispositionSettings } from './dispositionSettingsStore';
+import {
+  istKrematoriumOrt,
+  istKrankenhausOrt,
+  matchEigenerKuehlraumOrt,
+  classifyOrt,
+} from './recognitionEngine';
+
+export { classifyOrt } from './recognitionEngine';
+
+export function ortLabel(ort: string): string {
+  return ort.trim().replace(/\s+/g, ' ');
+}
+
+export function istKrematorium(ort?: string, settings?: DispositionSettings): boolean {
+  if (!ort?.trim()) return false;
+  return istKrematoriumOrt(ort, settings ?? getDispositionSettings());
+}
+
+export function istKrankenhaus(ort?: string, settings?: DispositionSettings): boolean {
+  if (!ort?.trim()) return false;
+  return istKrankenhausOrt(ort, settings ?? getDispositionSettings());
+}
+
+export function matchEigenerKuehlraum(
+  ort?: string,
+  settings?: DispositionSettings
+): EigenerKuehlraumConfig | null {
+  if (!ort?.trim()) return null;
+  return matchEigenerKuehlraumOrt(ort, settings ?? getDispositionSettings());
+}
+
+export function matchKuehlraumConfig(kuehlraumId?: string) {
+  return matchEigenerKuehlraum(kuehlraumId);
+}

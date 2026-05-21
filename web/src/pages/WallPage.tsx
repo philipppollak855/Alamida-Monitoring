@@ -4,7 +4,9 @@ import { useAuth } from '../auth/AuthContext';
 import { LiveIndicator } from '../components/LiveIndicator';
 import { useFirestoreCollection } from '../hooks/useFirestoreCollection';
 import { firebaseConfigured } from '../firebase';
-import { buildGrafenbachSlots, flattenOffene } from '../board/boardUtils';
+import { buildPrimaerKuehlraumSlots, flattenOffene } from '../board/boardUtils';
+import { useDispositionSettings } from '../settings/SettingsProvider';
+import { filterAktiveSterbefaelle } from '../board/historieLogic';
 import { buildExternGruppen, externGesamt } from '../board/wallExternUtils';
 import { SchrittBadge } from '../ui/SchrittBadge';
 import { RouteFlow } from '../ui/RouteFlow';
@@ -24,15 +26,24 @@ function useClock() {
 }
 
 export function WallPage() {
+  const { settings } = useDispositionSettings();
   const { signOut } = useAuth();
   const now = useClock();
   const [view, setView] = useState<WallView>('kuehlraum');
   const [slide, setSlide] = useState(0);
+  const [rotationPaused, setRotationPaused] = useState(false);
 
   const sterbefaelleQuery = useFirestoreCollection<Sterbefall>('sterbefaelle', 'updatedAt');
-  const { items: sterbefaelle, lastSyncAt, isLive, loading } = sterbefaelleQuery;
+  const { items: sterbefaelleRaw, lastSyncAt, isLive, loading } = sterbefaelleQuery;
+  const sterbefaelle = useMemo(
+    () => filterAktiveSterbefaelle(sterbefaelleRaw),
+    [sterbefaelleRaw]
+  );
 
-  const { cfg, slots } = useMemo(() => buildGrafenbachSlots(sterbefaelle), [sterbefaelle]);
+  const { cfg, slots } = useMemo(
+    () => buildPrimaerKuehlraumSlots(sterbefaelle),
+    [sterbefaelle, settings]
+  );
   const externGruppen = useMemo(() => buildExternGruppen(sterbefaelle), [sterbefaelle]);
   const externTotal = useMemo(() => externGesamt(externGruppen), [externGruppen]);
   const offene = useMemo(() => flattenOffene(sterbefaelle), [sterbefaelle]);
@@ -42,6 +53,7 @@ export function WallPage() {
   const views: WallView[] = ['kuehlraum', 'extern', 'abholungen', 'offen'];
 
   useEffect(() => {
+    if (rotationPaused) return;
     const t = setInterval(() => {
       setSlide((s) => {
         const next = (s + 1) % views.length;
@@ -50,7 +62,7 @@ export function WallPage() {
       });
     }, ROTATE_MS);
     return () => clearInterval(t);
-  }, []);
+  }, [rotationPaused]);
 
   if (!firebaseConfigured) {
     return (
@@ -102,7 +114,7 @@ export function WallPage() {
           <button
             key={v}
             type="button"
-            className={`wall-view-tab ${view === v ? 'active' : ''} ${slide === i ? 'auto' : ''}`}
+            className={`wall-view-tab ${view === v ? 'active' : ''} ${!rotationPaused && slide === i ? 'auto' : ''}`}
             onClick={() => {
               setView(v);
               setSlide(i);
@@ -238,7 +250,21 @@ export function WallPage() {
             <span key={i} className={`wall-progress-dot ${slide === i ? 'on' : ''}`} />
           ))}
         </div>
-        <span className="wall-rotate-hint">Wechsel alle {ROTATE_MS / 1000}s · Klick auf Tab zum Halten</span>
+        <div className="wall-footer-actions">
+          <button
+            type="button"
+            className={`wall-pause-btn ${rotationPaused ? 'is-paused' : ''}`}
+            aria-pressed={rotationPaused}
+            onClick={() => setRotationPaused((p) => !p)}
+          >
+            {rotationPaused ? 'Fortsetzen' : 'Pause'}
+          </button>
+          <span className="wall-rotate-hint">
+            {rotationPaused
+              ? 'Automatischer Wechsel pausiert · Tabs manuell wählbar'
+              : `Wechsel alle ${ROTATE_MS / 1000}s · Pause stoppt den Wechsel`}
+          </span>
+        </div>
       </footer>
     </div>
   );

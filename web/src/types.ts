@@ -37,6 +37,16 @@ export interface Sterbefall {
   bestattungsart?: string;
   endziel?: string;
   endzielTyp?: string;
+  beisetzungsdatum?: string;
+  beisetzungszeit?: string;
+  trauerfeierdatum?: string;
+  trauerfeierzeit?: string;
+  imAnschluss?: boolean;
+  inHistory?: boolean;
+  aktivInDisposition?: boolean;
+  sichtbarBis?: { seconds: number };
+  historieGrund?: string;
+  archiviertAm?: { seconds: number };
   aktuellePosition?: string;
   aktuellePositionTyp?: string;
   kuehlraumId?: string;

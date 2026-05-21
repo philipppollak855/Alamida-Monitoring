@@ -1,6 +1,9 @@
 import type { Sterbefall } from '../types';
-import { matchKuehlraumConfig } from '../kuehlraumConfig';
 import { istKrankenhaus, istKrematorium, ortLabel } from './ortKeywords';
+import {
+  hatAusstehendeUeberfuehrungInsEigeneKr,
+  isImEigenenKuehlraum,
+} from './kuehlraumLogic';
 
 export interface ExternFallEintrag {
   sterbefallId: string;
@@ -18,11 +21,6 @@ export interface ExternOrtGruppe {
 
 function isAktiv(s: Sterbefall): boolean {
   return s.aktivInAlamida !== false;
-}
-
-/** Liegt im firmeneigenen Kühlraum (z. B. Grafenbach). */
-export function isImEigenenKuehlraum(s: Sterbefall): boolean {
-  return s.status === 'im_kuehlraum' && !!matchKuehlraumConfig(s.kuehlraumId);
 }
 
 function hatOffeneAbholungVomSterbeort(s: Sterbefall): boolean {
@@ -49,6 +47,7 @@ function hinweisFuerFall(s: Sterbefall, typ: 'krankenhaus' | 'kremation'): strin
   const n = naechsterSchritt(s);
   if (n?.status === 'heute') return 'Termin heute';
   if (n?.status === 'abholung_noetig') return 'Abholung ausstehend';
+  if (hatAusstehendeUeberfuehrungInsEigeneKr(s)) return 'Überführung ohne Datum';
   if (typ === 'kremation' && s.aktuellePositionTyp === 'kremation') return 'Im Krematorium';
   if (s.aktuellePositionTyp === 'sterbeort') return 'Am Sterbeort';
   if (n?.schrittTyp === 'abholung') return 'Wartet auf Abholung';
@@ -64,6 +63,17 @@ export function resolveExternStandort(
   s: Sterbefall
 ): { typ: 'krankenhaus' | 'kremation'; ort: string } | null {
   if (!isAktiv(s) || isImEigenenKuehlraum(s)) return null;
+
+  if (s.aktuellePositionTyp === 'sterbeort' || hatAusstehendeUeberfuehrungInsEigeneKr(s)) {
+    const khOrt = s.sterbeort || s.abholort;
+    if (khOrt && istKrankenhaus(khOrt)) {
+      return { typ: 'krankenhaus', ort: ortLabel(khOrt) };
+    }
+    const vonKh = (s.ausstehend ?? []).find(
+      (a) => a.vonOrt && istKrankenhaus(a.vonOrt)
+    )?.vonOrt;
+    if (vonKh) return { typ: 'krankenhaus', ort: ortLabel(vonKh) };
+  }
 
   const pos = s.aktuellePosition?.trim();
 

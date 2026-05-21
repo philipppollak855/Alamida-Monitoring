@@ -30,6 +30,48 @@
           "automationIdContains": ["Termin_Bestattung_Ort"],
           "controlTypes": ["ComboBox", "Edit"]
         },
+        "beisetzungsdatum": {
+          "automationIdContains": [
+            "Termin_Bestattung_Datum",
+            "Beisetzungsdatum",
+            "Bestattung_Datum",
+            "Termin_Beisetzung_Datum"
+          ],
+          "controlTypes": ["Calendar", "Edit"]
+        },
+        "beisetzungszeit": {
+          "automationIdContains": [
+            "Termin_Bestattung_Zeit",
+            "Beisetzung_Uhrzeit",
+            "Bestattung_Uhrzeit",
+            "Termin_Beisetzung_Zeit"
+          ],
+          "controlTypes": ["Edit", "Text"]
+        },
+        "trauerfeierdatum": {
+          "automationIdContains": [
+            "Termin_Trauerfeier_Datum",
+            "Trauerfeier_Datum",
+            "Trauerfeier_Termin"
+          ],
+          "controlTypes": ["Calendar", "Edit"]
+        },
+        "trauerfeierzeit": {
+          "automationIdContains": [
+            "Termin_Trauerfeier_Zeit",
+            "Trauerfeier_Uhrzeit",
+            "Trauerfeier_Zeit"
+          ],
+          "controlTypes": ["Edit", "Text"]
+        },
+        "imAnschluss": {
+          "automationIdContains": [
+            "Im_Anschluss",
+            "Bestattung_Im_Anschluss",
+            "Trauerfeier_Im_Anschluss"
+          ],
+          "controlTypes": ["CheckBox"]
+        },
         "krematoriumOrt": {
           "automationIdContains": ["Krematorium", "Krematorium_Ort", "Feuerbestattung_Ort"],
           "nameContains": ["Innermanzing", "Feba", "Krematorium"],
@@ -141,6 +183,34 @@
       "beisetzungsort": {
         "automationIdContains": ["Termin_Bestattung_Ort", "Beisetzungsort"],
         "controlTypes": ["ComboBox", "Edit"]
+      },
+      "beisetzungsdatum": {
+        "automationIdContains": [
+          "Termin_Bestattung_Datum",
+          "Beisetzungsdatum",
+          "Bestattung_Datum"
+        ],
+        "controlTypes": ["Calendar", "Edit"]
+      },
+      "beisetzungszeit": {
+        "automationIdContains": [
+          "Termin_Bestattung_Zeit",
+          "Beisetzung_Uhrzeit",
+          "Bestattung_Uhrzeit"
+        ],
+        "controlTypes": ["Edit", "Text"]
+      },
+      "trauerfeierdatum": {
+        "automationIdContains": ["Termin_Trauerfeier_Datum", "Trauerfeier_Datum"],
+        "controlTypes": ["Calendar", "Edit"]
+      },
+      "trauerfeierzeit": {
+        "automationIdContains": ["Termin_Trauerfeier_Zeit", "Trauerfeier_Uhrzeit"],
+        "controlTypes": ["Edit", "Text"]
+      },
+      "imAnschluss": {
+        "automationIdContains": ["Im_Anschluss", "Bestattung_Im_Anschluss"],
+        "controlTypes": ["CheckBox"]
       },
       "krematoriumOrt": {
         "automationIdContains": ["Krematorium", "Krematorium_Ort", "Feuerbestattung_Ort"],

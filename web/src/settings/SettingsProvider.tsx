@@ -1,0 +1,116 @@
+import { doc, onSnapshot, setDoc, Timestamp } from 'firebase/firestore';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
+import { useAuth } from '../auth/AuthContext';
+import { db } from '../firebase';
+import { DEFAULT_DISPOSITION_SETTINGS } from '../config/defaultDispositionSettings';
+import type { DispositionSettings } from '../types/dispositionSettings';
+import {
+  mergeDispositionSettings,
+  setDispositionSettings,
+} from './dispositionSettingsStore';
+import { normalizeDispositionSettings } from './settingsNormalize';
+import { validateDispositionSettings } from './settingsValidation';
+
+const SETTINGS_DOC = ['settings', 'disposition'] as const;
+
+type SettingsContextValue = {
+  settings: DispositionSettings;
+  loading: boolean;
+  saving: boolean;
+  error: string | null;
+  saveSettings: (next: DispositionSettings) => Promise<void>;
+};
+
+const SettingsContext = createContext<SettingsContextValue | null>(null);
+
+export function SettingsProvider({ children }: { children: ReactNode }) {
+  const { status } = useAuth();
+  const [settings, setSettings] = useState<DispositionSettings>(DEFAULT_DISPOSITION_SETTINGS);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (status !== 'activated' || !db) {
+      setLoading(status === 'loading');
+      if (status !== 'activated') {
+        setDispositionSettings(DEFAULT_DISPOSITION_SETTINGS);
+        setSettings(DEFAULT_DISPOSITION_SETTINGS);
+      }
+      return;
+    }
+
+    setLoading(true);
+    const ref = doc(db, SETTINGS_DOC[0], SETTINGS_DOC[1]);
+    const unsub = onSnapshot(
+      ref,
+      (snap) => {
+        const merged = mergeDispositionSettings(
+          snap.exists() ? (snap.data() as Partial<DispositionSettings>) : undefined
+        );
+        setSettings(merged);
+        setDispositionSettings(merged);
+        setLoading(false);
+        setError(null);
+      },
+      (err) => {
+        setError(err.message);
+        setLoading(false);
+      }
+    );
+    return () => unsub();
+  }, [status]);
+
+  const saveSettings = useCallback(async (next: DispositionSettings) => {
+    if (!db) throw new Error('Firebase nicht konfiguriert');
+    const normalized = normalizeDispositionSettings(next);
+    const validation = validateDispositionSettings(normalized);
+    if (!validation.ok) {
+      const msg = validation.errors.join(' ');
+      setError(msg);
+      throw new Error(msg);
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      const ref = doc(db, SETTINGS_DOC[0], SETTINGS_DOC[1]);
+      const updatedAt = Timestamp.now();
+      const payload = {
+        ...normalized,
+        updatedAt,
+        settingsVersion: updatedAt.seconds,
+      };
+      await setDoc(ref, payload, { merge: true });
+      const merged = mergeDispositionSettings(payload);
+      setSettings(merged);
+      setDispositionSettings(merged);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Speichern fehlgeschlagen';
+      setError(msg);
+      throw e;
+    } finally {
+      setSaving(false);
+    }
+  }, []);
+
+  const value = useMemo(
+    () => ({ settings, loading, saving, error, saveSettings }),
+    [settings, loading, saving, error, saveSettings]
+  );
+
+  return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
+}
+
+export function useDispositionSettings() {
+  const ctx = useContext(SettingsContext);
+  if (!ctx) throw new Error('useDispositionSettings nur innerhalb SettingsProvider');
+  return ctx;
+}
