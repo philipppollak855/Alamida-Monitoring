@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
+import { ThemeSwitch } from '../components/ThemeSwitch';
 
 export function PendingPage() {
   const { user, profile, signOut, refreshProfile } = useAuth();
@@ -16,6 +17,9 @@ export function PendingPage() {
 
   return (
     <div className="auth-screen">
+      <div className="auth-theme-bar">
+        <ThemeSwitch />
+      </div>
       <div className="auth-card">
         <h1>Konto wartet auf Freischaltung</h1>
         <p className="auth-lead">

@@ -72,6 +72,37 @@ code {
   border-radius: 4px;
 }
 
+/* ─── Design-Umschalter ─── */
+.theme-switch {
+  display: inline-flex;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.theme-switch-btn {
+  font-family: var(--font);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.4rem 0.65rem;
+  border: none;
+  background: var(--surface-solid);
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.theme-switch-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.theme-switch-btn.active {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
 /* ─── App shell / topbar ─── */
 .app-shell {
   min-height: 100vh;
@@ -221,9 +252,17 @@ code {
 .auth-screen {
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 2rem;
+  position: relative;
+}
+
+.auth-theme-bar {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
 }
 
 .auth-card {

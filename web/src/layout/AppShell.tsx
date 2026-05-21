@@ -1,4 +1,5 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { ThemeSwitch } from '../components/ThemeSwitch';
 import { UserMenu } from '../components/UserMenu';
 
 export function AppShell() {
@@ -27,6 +28,7 @@ export function AppShell() {
             Wandmonitor
           </NavLink>
         </nav>
+        <ThemeSwitch />
         <UserMenu />
       </header>
       <main className="main-content">

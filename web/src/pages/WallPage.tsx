@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { LiveIndicator } from '../components/LiveIndicator';
+import { ThemeSwitch } from '../components/ThemeSwitch';
 import { useFirestoreCollection } from '../hooks/useFirestoreCollection';
 import { firebaseConfigured } from '../firebase';
 import { buildPrimaerKuehlraumSlots, flattenOffene } from '../board/boardUtils';
@@ -99,6 +100,7 @@ export function WallPage() {
           <span className="wall-date">{dateStr}</span>
         </div>
         <div className="wall-topbar-end">
+          <ThemeSwitch />
           <LiveIndicator isLive={isLive} lastSyncAt={lastSyncAt} loading={loading} label="Live" />
           <Link to="/" className="wall-link">
             Disposition

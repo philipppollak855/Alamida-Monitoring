@@ -1,0 +1,264 @@
+/* Alamida 9.2.1 — klassisches Desktop-Farbschema */
+
+[data-theme='alamida'] {
+  --bg: #8fb4b4;
+  --bg-elevated: #9dc0c0;
+  --surface: #c8e0e0;
+  --surface-solid: #dcebeb;
+  --surface-hover: #e8f2f2;
+  --border: #5a7f7f;
+  --border-strong: #3d5c5c;
+  --text: #1a1a1a;
+  --muted: #2d4545;
+  --accent: #1a5a8a;
+  --accent-dim: rgba(26, 90, 138, 0.15);
+  --success: #1a6b3a;
+  --success-dim: rgba(26, 107, 58, 0.12);
+  --warn: #8a5a00;
+  --warn-dim: rgba(138, 90, 0, 0.12);
+  --violet: #4a3d8a;
+  --violet-dim: rgba(74, 61, 138, 0.12);
+  --danger: #8a1a2a;
+  --radius: 4px;
+  --radius-sm: 3px;
+  --shadow: 2px 3px 8px rgba(0, 0, 0, 0.2);
+  --font: 'Segoe UI', Tahoma, Arial, sans-serif;
+  --font-display: 'Segoe UI', Tahoma, Arial, sans-serif;
+}
+
+[data-theme='alamida'] body::before {
+  display: none;
+}
+
+[data-theme='alamida'] .topbar,
+[data-theme='alamida'] .wall-topbar {
+  background: #1a1a1a;
+  border-bottom: 2px solid #000;
+  backdrop-filter: none;
+  color: #fff;
+}
+
+[data-theme='alamida'] .brand-title,
+[data-theme='alamida'] .brand-sub,
+[data-theme='alamida'] .wall-brand-title,
+[data-theme='alamida'] .wall-brand-sub,
+[data-theme='alamida'] .wall-time,
+[data-theme='alamida'] .wall-date {
+  color: #fff;
+}
+
+[data-theme='alamida'] .brand-sub,
+[data-theme='alamida'] .wall-brand-sub {
+  opacity: 0.85;
+}
+
+[data-theme='alamida'] .brand-mark {
+  background: #8fb4b4;
+  border: 2px solid #fff;
+  border-radius: 2px;
+  box-shadow: none;
+}
+
+[data-theme='alamida'] .nav-pill,
+[data-theme='alamida'] .wall-link {
+  background: #5a8585;
+  color: #fff;
+  border-radius: 2px;
+  border: 1px solid #3d5c5c;
+  font-weight: 600;
+}
+
+[data-theme='alamida'] .nav-pill:hover,
+[data-theme='alamida'] .wall-link:hover {
+  background: #6d9999;
+  text-decoration: none;
+}
+
+[data-theme='alamida'] .nav-pill.active {
+  background: #8fb4b4;
+  color: #1a1a1a;
+  border-color: #000;
+}
+
+[data-theme='alamida'] .main-content,
+[data-theme='alamida'] .wall {
+  background: #8fb4b4;
+}
+
+[data-theme='alamida'] .wall-bg {
+  display: none;
+}
+
+[data-theme='alamida'] .panel {
+  background: #dcebeb;
+  border: 1px solid #5a7f7f;
+  box-shadow: 2px 3px 6px rgba(0, 0, 0, 0.18);
+  border-radius: 4px;
+}
+
+[data-theme='alamida'] .panel-head h2,
+[data-theme='alamida'] .panel-head h3,
+[data-theme='alamida'] .board-hero h1,
+[data-theme='alamida'] .wall-stage-title {
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+[data-theme='alamida'] .panel-head p,
+[data-theme='alamida'] .board-hero-text p,
+[data-theme='alamida'] .settings-hint,
+[data-theme='alamida'] .wall-stage-sub {
+  color: #2d4545;
+}
+
+[data-theme='alamida'] input[type='text'],
+[data-theme='alamida'] input[type='number'],
+[data-theme='alamida'] input[type='email'],
+[data-theme='alamida'] textarea,
+[data-theme='alamida'] .settings-textarea,
+[data-theme='alamida'] .settings-test-input,
+[data-theme='alamida'] .settings-kr-card input {
+  background: #fff;
+  color: #1a1a1a;
+  border: 1px solid #6a6a6a;
+  border-radius: 2px;
+  box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.15);
+  font-family: var(--font);
+}
+
+[data-theme='alamida'] .stat-card,
+[data-theme='alamida'] .transfer-card,
+[data-theme='alamida'] .case-card,
+[data-theme='alamida'] .cool-cell,
+[data-theme='alamida'] .wall-cool-tile,
+[data-theme='alamida'] .wall-extern-card,
+[data-theme='alamida'] .wall-big-row,
+[data-theme='alamida'] .auth-card {
+  background: #fff;
+  border: 1px solid #6a6a6a;
+  box-shadow: inset 0 0 0 1px #e0e0e0, 2px 2px 4px rgba(0, 0, 0, 0.12);
+  border-radius: 3px;
+  color: #1a1a1a;
+}
+
+[data-theme='alamida'] .stat-value {
+  color: #1a1a1a;
+}
+
+[data-theme='alamida'] .stat-label,
+[data-theme='alamida'] .stat-hint,
+[data-theme='alamida'] .transfer-id,
+[data-theme='alamida'] .case-id {
+  color: #444;
+}
+
+[data-theme='alamida'] .btn-primary {
+  background: linear-gradient(180deg, #f0f0f0 0%, #d4d4d4 100%);
+  color: #1a1a1a;
+  border: 1px solid #5a5a5a;
+  border-radius: 3px;
+  box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+  font-weight: 600;
+}
+
+[data-theme='alamida'] .btn-primary:hover {
+  background: linear-gradient(180deg, #fff 0%, #e0e0e0 100%);
+}
+
+[data-theme='alamida'] .btn-ghost,
+[data-theme='alamida'] .btn-google,
+[data-theme='alamida'] .wall-pause-btn {
+  background: #f5f5f5;
+  color: #1a1a1a;
+  border: 1px solid #6a6a6a;
+  border-radius: 3px;
+}
+
+[data-theme='alamida'] .filter-tab,
+[data-theme='alamida'] .wall-view-tab {
+  background: #b0cfcf;
+  color: #1a1a1a;
+  border: 1px solid #5a7f7f;
+  border-radius: 2px;
+}
+
+[data-theme='alamida'] .filter-tab.active,
+[data-theme='alamida'] .wall-view-tab.active {
+  background: #fff;
+  border-color: #000;
+  font-weight: 700;
+}
+
+[data-theme='alamida'] .chip {
+  background: #e8f2f2;
+  border: 1px solid #5a7f7f;
+  color: #1a1a1a;
+}
+
+[data-theme='alamida'] .settings-toggle {
+  background: #c5dddd;
+}
+
+[data-theme='alamida'] .settings-test.panel-inset {
+  background: #e8f4f4;
+  border-color: #5a7f7f;
+}
+
+[data-theme='alamida'] .settings-kr-card {
+  background: #fff;
+}
+
+[data-theme='alamida'] .auth-screen {
+  background: #8fb4b4;
+}
+
+[data-theme='alamida'] .live-data-bar,
+[data-theme='alamida'] .live-indicator {
+  background: #dcebeb;
+  border: 1px solid #5a7f7f;
+  color: #1a1a1a;
+}
+
+[data-theme='alamida'] .alert-warn {
+  background: #fff8e0;
+  border-color: #8a5a00;
+  color: #1a1a1a;
+}
+
+[data-theme='alamida'] .alert-danger {
+  background: #ffe8e8;
+  border-color: #8a1a2a;
+  color: #1a1a1a;
+}
+
+[data-theme='alamida'] code {
+  background: rgba(0, 0, 0, 0.08);
+  color: #1a1a1a;
+}
+
+[data-theme='alamida'] a {
+  color: #1a5a8a;
+}
+
+[data-theme='alamida'] .cool-cell.free,
+[data-theme='alamida'] .wall-cool-tile.off {
+  background: #b8d4d4;
+}
+
+[data-theme='alamida'] .cool-cell.occupied,
+[data-theme='alamida'] .wall-cool-tile.on {
+  background: #fff;
+}
+
+[data-theme='alamida'] .theme-switch {
+  border-color: #3d5c5c;
+}
+
+[data-theme='alamida'] .theme-switch-btn {
+  color: #fff;
+}
+
+[data-theme='alamida'] .theme-switch-btn.active {
+  background: #8fb4b4;
+  color: #1a1a1a;
+}

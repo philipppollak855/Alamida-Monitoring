@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { ThemeSwitch } from '../components/ThemeSwitch';
 
 export function LoginPage() {
   const { status, signInWithGoogle, error } = useAuth();
@@ -32,6 +33,9 @@ export function LoginPage() {
 
   return (
     <div className="auth-screen">
+      <div className="auth-theme-bar">
+        <ThemeSwitch />
+      </div>
       <div className="auth-card">
         <h1>Alamida Monitoring</h1>
         <p className="auth-lead">

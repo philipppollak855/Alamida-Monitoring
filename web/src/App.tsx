@@ -1,6 +1,7 @@
 import { Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthProvider';
 import { SettingsProvider } from './settings/SettingsProvider';
+import { ThemeProvider } from './theme/ThemeProvider';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AppShell } from './layout/AppShell';
 import { BoardPage } from './pages/BoardPage';
@@ -10,7 +11,8 @@ import { WallPage } from './pages/WallPage';
 
 export function App() {
   return (
-    <AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/pending" element={<PendingPage />} />
@@ -27,6 +29,7 @@ export function App() {
           </Route>
         </Route>
       </Routes>
-    </AuthProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
