@@ -1,6 +1,7 @@
 import type { Sterbefall } from '../types';
 import { istKrankenhaus, istKrematorium, ortLabel } from './ortKeywords';
 import {
+  hatAbgeschlosseneUeberfuehrungInsEigeneKr,
   hatAusstehendeUeberfuehrungInsEigeneKr,
   isAmKrankenhausOderSterbeort,
   isImEigenenKuehlraum,
@@ -23,14 +24,6 @@ export interface ExternOrtGruppe {
 function isAktiv(s: Sterbefall): boolean {
   if (s.inHistory === true) return false;
   return s.aktivInAlamida !== false;
-}
-
-/** Letzter bekannter KH-Standort aus Firestore, falls Positionsfelder leer sind. */
-function letzterBekannterKrankenhausOrt(s: Sterbefall): string | null {
-  if (!s.abholortIstKrankenhaus) return null;
-  const ort = s.sterbeort || s.abholort || s.aktuellePosition;
-  if (ort && istKrankenhaus(ort)) return ortLabel(ort);
-  return null;
 }
 
 function hatOffeneAbholungVomSterbeort(s: Sterbefall): boolean {
@@ -68,6 +61,8 @@ function hinweisFuerFall(s: Sterbefall, typ: 'krankenhaus' | 'kremation'): strin
 function resolveKrankenhausStandort(
   s: Sterbefall
 ): { typ: 'krankenhaus'; ort: string } | null {
+  if (isImEigenenKuehlraum(s) || hatAbgeschlosseneUeberfuehrungInsEigeneKr(s)) return null;
+
   const pos = s.aktuellePosition?.trim();
   if (pos && istKrankenhaus(pos)) {
     return { typ: 'krankenhaus', ort: ortLabel(pos) };
@@ -82,7 +77,11 @@ function resolveKrankenhausStandort(
     if (vonKh) return { typ: 'krankenhaus', ort: ortLabel(vonKh) };
   }
 
-  if (s.sterbeort && istKrankenhaus(s.sterbeort)) {
+  if (
+    (s.aktuellePositionTyp === 'sterbeort' || !s.aktuellePosition?.trim()) &&
+    s.sterbeort &&
+    istKrankenhaus(s.sterbeort)
+  ) {
     return { typ: 'krankenhaus', ort: ortLabel(s.sterbeort) };
   }
 
@@ -152,17 +151,13 @@ export function resolveExternStandort(
   s: Sterbefall
 ): { typ: 'krankenhaus' | 'kremation'; ort: string } | null {
   if (!isAktiv(s)) return null;
+  if (isImEigenenKuehlraum(s)) return null;
 
   const kh = resolveKrankenhausStandort(s);
   const krem = resolveKremationStandort(s);
 
   if (kh) return kh;
   if (krem) return krem;
-
-  const letzterKh = letzterBekannterKrankenhausOrt(s);
-  if (letzterKh) return { typ: 'krankenhaus', ort: letzterKh };
-
-  if (isImEigenenKuehlraum(s)) return null;
 
   return null;
 }

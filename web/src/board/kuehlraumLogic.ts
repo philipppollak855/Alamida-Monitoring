@@ -32,18 +32,56 @@ function positionIstImKuehlraum(pos?: string): boolean {
   return !!matchEigenerKuehlraum(pos) || /kühlr|kuehlr/i.test(pos);
 }
 
-/** Noch am Sterbeort oder in einem Krankenhaus (nicht im Firmenkühlraum). */
-export function isAmKrankenhausOderSterbeort(s: Sterbefall): boolean {
-  if (s.aktuellePositionTyp === 'sterbeort') return true;
+/**
+ * Überführung ins eigene Kühlraum mit Datum heute oder früher (laut Verlauf/Position).
+ */
+export function hatAbgeschlosseneUeberfuehrungInsEigeneKr(s: Sterbefall): boolean {
+  const heute = startOfTodayMs();
+  const pos = s.aktuellePosition?.trim() ?? '';
 
-  const pos = s.aktuellePosition?.trim();
-  if (pos && istKrankenhaus(pos)) return true;
-
-  if (istKrankenhaus(s.sterbeort) || istKrankenhaus(s.abholort) || s.abholortIstKrankenhaus) {
+  if (
+    s.status === 'im_kuehlraum' &&
+    s.kuehlplatz?.trim() &&
+    matchEigenerKuehlraum(s.kuehlraumId) &&
+    s.aktuellePositionTyp !== 'sterbeort'
+  ) {
     return true;
   }
 
-  return (s.ausstehend ?? []).some(
+  if (pos && (positionIstImKuehlraum(pos) || matchEigenerKuehlraum(pos))) return true;
+
+  for (const v of s.verlauf ?? []) {
+    const ziel = v.nachOrt ?? v.ort;
+    if (!zielIstEigenerKuehlraum(ziel) && !positionIstImKuehlraum(v.ort)) continue;
+    const termin = v.terminAm ?? v.abholungAm;
+    if (!termin?.trim()) continue;
+    if (parseDatumDe(termin) <= heute) return true;
+  }
+
+  if (s.kuehlplatz?.trim() && matchEigenerKuehlraum(s.kuehlraumId)) {
+    if (s.aktuellePositionTyp && s.aktuellePositionTyp !== 'sterbeort') return true;
+    if (pos && !istKrankenhaus(pos)) return true;
+  }
+
+  return false;
+}
+
+/** Aktuell am Sterbeort oder KH — nicht historischer Sterbeort nach erfolgter Überführung. */
+export function isAmKrankenhausOderSterbeort(s: Sterbefall): boolean {
+  if (hatAbgeschlosseneUeberfuehrungInsEigeneKr(s)) return false;
+
+  const pos = s.aktuellePosition?.trim();
+  if (pos) {
+    if (positionIstImKuehlraum(pos) || matchEigenerKuehlraum(pos)) return false;
+    if (istKrankenhaus(pos)) return true;
+    return false;
+  }
+
+  if (s.aktuellePositionTyp === 'sterbeort') return true;
+
+  if (hatAusstehendeUeberfuehrungInsEigeneKr(s)) return true;
+
+  const hatOffeneKhAbholung = (s.ausstehend ?? []).some(
     (a) =>
       a.istAbholungVomSterbeort ||
       a.status === 'abholung_noetig' ||
@@ -52,19 +90,40 @@ export function isAmKrankenhausOderSterbeort(s: Sterbefall): boolean {
         a.vonOrt &&
         istKrankenhaus(a.vonOrt))
   );
+  if (hatOffeneKhAbholung) return true;
+
+  // Noch keine aktuelle Position — historischer KH-Sterbeort, aber nicht bei vorgebuchtem KR-Platz
+  if (
+    s.kuehlplatz?.trim() &&
+    matchEigenerKuehlraum(s.kuehlraumId) &&
+    s.aktuellePositionTyp !== 'sterbeort'
+  ) {
+    return false;
+  }
+
+  if (
+    s.abholortIstKrankenhaus ||
+    istKrankenhaus(s.sterbeort) ||
+    istKrankenhaus(s.abholort)
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
-/**
- * Physisch im Firmenkühlraum — nicht nur vorgebuchter Platz, solange der Verstorbene
- * noch am KH/Sterbeort liegt.
- */
+/** Physisch im Firmenkühlraum (z. B. Grafenbach). */
 export function isImEigenenKuehlraum(s: Sterbefall): boolean {
-  if (isAmKrankenhausOderSterbeort(s)) return false;
+  if (hatAbgeschlosseneUeberfuehrungInsEigeneKr(s)) return true;
 
   const pos = s.aktuellePosition?.trim() ?? '';
   if (pos && (positionIstImKuehlraum(pos) || matchEigenerKuehlraum(pos))) return true;
 
-  if (s.kuehlplatz?.trim() && matchEigenerKuehlraum(s.kuehlraumId)) return true;
+  if (s.kuehlplatz?.trim() && matchEigenerKuehlraum(s.kuehlraumId)) {
+    if (pos && istKrankenhaus(pos)) return false;
+    if (s.aktuellePositionTyp === 'sterbeort') return false;
+    return true;
+  }
 
   return false;
 }
