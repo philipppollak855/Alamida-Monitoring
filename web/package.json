@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "icons": "node scripts/generate-pwa-icons.mjs",
+    "build": "npm run icons && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -18,7 +19,9 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.3",
+    "sharp": "^0.34.5",
     "typescript": "^5.6.3",
-    "vite": "^5.4.11"
+    "vite": "^5.4.11",
+    "vite-plugin-pwa": "^0.21.1"
   }
 }

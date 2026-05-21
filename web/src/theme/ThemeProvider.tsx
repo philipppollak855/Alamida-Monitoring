@@ -37,7 +37,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     document.documentElement.setAttribute('data-theme', theme);
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) {
-      meta.setAttribute('content', theme === 'alamida' ? '#8fb4b4' : '#0a0c10');
+      meta.setAttribute('content', theme === 'alamida' ? '#b0d4d8' : '#0a0c10');
     }
     try {
       localStorage.setItem(STORAGE_KEY, theme);

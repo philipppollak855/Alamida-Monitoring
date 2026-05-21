@@ -8,11 +8,13 @@ import { BoardPage } from './pages/BoardPage';
 import { LoginPage } from './pages/LoginPage';
 import { PendingPage } from './pages/PendingPage';
 import { WallPage } from './pages/WallPage';
+import { InstallPwa } from './components/InstallPwa';
 
 export function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
+      <InstallPwa />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/pending" element={<PendingPage />} />

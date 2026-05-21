@@ -459,3 +459,9 @@
   border-radius: 999px;
   font-weight: 500;
 }
+
+[data-theme='alamida'] .install-pwa-inner {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: var(--border);
+  box-shadow: 0 8px 32px rgba(42, 72, 78, 0.12);
+}
