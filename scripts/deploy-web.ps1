@@ -12,7 +12,7 @@ if ($Target -eq "firebase") {
     Remove-Item (Join-Path $Root "firebase\public") -Recurse -Force -ErrorAction SilentlyContinue
     Copy-Item (Join-Path $Root "web\dist") (Join-Path $Root "firebase\public") -Recurse -Force
     Push-Location (Join-Path $Root "firebase")
-    firebase deploy --only hosting --project alamida---monitoring
+    firebase deploy --only hosting,firestore --project alamida---monitoring
     Pop-Location
     Write-Host "Live: https://alamida---monitoring.web.app" -ForegroundColor Green
 } else {

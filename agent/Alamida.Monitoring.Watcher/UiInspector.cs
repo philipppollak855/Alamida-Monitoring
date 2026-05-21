@@ -25,7 +25,16 @@ public static class UiInspector
         }
 
         if (sb.Length == 0)
-            sb.AppendLine("Kein Fenster mit passendem Titel gefunden. Alamida/FileMaker geöffnet?");
+        {
+            sb.AppendLine("Kein Fenster mit passendem Titel (Alamida/FileMaker).");
+            sb.AppendLine("Offene Fenster:");
+            foreach (var window in GetTopLevelWindows(automation))
+            {
+                var title = window.Name ?? "(ohne Titel)";
+                if (!string.IsNullOrWhiteSpace(title))
+                    sb.AppendLine($"  - {title}");
+            }
+        }
 
         return sb.ToString();
     }
@@ -41,10 +50,10 @@ public static class UiInspector
         if (depth > maxDepth) return;
 
         var indent = new string(' ', depth * 2);
-        var name = element.Name ?? "";
-        var aid = element.AutomationId ?? "";
-        var ct = element.ControlType.ToString();
-        var value = TryGetValue(element);
+        var name = SafeGet(() => element.Name) ?? "";
+        var aid = SafeGet(() => element.AutomationId) ?? "";
+        var ct = SafeGet(() => element.ControlType.ToString()) ?? "?";
+        var value = UiaValueReader.Read(element) ?? "";
 
         sb.AppendLine($"{indent}[{ct}] Name=\"{name}\" AutomationId=\"{aid}\" Value=\"{value}\"");
 
@@ -52,21 +61,10 @@ public static class UiInspector
             DumpElement(child, sb, depth + 1, maxDepth);
     }
 
-    private static string TryGetValue(AutomationElement element)
+    private static T? SafeGet<T>(Func<T> getter)
     {
-        try
-        {
-            if (element.Patterns.Value.IsSupported)
-                return element.Patterns.Value.Pattern.Value.Value ?? "";
-        }
-        catch { /* ignore */ }
-
-        try
-        {
-            return element.AsTextBox()?.Text ?? "";
-        }
-        catch { /* ignore */ }
-
-        return "";
+        try { return getter(); }
+        catch { return default; }
     }
+
 }

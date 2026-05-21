@@ -7,6 +7,6 @@ public sealed class AgentConfig
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "AlamidaMonitoring", "serviceAccount.json");
     public string WorkstationId { get; set; } = Environment.MachineName;
-    public int PollIntervalMs { get; set; } = 2000;
+    public int PollIntervalMs { get; set; } = 1500;
     public string FieldMappingPath { get; set; } = "";
 }

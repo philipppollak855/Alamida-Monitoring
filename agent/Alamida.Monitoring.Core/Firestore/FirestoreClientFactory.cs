@@ -6,11 +6,20 @@ namespace Alamida.Monitoring.Core.Firestore;
 
 public static class FirestoreClientFactory
 {
+    // Öffentliche Firebase-CLI OAuth-Credentials (firebase-tools, nicht geheim)
     private const string ClientId =
         "563584335869-fgrhgmd47bqnekij5i8b5pr03ho849e6.apps.googleusercontent.com";
+    private const string FirebaseCliClientSecret = "j9iVZfS8kkCEFUPaAeJV0sAi";
 
-    public static FirestoreSyncService? TryCreate(string projectId, string workstationId)
+    public static FirestoreSyncService? TryCreate(string projectId, string workstationId) =>
+        TryCreate(projectId, workstationId, out _);
+
+    public static FirestoreSyncService? TryCreate(
+        string projectId,
+        string workstationId,
+        out string? error)
     {
+        error = null;
         var appData = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "AlamidaMonitoring");
@@ -18,17 +27,46 @@ public static class FirestoreClientFactory
         var serviceAccount = Path.Combine(appData, "serviceAccount.json");
         if (IsValidServiceAccount(serviceAccount))
         {
-            return new FirestoreSyncService(projectId, serviceAccount, workstationId);
+            try
+            {
+                return new FirestoreSyncService(projectId, serviceAccount, workstationId);
+            }
+            catch (Exception ex)
+            {
+                error = $"Service Account: {ex.Message}";
+                WriteError(appData, error);
+                return null;
+            }
         }
 
         var oauthPath = Path.Combine(appData, "firebase-oauth.json");
-        if (File.Exists(oauthPath))
+        if (!File.Exists(oauthPath))
         {
-            var db = CreateDbFromOAuth(projectId, oauthPath);
-            return db != null ? new FirestoreSyncService(db, workstationId) : null;
+            error = $"firebase-oauth.json fehlt ({oauthPath}). scripts\\setup-complete.ps1 ausführen.";
+            WriteError(appData, error);
+            return null;
         }
 
-        return null;
+        var (db, oauthError) = CreateDbFromOAuth(projectId, oauthPath);
+        if (db == null)
+        {
+            error = oauthError ?? "OAuth-Verbindung fehlgeschlagen.";
+            WriteError(appData, error);
+            return null;
+        }
+
+        return new FirestoreSyncService(db, workstationId);
+    }
+
+    private static void WriteError(string appData, string message)
+    {
+        try
+        {
+            Directory.CreateDirectory(appData);
+            File.WriteAllText(Path.Combine(appData, "firestore-last-error.txt"),
+                message + Environment.NewLine + DateTime.Now);
+        }
+        catch { /* ignore */ }
     }
 
     private static bool IsValidServiceAccount(string path)
@@ -39,39 +77,50 @@ public static class FirestoreClientFactory
                text.Contains("client_email", StringComparison.Ordinal);
     }
 
-    private static FirestoreDb? CreateDbFromOAuth(string projectId, string oauthPath)
+    private static (FirestoreDb? Db, string? Error) CreateDbFromOAuth(string projectId, string oauthPath)
     {
         try
         {
             using var doc = JsonDocument.Parse(File.ReadAllText(oauthPath));
             var refresh = doc.RootElement.GetProperty("refreshToken").GetString();
-            if (string.IsNullOrEmpty(refresh)) return null;
+            if (string.IsNullOrEmpty(refresh))
+                return (null, "refreshToken in firebase-oauth.json ist leer.");
 
-            using var http = new HttpClient();
+            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+            var clientSecret = doc.RootElement.TryGetProperty("clientSecret", out var secEl) &&
+                               !string.IsNullOrWhiteSpace(secEl.GetString())
+                ? secEl.GetString()!
+                : FirebaseCliClientSecret;
+
             var content = new FormUrlEncodedContent(new Dictionary<string, string>
             {
                 ["client_id"] = ClientId,
+                ["client_secret"] = clientSecret,
                 ["grant_type"] = "refresh_token",
                 ["refresh_token"] = refresh,
             });
             var resp = http.PostAsync("https://oauth2.googleapis.com/token", content)
                 .GetAwaiter().GetResult();
-            resp.EnsureSuccessStatusCode();
             var body = resp.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+            if (!resp.IsSuccessStatusCode)
+                return (null, $"OAuth Token ({(int)resp.StatusCode}): {body}");
+
             using var tokenDoc = JsonDocument.Parse(body);
             var accessToken = tokenDoc.RootElement.GetProperty("access_token").GetString();
-            if (string.IsNullOrEmpty(accessToken)) return null;
+            if (string.IsNullOrEmpty(accessToken))
+                return (null, "Kein access_token in OAuth-Antwort.");
 
             var credential = GoogleCredential.FromAccessToken(accessToken);
-            return new FirestoreDbBuilder
+            var db = new FirestoreDbBuilder
             {
                 ProjectId = projectId,
                 Credential = credential,
             }.Build();
+            return (db, null);
         }
-        catch
+        catch (Exception ex)
         {
-            return null;
+            return (null, $"OAuth/Firestore: {ex.Message}");
         }
     }
 }

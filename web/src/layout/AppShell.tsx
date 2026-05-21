@@ -1,0 +1,37 @@
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { UserMenu } from '../components/UserMenu';
+
+export function AppShell() {
+  const location = useLocation();
+  const isWall = location.pathname.startsWith('/wall');
+
+  if (isWall) {
+    return <Outlet />;
+  }
+
+  return (
+    <div className="app-shell">
+      <header className="topbar">
+        <div className="topbar-brand">
+          <span className="brand-mark" aria-hidden />
+          <div>
+            <span className="brand-title">Alamida</span>
+            <span className="brand-sub">Monitoring</span>
+          </div>
+        </div>
+        <nav className="topbar-nav" aria-label="Hauptnavigation">
+          <NavLink to="/" end className={({ isActive }) => (isActive ? 'nav-pill active' : 'nav-pill')}>
+            Disposition
+          </NavLink>
+          <NavLink to="/wall" className={({ isActive }) => (isActive ? 'nav-pill active' : 'nav-pill')}>
+            Wandmonitor
+          </NavLink>
+        </nav>
+        <UserMenu />
+      </header>
+      <main className="main-content">
+        <Outlet />
+      </main>
+    </div>
+  );
+}

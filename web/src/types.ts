@@ -1,18 +1,70 @@
+export interface VerlaufEintrag {
+  nummer?: number;
+  typ?: string;
+  ort?: string;
+  vonOrt?: string;
+  nachOrt?: string;
+  terminAm?: string;
+  abholungAm?: string;
+  kuehlraum?: string;
+}
+
+export interface AusstehendEintrag {
+  zeile?: number;
+  schrittTyp?: string;
+  vonOrt?: string;
+  nachOrt?: string;
+  terminAm?: string;
+  abholungAm?: string;
+  status?: string;
+  istAbholungVomSterbeort?: boolean;
+}
+
 export interface Sterbefall {
   id: string;
   sterbefallId?: string;
   verstorbenerName?: string;
+  verstorbenerVorname?: string;
+  verstorbenerNachname?: string;
+  sterbeort?: string;
+  sterbedatum?: string;
+  abholort?: string;
+  abholortIstKrankenhaus?: boolean;
+  quelleMaske?: string;
+  erfassungsPhase?: string;
+  istNeuerFall?: boolean;
+  erfassungSchluessel?: string;
+  bestattungsart?: string;
+  endziel?: string;
+  endzielTyp?: string;
+  aktuellePosition?: string;
+  aktuellePositionTyp?: string;
   kuehlraumId?: string;
+  kuehlplatz?: string;
   status?: string;
+  naechsterSchrittAm?: string;
+  naechsterSchrittVon?: string;
+  naechsterSchrittNach?: string;
+  naechsterSchrittTyp?: string;
+  naechsteUeberfuehrungAm?: string;
+  naechsteUeberfuehrungVon?: string;
+  naechsteUeberfuehrungNach?: string;
+  verlauf?: VerlaufEintrag[];
+  ausstehend?: AusstehendEintrag[];
   workstationId?: string;
+  aktivInAlamida?: boolean;
+  lastSeenAt?: { seconds: number };
   updatedAt?: { seconds: number };
 }
 
 export interface Ueberfuehrung {
   id: string;
   sterbefallId?: string;
+  zeile?: number;
+  schrittTyp?: string;
   vonOrt?: string;
   nachOrt?: string;
+  terminAm?: string;
   abholungAm?: string;
   kuehlraumId?: string;
   aktuellerStandort?: string;
@@ -24,6 +76,36 @@ export interface MonitoringEvent {
   type?: string;
   sterbefallId?: string;
   kuehlraumId?: string;
+  aktuellePosition?: string;
   workstationId?: string;
   createdAt?: { seconds: number };
+}
+
+export interface OffeneUeberfuehrungRow {
+  sterbefallId: string;
+  name: string;
+  schrittTyp: string;
+  vonOrt: string;
+  nachOrt: string;
+  terminAm: string;
+  status: string;
+  endziel?: string;
+  endzielTyp?: string;
+  istAbholungVomSterbeort?: boolean;
+  abholortIstKrankenhaus?: boolean;
+}
+
+export function schrittTypLabel(typ?: string): string {
+  switch (typ) {
+    case 'abholung':
+      return 'Abholung';
+    case 'kremation':
+      return 'Kremation';
+    case 'ueberfuehrung':
+      return 'Überführung';
+    case 'sterbeort':
+      return 'Sterbeort';
+    default:
+      return typ ?? '—';
+  }
 }

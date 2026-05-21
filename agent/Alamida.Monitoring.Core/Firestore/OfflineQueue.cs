@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Alamida.Monitoring.Core.Json;
 using Alamida.Monitoring.Core.Models;
 
 namespace Alamida.Monitoring.Core.Firestore;
@@ -61,7 +62,8 @@ public sealed class OfflineQueue
         if (!File.Exists(_queuePath)) return [];
         try
         {
-            return JsonSerializer.Deserialize<List<DetailSnapshot>>(File.ReadAllText(_queuePath)) ?? [];
+            return JsonSerializer.Deserialize<List<DetailSnapshot>>(
+                File.ReadAllText(_queuePath), MonitoringJson.Options) ?? [];
         }
         catch
         {
@@ -70,5 +72,5 @@ public sealed class OfflineQueue
     }
 
     private void Save(List<DetailSnapshot> list) =>
-        File.WriteAllText(_queuePath, JsonSerializer.Serialize(list));
+        File.WriteAllText(_queuePath, JsonSerializer.Serialize(list, MonitoringJson.Options));
 }

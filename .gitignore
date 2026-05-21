@@ -26,3 +26,8 @@ web/.env
 # OS
 Thumbs.db
 .DS_Store
+
+# Laufzeit-Dumps (lokal)
+docs/inspector-dump.txt
+docs/*-last-run.txt
+docs/sync-test.txt

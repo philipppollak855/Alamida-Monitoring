@@ -1,16 +1,41 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isActivatedUser() {
+      return isSignedIn()
+        && userDoc().data.activated == true;
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn() && request.auth.uid == userId;
+      allow create: if isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.data.activated == false
+        && request.resource.data.email is string;
+      allow update: if isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.data.activated == resource.data.activated;
+      allow delete: if false;
+    }
+
     match /sterbefaelle/{id} {
-      allow read: if true;
+      allow read: if isActivatedUser();
       allow write: if false;
     }
     match /ueberfuehrungen/{id} {
-      allow read: if true;
+      allow read: if isActivatedUser();
       allow write: if false;
     }
     match /events/{id} {
-      allow read: if true;
+      allow read: if isActivatedUser();
       allow write: if false;
     }
   }

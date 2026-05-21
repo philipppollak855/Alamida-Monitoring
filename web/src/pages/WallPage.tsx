@@ -1,99 +1,199 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../auth/AuthContext';
+import { LiveIndicator } from '../components/LiveIndicator';
 import { useFirestoreCollection } from '../hooks/useFirestoreCollection';
 import { firebaseConfigured } from '../firebase';
-import type { Sterbefall, Ueberfuehrung } from '../types';
+import { buildGrafenbachSlots, flattenOffene } from '../board/boardUtils';
+import { SchrittBadge } from '../ui/SchrittBadge';
+import { RouteFlow } from '../ui/RouteFlow';
+import type { Sterbefall } from '../types';
 
-const DEFAULT_KUEHLRAEUME = ['1', '2', '3', '4', '5', '6', '7', '8'];
-type WallView = 'kuehlraum' | 'abholungen';
+type WallView = 'kuehlraum' | 'abholungen' | 'offen';
+
+const ROTATE_MS = 18_000;
+
+function useClock() {
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  return now;
+}
 
 export function WallPage() {
+  const { signOut } = useAuth();
+  const now = useClock();
   const [view, setView] = useState<WallView>('kuehlraum');
-  const { items: sterbefaelle } = useFirestoreCollection<Sterbefall>(
-    'sterbefaelle',
-    'updatedAt'
-  );
-  const { items: ueberfuehrungen } = useFirestoreCollection<Ueberfuehrung>(
-    'ueberfuehrungen',
-    'updatedAt'
-  );
+  const [slide, setSlide] = useState(0);
+
+  const sterbefaelleQuery = useFirestoreCollection<Sterbefall>('sterbefaelle', 'updatedAt');
+  const { items: sterbefaelle, lastSyncAt, isLive, loading } = sterbefaelleQuery;
+
+  const { cfg, slots } = useMemo(() => buildGrafenbachSlots(sterbefaelle), [sterbefaelle]);
+  const offene = useMemo(() => flattenOffene(sterbefaelle), [sterbefaelle]);
+  const heuteOffen = useMemo(() => offene.filter((o) => o.status === 'heute'), [offene]);
+  const belegt = slots.filter(Boolean).length;
+
+  const views: WallView[] = ['kuehlraum', 'abholungen', 'offen'];
 
   useEffect(() => {
     const t = setInterval(() => {
-      setView((v) => (v === 'kuehlraum' ? 'abholungen' : 'kuehlraum'));
-    }, 20000);
+      setSlide((s) => {
+        const next = (s + 1) % views.length;
+        setView(views[next]);
+        return next;
+      });
+    }, ROTATE_MS);
     return () => clearInterval(t);
   }, []);
 
-  const kuehlraumMap = useMemo(() => {
-    const map = new Map<string, Sterbefall>();
-    for (const s of sterbefaelle) {
-      const kr = s.kuehlraumId?.trim();
-      if (kr) map.set(kr, s);
-    }
-    return map;
-  }, [sterbefaelle]);
-
-  const kuehlraeume = useMemo(() => {
-    const fromData = [...kuehlraumMap.keys()];
-    const all = new Set([...DEFAULT_KUEHLRAEUME, ...fromData]);
-    return [...all].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-  }, [kuehlraumMap]);
-
-  const heute = new Date().toISOString().slice(0, 10);
-  const abholungenHeute = ueberfuehrungen.filter((u) =>
-    u.abholungAm?.includes(heute)
-  );
-
   if (!firebaseConfigured) {
     return (
-      <div className="wall-root">
-        <h1>Alamida Monitoring</h1>
-        <p>Firebase nicht konfiguriert</p>
+      <div className="wall">
+        <p className="wall-error">Firebase nicht konfiguriert</p>
       </div>
     );
   }
 
+  const timeStr = now.toLocaleTimeString('de-AT', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+  const dateStr = now.toLocaleDateString('de-AT', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+
   return (
-    <div className="wall-root">
-      <h1>
-        {view === 'kuehlraum' ? 'Kühlraum-Übersicht' : 'Abholungen heute'}
-      </h1>
+    <div className="wall">
+      <div className="wall-bg" aria-hidden />
+      <header className="wall-topbar">
+        <div className="wall-brand">
+          <span className="brand-mark" />
+          <div>
+            <span className="wall-brand-title">Alamida Monitoring</span>
+            <span className="wall-brand-sub">Wandmonitor · Live</span>
+          </div>
+        </div>
+        <div className="wall-clock">
+          <span className="wall-time">{timeStr}</span>
+          <span className="wall-date">{dateStr}</span>
+        </div>
+        <div className="wall-topbar-end">
+          <LiveIndicator isLive={isLive} lastSyncAt={lastSyncAt} loading={loading} label="Live" />
+          <Link to="/" className="wall-link">
+            Disposition
+          </Link>
+          <button type="button" className="btn-ghost btn-small" onClick={() => signOut()}>
+            Abmelden
+          </button>
+        </div>
+      </header>
 
-      {view === 'kuehlraum' && (
-        <div className="wall-kuehlraum">
-          {kuehlraeume.map((kr) => {
-            const fall = kuehlraumMap.get(kr);
-            const belegt = Boolean(fall);
-            return (
-              <div
-                key={kr}
-                className={`wall-slot ${belegt ? 'belegt' : ''}`}
-              >
-                <div className="kr">K {kr}</div>
-                <div className="name">
-                  {belegt
-                    ? fall!.verstorbenerName || fall!.sterbefallId
-                    : 'frei'}
+      <div className="wall-view-tabs">
+        {views.map((v, i) => (
+          <button
+            key={v}
+            type="button"
+            className={`wall-view-tab ${view === v ? 'active' : ''} ${slide === i ? 'auto' : ''}`}
+            onClick={() => {
+              setView(v);
+              setSlide(i);
+            }}
+          >
+            {v === 'kuehlraum'
+              ? `Kühlraum (${belegt}/${cfg.plaetze})`
+              : v === 'abholungen'
+                ? `Heute (${heuteOffen.length})`
+                : `Offen (${offene.length})`}
+          </button>
+        ))}
+      </div>
+
+      <div className="wall-stage">
+        {view === 'kuehlraum' && (
+          <div className="wall-kuehlraum-stage">
+            <h2 className="wall-stage-title">{cfg.label}</h2>
+            <div className="wall-cool-grid">
+              {slots.map((fall, i) => (
+                <div
+                  key={i}
+                  className={`wall-cool-tile ${fall ? 'on' : 'off'}`}
+                >
+                  <span className="wall-tile-nr">Platz {i + 1}</span>
+                  {fall ? (
+                    <>
+                      <span className="wall-tile-name">
+                        {fall.verstorbenerName || fall.sterbefallId}
+                      </span>
+                      <span className="wall-tile-pos">{fall.aktuellePosition}</span>
+                    </>
+                  ) : (
+                    <span className="wall-tile-free">Frei</span>
+                  )}
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+              ))}
+            </div>
+          </div>
+        )}
 
-      {view === 'abholungen' && (
-        <div className="wall-abholungen">
-          <ul>
-            {abholungenHeute.length === 0 && <li>Keine Abholungen heute</li>}
-            {abholungenHeute.map((u) => (
-              <li key={u.id}>
-                <strong>{u.sterbefallId}</strong> — {u.vonOrt} → {u.nachOrt}
-                {u.abholungAm && ` (${u.abholungAm})`}
-              </li>
-            ))}
-          </ul>
+        {view === 'abholungen' && (
+          <div className="wall-list-stage">
+            <h2 className="wall-stage-title">Abholungen & Termine heute</h2>
+            {heuteOffen.length === 0 ? (
+              <p className="wall-empty">Keine Termine für heute</p>
+            ) : (
+              <div className="wall-big-list">
+                {heuteOffen.map((r, i) => (
+                  <article key={i} className="wall-big-row">
+                    <time>{r.terminAm}</time>
+                    <div className="wall-big-main">
+                      <span className="wall-big-name">{r.name}</span>
+                      <RouteFlow von={r.vonOrt} nach={r.nachOrt} />
+                    </div>
+                    <SchrittBadge typ={r.schrittTyp} />
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {view === 'offen' && (
+          <div className="wall-list-stage">
+            <h2 className="wall-stage-title">Alle offenen Überführungen</h2>
+            {offene.length === 0 ? (
+              <p className="wall-empty">Keine offenen Schritte</p>
+            ) : (
+              <div className="wall-big-list scroll">
+                {offene.slice(0, 12).map((r, i) => (
+                  <article key={i} className="wall-big-row">
+                    <time>{r.terminAm}</time>
+                    <div className="wall-big-main">
+                      <span className="wall-big-name">{r.name}</span>
+                      <RouteFlow von={r.vonOrt} nach={r.nachOrt} />
+                    </div>
+                    <SchrittBadge typ={r.schrittTyp} />
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <footer className="wall-footer">
+        <div className="wall-progress">
+          {views.map((_, i) => (
+            <span key={i} className={`wall-progress-dot ${slide === i ? 'on' : ''}`} />
+          ))}
         </div>
-      )}
+        <span className="wall-rotate-hint">Wechsel alle {ROTATE_MS / 1000}s · Klick auf Tab zum Halten</span>
+      </footer>
     </div>
   );
 }

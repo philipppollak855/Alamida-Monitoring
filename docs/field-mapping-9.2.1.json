@@ -1,34 +1,167 @@
 {
   "version": "9.2.1",
-  "windowTitlePatterns": ["Alamida", "FileMaker"],
+  "windowTitlePatterns": ["Alamida"],
   "detailmaske": {
     "ueberfuehrung": {
-      "windowTitleContains": ["Überführung", "Ueberfuehrung", "Sterbefall"],
+      "windowTitleContains": ["Alamida"],
+      "maxEtappen": 6,
       "fields": {
-        "sterbefallId": {
-          "nameContains": ["Akte", "Sterbefall", "Nummer", "ID"],
-          "controlTypes": ["Edit", "Text"]
+        "sterbefallHeader": {
+          "automationIdContains": ["Layout Object: 287303"],
+          "nameContains": ["|"],
+          "controlTypes": ["Text"]
         },
-        "verstorbenerName": {
-          "nameContains": ["Verstorben", "Name", "Nachname"],
-          "controlTypes": ["Edit", "Text"]
+        "sterbeort": {
+          "automationIdContains": [
+            "Sterbeort",
+            "Sterbeort_",
+            "Todesort",
+            "Verstorben_Ort",
+            "Verstorben_ Sterbeort"
+          ],
+          "nameContains": ["Sterbeort"],
+          "controlTypes": ["Edit", "ComboBox", "Text"]
+        },
+        "bestattungsart": {
+          "automationIdContains": ["Bestattungsart", "Bestattung_Art", "Art_der_Bestattung"],
+          "controlTypes": ["ComboBox", "Edit", "Text"]
+        },
+        "beisetzungsort": {
+          "automationIdContains": ["Termin_Bestattung_Ort"],
+          "controlTypes": ["ComboBox", "Edit"]
+        },
+        "krematoriumOrt": {
+          "automationIdContains": ["Krematorium", "Krematorium_Ort", "Feuerbestattung_Ort"],
+          "nameContains": ["Innermanzing", "Feba", "Krematorium"],
+          "controlTypes": ["ComboBox", "Edit"]
+        },
+        "feuerbestattungOrt": {
+          "automationIdContains": ["Feuerbestattung", "Einäscherung"],
+          "controlTypes": ["ComboBox", "Edit"]
         },
         "kuehlraum": {
-          "nameContains": ["Kühlraum", "Kuehlraum", "Kühl", "KR"],
-          "controlTypes": ["Edit", "ComboBox", "Text"]
+          "automationIdContains": ["Kuehlraum", "Kühlraum", "Kuehlplatz_Ort"],
+          "nameContains": ["Kühlr", "Kuehlr"],
+          "controlTypes": ["ComboBox", "Edit", "Text"]
         },
-        "vonOrt": {
-          "nameContains": ["von", "Abhol", "Herkunft", "Entnahme"],
-          "controlTypes": ["Edit", "ComboBox", "Text"]
-        },
-        "nachOrt": {
-          "nameContains": ["nach", "Ziel", "Bringort"],
-          "controlTypes": ["Edit", "ComboBox", "Text"]
+        "kuehlplatz": {
+          "automationIdContains": ["Kuehlplatz", "Kühlplatz", "Kuehlraum_Nr", "Kuehlraum_Nummer"],
+          "controlTypes": ["Edit", "ComboBox"]
         },
         "abholungAm": {
-          "nameContains": ["Abhol", "Datum", "Tag"],
-          "controlTypes": ["Edit", "Text"]
+          "automationIdContains": ["Field: sfl 2::Termin_Überführung1_Datum"],
+          "controlTypes": ["Calendar"]
+        },
+        "abholung2Am": {
+          "automationIdContains": ["Field: sfl 2::Termin_Überführung2_Datum"],
+          "controlTypes": ["Calendar"]
+        },
+        "abholung3Am": {
+          "automationIdContains": ["Field: sfl 2::Termin_Überführung3_Datum"],
+          "controlTypes": ["Calendar"]
+        },
+        "abholung4Am": {
+          "automationIdContains": ["Field: sfl 2::Termin_Überführung4_Datum"],
+          "controlTypes": ["Calendar"]
+        },
+        "abholung5Am": {
+          "automationIdContains": ["Field: sfl 2::Termin_Überführung5_Datum"],
+          "controlTypes": ["Calendar"]
+        },
+        "abholung6Am": {
+          "automationIdContains": ["Field: sfl 2::Termin_Überführung6_Datum"],
+          "controlTypes": ["Calendar"]
+        },
+        "ueberfuehrungText": {
+          "automationIdContains": ["Field: sfl 2::Termin_Überführung1_Text"],
+          "controlTypes": ["Edit"]
+        },
+        "ueberfuehrung2Text": {
+          "automationIdContains": ["Field: sfl 2::Termin_Überführung2_Text"],
+          "controlTypes": ["Edit"]
+        },
+        "ueberfuehrung3Text": {
+          "automationIdContains": ["Field: sfl 2::Termin_Überführung3_Text"],
+          "controlTypes": ["Edit"]
+        },
+        "ueberfuehrung4Text": {
+          "automationIdContains": ["Field: sfl 2::Termin_Überführung4_Text"],
+          "controlTypes": ["Edit"]
+        },
+        "ueberfuehrung5Text": {
+          "automationIdContains": ["Field: sfl 2::Termin_Überführung5_Text"],
+          "controlTypes": ["Edit"]
+        },
+        "ueberfuehrung6Text": {
+          "automationIdContains": ["Field: sfl 2::Termin_Überführung6_Text"],
+          "controlTypes": ["Edit"]
         }
+      }
+    }
+  },
+  "neuerSterbefall": {
+    "detectNameContains": ["Neuer Sterbefall", "Neuen Sterbefall", "Sterbefall anlegen"],
+    "detectAutomationIdContains": ["Neuer_Sterbefall", "Sterbefall_Neu", "Neu_Sterbefall"],
+    "fields": {
+      "sterbefallHeader": {
+        "automationIdContains": ["Layout Object: 287303", "Sterbefall_Nr"],
+        "nameContains": ["|"],
+        "controlTypes": ["Text"]
+      },
+      "sterbefallId": {
+        "automationIdContains": ["Sterbefall_Nr", "Sterbefall_ID", "Fallnummer", "Fall_Nr"],
+        "controlTypes": ["Edit", "Text"]
+      },
+      "verstorbenerVorname": {
+        "automationIdContains": ["Verstorben_Vorname", "Vorname"],
+        "controlTypes": ["Edit", "ComboBox"]
+      },
+      "verstorbenerNachname": {
+        "automationIdContains": ["Verstorben_Nachname", "Verstorben_Zuname", "Nachname", "Zuname"],
+        "controlTypes": ["Edit", "ComboBox"]
+      },
+      "verstorbenerName": {
+        "automationIdContains": ["Verstorben_Name", "Name_Verstorbener"],
+        "nameContains": ["Verstorbener"],
+        "controlTypes": ["Edit", "Text"]
+      },
+      "sterbeort": {
+        "automationIdContains": ["Sterbeort", "Sterbeort_", "Todesort", "Verstorben_Ort"],
+        "nameContains": ["Sterbeort"],
+        "controlTypes": ["Edit", "ComboBox", "Text"]
+      },
+      "sterbedatum": {
+        "automationIdContains": ["Sterbedatum", "Todesdatum", "Verstorben_Sterbedatum"],
+        "controlTypes": ["Calendar", "Edit"]
+      },
+      "bestattungsart": {
+        "automationIdContains": ["Bestattungsart", "Bestattung_Art", "Art_der_Bestattung"],
+        "controlTypes": ["ComboBox", "Edit", "Text"]
+      },
+      "beisetzungsort": {
+        "automationIdContains": ["Termin_Bestattung_Ort", "Beisetzungsort"],
+        "controlTypes": ["ComboBox", "Edit"]
+      },
+      "krematoriumOrt": {
+        "automationIdContains": ["Krematorium", "Krematorium_Ort", "Feuerbestattung_Ort"],
+        "controlTypes": ["ComboBox", "Edit"]
+      },
+      "kuehlraum": {
+        "automationIdContains": ["Kuehlraum", "Kühlraum", "Kuehlplatz_Ort"],
+        "nameContains": ["Kühlr", "Kuehlr"],
+        "controlTypes": ["ComboBox", "Edit", "Text"]
+      },
+      "kuehlplatz": {
+        "automationIdContains": ["Kuehlplatz", "Kühlplatz", "Kuehlraum_Nr"],
+        "controlTypes": ["Edit", "ComboBox"]
+      },
+      "ueberfuehrungText": {
+        "automationIdContains": ["Field: sfl 2::Termin_Überführung1_Text", "Überführung1_Text"],
+        "controlTypes": ["Edit"]
+      },
+      "abholungAm": {
+        "automationIdContains": ["Field: sfl 2::Termin_Überführung1_Datum"],
+        "controlTypes": ["Calendar"]
       }
     }
   }
