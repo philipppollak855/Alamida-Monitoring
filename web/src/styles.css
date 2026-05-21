@@ -1,0 +1,187 @@
+:root {
+  --bg: #0f1419;
+  --surface: #1a2332;
+  --border: #2d3a4f;
+  --text: #e8edf4;
+  --muted: #8b9cb3;
+  --accent: #3d8bfd;
+  --success: #3dd68c;
+  --warn: #f5a524;
+  --danger: #f31260;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+a {
+  color: var(--accent);
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.nav-links {
+  display: flex;
+  gap: 1rem;
+}
+
+main {
+  padding: 1.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.banner {
+  padding: 1rem;
+  border-radius: 8px;
+  background: #2a2210;
+  border: 1px solid var(--warn);
+  color: #ffd88a;
+  margin-bottom: 1.5rem;
+}
+
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem;
+}
+
+.card h2 {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.kuehlraum-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+
+.kuehlraum-slot {
+  border-radius: 8px;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  min-height: 90px;
+}
+
+.kuehlraum-slot.belegt {
+  border-color: var(--accent);
+  background: rgba(61, 139, 253, 0.12);
+}
+
+.kuehlraum-slot.frei {
+  opacity: 0.55;
+}
+
+.kuehlraum-slot .label {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.kuehlraum-slot .name {
+  font-weight: 600;
+  margin-top: 0.35rem;
+}
+
+.list-item {
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.list-item:last-child {
+  border-bottom: none;
+}
+
+.route {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  background: var(--border);
+  margin-left: 0.5rem;
+}
+
+/* Wall display */
+.wall-root {
+  min-height: 100vh;
+  padding: 2rem;
+  background: #000;
+}
+
+.wall-root h1 {
+  font-size: 2.5rem;
+  margin: 0 0 1.5rem;
+}
+
+.wall-kuehlraum {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1.25rem;
+}
+
+.wall-slot {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem;
+  min-height: 120px;
+}
+
+.wall-slot.belegt {
+  border-color: var(--success);
+}
+
+.wall-slot .kr {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.wall-slot .name {
+  font-size: 1.75rem;
+  margin-top: 0.5rem;
+}
+
+.wall-abholungen {
+  margin-top: 2rem;
+}
+
+.wall-abholungen li {
+  font-size: 1.4rem;
+  margin: 0.5rem 0;
+}

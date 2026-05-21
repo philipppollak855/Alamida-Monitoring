@@ -1,0 +1,35 @@
+{
+  "version": "9.2.1",
+  "windowTitlePatterns": ["Alamida", "FileMaker"],
+  "detailmaske": {
+    "ueberfuehrung": {
+      "windowTitleContains": ["Überführung", "Ueberfuehrung", "Sterbefall"],
+      "fields": {
+        "sterbefallId": {
+          "nameContains": ["Akte", "Sterbefall", "Nummer", "ID"],
+          "controlTypes": ["Edit", "Text"]
+        },
+        "verstorbenerName": {
+          "nameContains": ["Verstorben", "Name", "Nachname"],
+          "controlTypes": ["Edit", "Text"]
+        },
+        "kuehlraum": {
+          "nameContains": ["Kühlraum", "Kuehlraum", "Kühl", "KR"],
+          "controlTypes": ["Edit", "ComboBox", "Text"]
+        },
+        "vonOrt": {
+          "nameContains": ["von", "Abhol", "Herkunft", "Entnahme"],
+          "controlTypes": ["Edit", "ComboBox", "Text"]
+        },
+        "nachOrt": {
+          "nameContains": ["nach", "Ziel", "Bringort"],
+          "controlTypes": ["Edit", "ComboBox", "Text"]
+        },
+        "abholungAm": {
+          "nameContains": ["Abhol", "Datum", "Tag"],
+          "controlTypes": ["Edit", "Text"]
+        }
+      }
+    }
+  }
+}

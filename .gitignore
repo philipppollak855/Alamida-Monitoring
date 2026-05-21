@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+web/dist/
+firebase/public/
+firebase/.firebase/
+
+# .NET
+agent/**/bin/
+agent/**/obj/
+*.user
+*.suo
+
+# Secrets
+**/serviceAccount.json
+**/firebase-oauth.json
+**/*-firebase-adminsdk-*.json
+.env
+.env.local
+web/.env
+
+# IDE
+.vs/
+.idea/
+*.swp
+
+# OS
+Thumbs.db
+.DS_Store
