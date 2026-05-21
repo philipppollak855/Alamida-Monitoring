@@ -1,11 +1,12 @@
 import type { Sterbefall } from '../types';
+import { istInHistory } from './historieLogic';
 import { istKrankenhaus, istKrematorium, ortLabel } from './ortKeywords';
 import {
-  hatAbgeschlosseneUeberfuehrungInsEigeneKr,
   hatAusstehendeUeberfuehrungInsEigeneKr,
   isAmKrankenhausOderSterbeort,
   isImEigenenKuehlraum,
 } from './kuehlraumLogic';
+import { istAktuellImKrematorium, letzteAbgeschlosseneEtappe } from './positionLogic';
 
 export interface ExternFallEintrag {
   sterbefallId: string;
@@ -22,7 +23,7 @@ export interface ExternOrtGruppe {
 }
 
 function isAktiv(s: Sterbefall): boolean {
-  if (s.inHistory === true) return false;
+  if (istInHistory(s)) return false;
   return s.aktivInAlamida !== false;
 }
 
@@ -51,17 +52,30 @@ function hinweisFuerFall(s: Sterbefall, typ: 'krankenhaus' | 'kremation'): strin
   if (n?.status === 'heute') return 'Termin heute';
   if (n?.status === 'abholung_noetig') return 'Abholung ausstehend';
   if (hatAusstehendeUeberfuehrungInsEigeneKr(s)) return 'Überführung ohne Datum';
-  if (typ === 'kremation' && s.aktuellePositionTyp === 'kremation') return 'Im Krematorium';
+  if (typ === 'kremation' && istAktuellImKrematorium(s)) return 'Im Krematorium';
   if (s.aktuellePositionTyp === 'sterbeort') return 'Am Sterbeort';
   if (n?.schrittTyp === 'abholung') return 'Wartet auf Abholung';
   if (n?.schrittTyp === 'kremation') return 'Kremation geplant';
   return 'Wartend';
 }
 
+function kremationOrtLabel(s: Sterbefall): string | null {
+  const pos = s.aktuellePosition?.trim();
+  if (pos && istKrematorium(pos)) return ortLabel(pos);
+
+  const letzte = letzteAbgeschlosseneEtappe(s);
+  const ort = letzte?.nachOrt ?? letzte?.ort;
+  if (ort && istKrematorium(ort)) return ortLabel(ort);
+
+  if (s.endziel && istKrematorium(s.endziel)) return ortLabel(s.endziel);
+
+  return null;
+}
+
 function resolveKrankenhausStandort(
   s: Sterbefall
 ): { typ: 'krankenhaus'; ort: string } | null {
-  if (isImEigenenKuehlraum(s) || hatAbgeschlosseneUeberfuehrungInsEigeneKr(s)) return null;
+  if (isImEigenenKuehlraum(s) || istAktuellImKrematorium(s)) return null;
 
   const pos = s.aktuellePosition?.trim();
   if (pos && istKrankenhaus(pos)) {
@@ -120,25 +134,20 @@ function resolveKrankenhausStandort(
 function resolveKremationStandort(
   s: Sterbefall
 ): { typ: 'kremation'; ort: string } | null {
-  const pos = s.aktuellePosition?.trim();
-  if (pos && istKrematorium(pos)) {
-    return { typ: 'kremation', ort: ortLabel(pos) };
-  }
+  if (!istAktuellImKrematorium(s)) {
+    const naechster = naechsterSchritt(s);
+    if (naechster?.schrittTyp !== 'kremation') return null;
 
-  const naechster = naechsterSchritt(s);
-  if (naechster?.schrittTyp === 'kremation') {
     const kremOrt =
       (naechster.vonOrt && istKrematorium(naechster.vonOrt) ? naechster.vonOrt : null) ||
       (naechster.nachOrt && istKrematorium(naechster.nachOrt) ? naechster.nachOrt : null) ||
-      s.endziel;
-    if (kremOrt && istKrematorium(kremOrt)) {
-      return { typ: 'kremation', ort: ortLabel(kremOrt) };
-    }
+      (s.endziel && istKrematorium(s.endziel) ? s.endziel : null);
+    if (!kremOrt || isImEigenenKuehlraum(s)) return null;
+    return { typ: 'kremation', ort: ortLabel(kremOrt) };
   }
 
-  if (s.endziel && istKrematorium(s.endziel) && s.aktuellePositionTyp === 'kremation') {
-    return { typ: 'kremation', ort: ortLabel(s.endziel) };
-  }
+  const ort = kremationOrtLabel(s);
+  if (ort) return { typ: 'kremation', ort };
 
   return null;
 }
@@ -153,11 +162,11 @@ export function resolveExternStandort(
   if (!isAktiv(s)) return null;
   if (isImEigenenKuehlraum(s)) return null;
 
-  const kh = resolveKrankenhausStandort(s);
   const krem = resolveKremationStandort(s);
-
-  if (kh) return kh;
   if (krem) return krem;
+
+  const kh = resolveKrankenhausStandort(s);
+  if (kh) return kh;
 
   return null;
 }

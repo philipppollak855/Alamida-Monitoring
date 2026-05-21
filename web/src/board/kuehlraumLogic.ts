@@ -1,7 +1,9 @@
 import type { Sterbefall } from '../types';
 import { matchEigenerKuehlraum } from '../settings/ortMatchers';
 import { parseDatumDe } from './dateUtils';
-import { istKrankenhaus } from './ortKeywords';
+import { istKrankenhaus, istKrematorium } from './ortKeywords';
+import { istAktuellImKrematorium, letzteAbgeschlosseneEtappe } from './positionLogic';
+import { istInHistory } from './historieLogic';
 
 function startOfTodayMs(): number {
   const d = new Date();
@@ -19,6 +21,8 @@ export function zielIstEigenerKuehlraum(nachOrt?: string): boolean {
  * Überführung ins eigene KR ist vorgebucht, aber noch nicht erfolgt (kein / zukünftiges Datum).
  */
 export function hatAusstehendeUeberfuehrungInsEigeneKr(s: Sterbefall): boolean {
+  if (istAktuellImKrematorium(s)) return false;
+
   return (s.ausstehend ?? []).some((a) => {
     if (!zielIstEigenerKuehlraum(a.nachOrt)) return false;
     const termin = a.terminAm ?? a.abholungAm;
@@ -32,43 +36,57 @@ function positionIstImKuehlraum(pos?: string): boolean {
   return !!matchEigenerKuehlraum(pos) || /kühlr|kuehlr/i.test(pos);
 }
 
+function letzteEtappeIstImEigenenKuehlraum(s: Sterbefall): boolean {
+  const letzte = letzteAbgeschlosseneEtappe(s);
+  if (!letzte) return false;
+
+  if (letzte.typ === 'kremation') return false;
+
+  const ort = letzte.nachOrt ?? letzte.ort;
+  if (ort && istKrematorium(ort)) return false;
+
+  return (
+    zielIstEigenerKuehlraum(letzte.nachOrt) ||
+    positionIstImKuehlraum(ort) ||
+    !!matchEigenerKuehlraum(ort)
+  );
+}
+
 /**
- * Überführung ins eigene Kühlraum mit Datum heute oder früher (laut Verlauf/Position).
+ * Überführung ins eigene Kühlraum abgeschlossen und Verstorbener noch nicht weiter (Kremation/Beisetzung).
  */
 export function hatAbgeschlosseneUeberfuehrungInsEigeneKr(s: Sterbefall): boolean {
-  const heute = startOfTodayMs();
+  if (istInHistory(s) || istAktuellImKrematorium(s)) return false;
+
+  if (letzteEtappeIstImEigenenKuehlraum(s)) return true;
+
   const pos = s.aktuellePosition?.trim() ?? '';
+  if (pos && (positionIstImKuehlraum(pos) || matchEigenerKuehlraum(pos))) return true;
 
   if (
     s.status === 'im_kuehlraum' &&
     s.kuehlplatz?.trim() &&
     matchEigenerKuehlraum(s.kuehlraumId) &&
-    s.aktuellePositionTyp !== 'sterbeort'
+    s.aktuellePositionTyp !== 'sterbeort' &&
+    s.aktuellePositionTyp !== 'kremation'
   ) {
     return true;
   }
 
-  if (pos && (positionIstImKuehlraum(pos) || matchEigenerKuehlraum(pos))) return true;
-
-  for (const v of s.verlauf ?? []) {
-    const ziel = v.nachOrt ?? v.ort;
-    if (!zielIstEigenerKuehlraum(ziel) && !positionIstImKuehlraum(v.ort)) continue;
-    const termin = v.terminAm ?? v.abholungAm;
-    if (!termin?.trim()) continue;
-    if (parseDatumDe(termin) <= heute) return true;
-  }
-
   if (s.kuehlplatz?.trim() && matchEigenerKuehlraum(s.kuehlraumId)) {
-    if (s.aktuellePositionTyp && s.aktuellePositionTyp !== 'sterbeort') return true;
-    if (pos && !istKrankenhaus(pos)) return true;
+    if (s.aktuellePositionTyp === 'sterbeort' || s.aktuellePositionTyp === 'kremation') return false;
+    if (pos && istKrankenhaus(pos)) return false;
+    if (!letzteAbgeschlosseneEtappe(s)) return true;
   }
 
   return false;
 }
 
-/** Aktuell am Sterbeort oder KH — nicht historischer Sterbeort nach erfolgter Überführung. */
+/** Aktuell am Sterbeort oder KH — nicht nach erfolgter Weiterführung (KR/Kremation). */
 export function isAmKrankenhausOderSterbeort(s: Sterbefall): boolean {
-  if (hatAbgeschlosseneUeberfuehrungInsEigeneKr(s)) return false;
+  if (istInHistory(s) || hatAbgeschlosseneUeberfuehrungInsEigeneKr(s) || istAktuellImKrematorium(s)) {
+    return false;
+  }
 
   const pos = s.aktuellePosition?.trim();
   if (pos) {
@@ -92,7 +110,6 @@ export function isAmKrankenhausOderSterbeort(s: Sterbefall): boolean {
   );
   if (hatOffeneKhAbholung) return true;
 
-  // Noch keine aktuelle Position — historischer KH-Sterbeort, aber nicht bei vorgebuchtem KR-Platz
   if (
     s.kuehlplatz?.trim() &&
     matchEigenerKuehlraum(s.kuehlraumId) &&
@@ -112,18 +129,9 @@ export function isAmKrankenhausOderSterbeort(s: Sterbefall): boolean {
   return false;
 }
 
-/** Physisch im Firmenkühlraum (z. B. Grafenbach). */
+/** Physisch im Firmenkühlraum (z. B. Grafenbach) — nicht in Kremation oder nach Beisetzung. */
 export function isImEigenenKuehlraum(s: Sterbefall): boolean {
-  if (hatAbgeschlosseneUeberfuehrungInsEigeneKr(s)) return true;
+  if (istInHistory(s) || istAktuellImKrematorium(s)) return false;
 
-  const pos = s.aktuellePosition?.trim() ?? '';
-  if (pos && (positionIstImKuehlraum(pos) || matchEigenerKuehlraum(pos))) return true;
-
-  if (s.kuehlplatz?.trim() && matchEigenerKuehlraum(s.kuehlraumId)) {
-    if (pos && istKrankenhaus(pos)) return false;
-    if (s.aktuellePositionTyp === 'sterbeort') return false;
-    return true;
-  }
-
-  return false;
+  return hatAbgeschlosseneUeberfuehrungInsEigeneKr(s);
 }
