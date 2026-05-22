@@ -27,6 +27,7 @@ export function WidgetPage() {
   useDispositionSettings();
   const { kind: kindParam } = useParams<{ kind: string }>();
   const kind = parseWidgetKind(kindParam);
+  const calendarDay = useCalendarDay();
   const { items, lastSyncAt, isLive, loading } =
     useFirestoreCollection<Sterbefall>('sterbefaelle', 'updatedAt');
   const [tick, setTick] = useState(0);
