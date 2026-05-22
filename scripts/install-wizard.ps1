@@ -97,7 +97,7 @@ function Show-WizardForm {
     $txtCredPath = New-Object System.Windows.Forms.TextBox
     $txtCredPath.Location = New-Object System.Drawing.Point(12, 50)
     $txtCredPath.Size = New-Object System.Drawing.Size(492, 26)
-    $txtCredPath.ReadOnly = $true
+    $txtCredPath.ReadOnly = $false
     $txtCredPath.BackColor = [System.Drawing.Color]::White
     $txtCredPath.Text = 'Noch keine Datei gewaehlt'
 
@@ -139,15 +139,41 @@ function Show-WizardForm {
         $pnlFirebase
     ))
 
+    function Set-ServiceAccountPath {
+        param([string] $Path)
+        $Path = $Path.Trim().Trim('"')
+        if (-not $Path) {
+            $script:WizardServiceAccountPath = ''
+            Update-CredPathDisplay
+            return
+        }
+        $err = Get-AlamidaServiceAccountValidationError $Path
+        if ($err) {
+            $script:WizardServiceAccountPath = ''
+            $txtCredPath.Text = $Path
+            $txtCredPath.ForeColor = [System.Drawing.Color]::DarkRed
+            [System.Windows.Forms.MessageBox]::Show(
+                "Die Datei wurde nicht akzeptiert:`n`n$err",
+                'Firebase-JSON',
+                'OK',
+                'Warning') | Out-Null
+            return
+        }
+        $script:WizardServiceAccountPath = (Resolve-Path -LiteralPath $Path).Path
+        Update-CredPathDisplay
+    }
+
     function Update-CredPathDisplay {
         if ($script:WizardServiceAccountPath) {
             $txtCredPath.Text = $script:WizardServiceAccountPath
             $txtCredPath.ForeColor = [System.Drawing.Color]::DarkGreen
         } else {
-            $txtCredPath.Text = 'Noch keine Datei gewaehlt - bitte Button oben klicken'
-            $txtCredPath.ForeColor = [System.Drawing.Color]::DarkRed
+            $txtCredPath.Text = 'z.B. J:\serviceAccount.json einfuegen oder Button oben'
+            $txtCredPath.ForeColor = [System.Drawing.Color]::DarkGray
         }
     }
+
+    $txtCredPath.Add_Leave({ Set-ServiceAccountPath $txtCredPath.Text })
 
     $nearbySa = Find-AlamidaServiceAccountNearby
     if ($nearbySa) {
@@ -269,14 +295,7 @@ Dateiname egal (z.B. alamida---monitoring-firebase-adminsdk-....json).
         $ofd.Title = 'Firebase Dienstkonto-Schluessel (JSON)'
         $ofd.InitialDirectory = $PSScriptRoot
         if ($ofd.ShowDialog() -eq 'OK') {
-            if (-not (Test-AlamidaServiceAccountFile $ofd.FileName)) {
-                [System.Windows.Forms.MessageBox]::Show(
-                    'Ungueltige Datei. Es muss ein Firebase-Dienstkonto sein (Felder private_key und client_email).',
-                    'Ungueltige Datei', 'OK', 'Warning') | Out-Null
-                return
-            }
-            $script:WizardServiceAccountPath = $ofd.FileName
-            Update-CredPathDisplay
+            Set-ServiceAccountPath $ofd.FileName
         }
     })
 
@@ -304,17 +323,23 @@ Dateiname egal (z.B. alamida---monitoring-firebase-adminsdk-....json).
             }
         }
         if ($script:WizardStep -eq 3) {
+            if ($txtCredPath.Text -and -not $script:WizardServiceAccountPath) {
+                Set-ServiceAccountPath $txtCredPath.Text
+            }
             if (-not $script:WizardServiceAccountPath) {
                 $auto = Find-AlamidaServiceAccountNearby
-                if ($auto) { $script:WizardServiceAccountPath = $auto }
+                if ($auto) { Set-ServiceAccountPath $auto }
             }
-            if (-not (Test-AlamidaServiceAccountFile $script:WizardServiceAccountPath)) {
+            if (-not $script:WizardServiceAccountPath) {
                 [System.Windows.Forms.MessageBox]::Show(
                     @"
-Bitte Firebase-JSON waehlen (Button im Kasten auf Schritt 4).
+Bitte gueltige Firebase-Dienstkonto-JSON waehlen.
 
-Schluessel einmalig in der Firebase Console erzeugen
-(Dienstkonten -> Neuer privater Schluessel).
+Pfad eintragen (z.B. J:\serviceAccount.json) oder Button
+"Firebase JSON-Datei waehlen" im Kasten.
+
+In Firebase Console: Projekteinstellungen -> Dienstkonten
+-> Neuer privater Schluessel (NICHT Web-App-Konfiguration).
 "@,
                     'Firebase erforderlich', 'OK', 'Warning') | Out-Null
                 return

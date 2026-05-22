@@ -114,20 +114,85 @@ function Find-AlamidaServiceAccountNearby {
     return $null
 }
 
+function Read-AlamidaTextFile {
+    param([string] $Path)
+    foreach ($enc in @([System.Text.UTF8Encoding]::new($false), [System.Text.Encoding]::Default)) {
+        try {
+            $t = [System.IO.File]::ReadAllText($Path, $enc)
+            if (-not [string]::IsNullOrWhiteSpace($t)) { return $t }
+        } catch { }
+    }
+    try {
+        return Get-Content -LiteralPath $Path -Raw -ErrorAction Stop
+    } catch {
+        return $null
+    }
+}
+
+function Get-AlamidaServiceAccountValidationError {
+    param([string] $Path)
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        return 'Kein Dateipfad angegeben.'
+    }
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return "Datei nicht gefunden oder Laufwerk nicht erreichbar:`n$Path"
+    }
+
+    $text = Read-AlamidaTextFile $Path
+    if ([string]::IsNullOrWhiteSpace($text)) {
+        return "Datei ist leer oder nicht lesbar:`n$Path"
+    }
+
+    try {
+        $j = $text | ConvertFrom-Json -ErrorAction Stop
+        if ($null -ne $j.refreshToken) {
+            return @"
+Das ist firebase-oauth.json (Entwickler-Login), kein Dienstkonto.
+
+Bitte in der Firebase Console unter
+Projekteinstellungen -> Dienstkonten -> Neuer privater Schluessel
+eine JSON-Datei erzeugen.
+"@
+        }
+        if ($null -ne $j.apiKey -and $null -eq $j.private_key) {
+            return @"
+Das ist die Web-App-Konfiguration (apiKey), kein Dienstkonto-Schluessel.
+
+Es braucht eine JSON mit private_key und client_email
+(Firebase -> Dienstkonten -> Schluessel generieren).
+"@
+        }
+        if ([string]::IsNullOrWhiteSpace([string]$j.private_key)) {
+            return "Feld 'private_key' fehlt in der JSON-Datei."
+        }
+        if ([string]::IsNullOrWhiteSpace([string]$j.client_email)) {
+            return "Feld 'client_email' fehlt in der JSON-Datei."
+        }
+        if (-not [string]$j.private_key.Contains('BEGIN')) {
+            return "private_key sieht ungueltig aus (kein PEM-Block BEGIN ...)."
+        }
+        return $null
+    } catch {
+        if ($text -match 'private_key' -and $text -match 'client_email') {
+            return $null
+        }
+        return "JSON konnte nicht gelesen werden: $($_.Exception.Message)"
+    }
+}
+
 function Test-AlamidaServiceAccountFile {
     param([string] $Path)
-    if (-not $Path -or -not (Test-Path $Path)) { return $false }
-    $text = Get-Content $Path -Raw -ErrorAction SilentlyContinue
-    return $text -match 'private_key' -and $text -match 'client_email'
+    return $null -eq (Get-AlamidaServiceAccountValidationError $Path)
 }
 
 function Install-AlamidaServiceAccount {
     param([string] $SourcePath)
-    if (-not (Test-AlamidaServiceAccountFile $SourcePath)) {
-        throw "Ungueltige serviceAccount.json: $SourcePath"
+    $err = Get-AlamidaServiceAccountValidationError $SourcePath
+    if ($err) {
+        throw "Ungueltige Firebase-JSON: $SourcePath`n$err"
     }
     $dest = Join-Path (Get-AlamidaAppDataDir) 'serviceAccount.json'
-    Copy-Item $SourcePath $dest -Force
+    Copy-Item -LiteralPath $SourcePath -Destination $dest -Force
     return $dest
 }
 
