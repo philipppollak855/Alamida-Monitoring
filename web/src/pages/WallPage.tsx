@@ -208,7 +208,9 @@ export function WallPage() {
         <div className="wall-brand">
           <span className="brand-mark" />
           <div>
-            <span className="wall-brand-title">Alamida Monitoring</span>
+            <span className="wall-brand-title">
+              {isNarrow ? 'Alamida' : 'Alamida Monitoring'}
+            </span>
             <span className="wall-brand-sub">Wandmonitor · Live</span>
           </div>
         </div>

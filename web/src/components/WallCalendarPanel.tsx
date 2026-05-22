@@ -22,6 +22,8 @@ import {
 
   filterEntriesByArts,
 
+  isWallCalendarDayInAnchorMonth,
+
   type WallCalendarDay,
 
   type WallCalendarEntry,
@@ -69,28 +71,29 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
 
   const allEntries = useMemo(() => buildWallCalendarEntries(sterbefaelle), [sterbefaelle]);
 
-  const inRange = useMemo(
-
-    () => filterCalendarEntries(allEntries, range, now, search),
-
-    [allEntries, range, now, search]
-
-  );
+  const scoped = useMemo(() => {
+    let list = allEntries;
+    const q = search.trim().toLowerCase();
+    if (q) list = list.filter((e) => e.searchText.includes(q));
+    return filterEntriesByArts(list, activeArts);
+  }, [allEntries, search, activeArts]);
 
   const filtered = useMemo(
-
-    () => filterEntriesByArts(inRange, activeArts),
-
-    [inRange, activeArts]
-
+    () => filterCalendarEntries(scoped, range, now, ''),
+    [scoped, range, now]
   );
 
   const days = useMemo(
-
     () => buildWallCalendarDays(filtered, range, now),
-
     [filtered, range, now]
+  );
 
+  const overviewDays = useMemo(
+    () =>
+      range === 'month'
+        ? days.filter((d) => isWallCalendarDayInAnchorMonth(d.dayKey, now))
+        : days,
+    [days, range, now]
   );
 
 
@@ -261,7 +264,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
           {showPeriodOverview && (
 
             <WallCalendarPeriodOverview
-              days={days}
+              days={overviewDays}
               columns={overviewColumns}
               compact
               denseMonth={range === 'month'}
@@ -279,7 +282,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
 
           {showPeriodOverview && (
 
-            <WallCalendarPeriodOverview days={days} columns={overviewColumns} />
+            <WallCalendarPeriodOverview days={overviewDays} columns={overviewColumns} />
 
           )}
 

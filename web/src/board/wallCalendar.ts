@@ -366,6 +366,35 @@ export function buildWallCalendarEntries(sterbefaelle: Sterbefall[]): WallCalend
   return entries.sort((a, b) => a.sortMs - b.sortMs || a.name.localeCompare(b.name, 'de'));
 }
 
+const MONTH_OVERFLOW_MAX_DAYS = 45;
+
+function monthStartKey(anchor: Date): string {
+  return dayKeyFromDate(new Date(anchor.getFullYear(), anchor.getMonth(), 1));
+}
+
+function monthEndKey(anchor: Date): string {
+  return dayKeyFromDate(new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0));
+}
+
+/** Monatsansicht: bis zum letzten Termin nach Monatsende (gedeckelt), nicht am 31. stoppen. */
+function monthRangeToKey(anchor: Date, entries: WallCalendarEntry[]): string {
+  const fromKey = monthStartKey(anchor);
+  let toKey = monthEndKey(anchor);
+  const capKey = dayKeyFromDate(
+    addDays(new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0), MONTH_OVERFLOW_MAX_DAYS)
+  );
+
+  for (const e of entries) {
+    if (e.dayKey >= fromKey && e.dayKey > toKey) toKey = e.dayKey;
+  }
+  return toKey > capKey ? capKey : toKey;
+}
+
+export function isWallCalendarDayInAnchorMonth(dayKey: string, anchor: Date): boolean {
+  const [y, m] = dayKey.split('-').map(Number);
+  return y === anchor.getFullYear() && m - 1 === anchor.getMonth();
+}
+
 export function filterCalendarEntries(
   entries: WallCalendarEntry[],
   range: WallCalendarRange,
@@ -377,10 +406,8 @@ export function filterCalendarEntries(
   let toKey: string;
 
   if (range === 'month') {
-    const start = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
-    const end = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
-    fromKey = dayKeyFromDate(start);
-    toKey = dayKeyFromDate(end);
+    fromKey = monthStartKey(anchor);
+    toKey = monthRangeToKey(anchor, entries);
   } else {
     const start = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
     const end = addDays(start, range - 1);
@@ -408,7 +435,13 @@ export function buildWallCalendarDays(
 
   if (range === 'month') {
     cursor = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
-    count = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0).getDate();
+    const toKey = monthRangeToKey(anchor, entries);
+    const [y, mo, da] = toKey.split('-').map(Number);
+    const endExtended = new Date(y, mo - 1, da);
+    count = Math.floor((endExtended.getTime() - cursor.getTime()) / 86400000) + 1;
+    if (!Number.isFinite(count) || count < 1) {
+      count = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0).getDate();
+    }
   } else {
     cursor = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
     count = range;

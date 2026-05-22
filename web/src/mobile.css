@@ -116,10 +116,14 @@
   .wall-brand {
     grid-area: brand;
     min-width: 0;
+    overflow: hidden;
   }
 
   .wall-brand-title {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .wall-brand-sub {
@@ -151,8 +155,18 @@
     margin-left: 0;
     justify-content: flex-end;
     gap: 0.3rem;
-    flex-wrap: wrap;
-    max-width: 100%;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+    max-width: 55%;
+  }
+
+  .wall-topbar-end .theme-switch {
+    flex-shrink: 0;
+  }
+
+  .wall-topbar-end .theme-switch-btn {
+    font-size: 0.6rem;
+    padding: 0.32rem 0.38rem;
   }
 
   .wall-link {
@@ -317,7 +331,7 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    gap: 0.25rem;
+    gap: 0.4rem;
   }
 
   .wall-cal-filters-toggle {
@@ -360,14 +374,19 @@
     min-height: 32px;
   }
 
-  /* Übersicht: flach — Hauptbereich für Termine */
+  /* Übersicht: flach — Hauptbereich für Termine (min-height: 0 gegen Flex-Überlappung) */
   .wall-cal--narrow .wall-cal-period-overview--even {
     flex: 0 0 auto;
+    min-height: 0;
     width: 100%;
     gap: 0.1rem;
-    padding-bottom: 0.15rem;
-    margin-bottom: 0;
+    padding-bottom: 0.2rem;
+    margin-bottom: 0.15rem;
     border-bottom-width: 1px;
+    position: relative;
+    z-index: 2;
+    background: var(--bg);
+    box-sizing: border-box;
   }
 
   .wall-cal--narrow .wall-cal-period-overview--even .wall-cal-period-cell {
@@ -383,7 +402,9 @@
   }
 
   .wall-cal--narrow .wall-cal-period-overview--dense-month {
-    max-height: 5.25rem;
+    flex: 0 0 5.35rem;
+    max-height: 5.35rem;
+    min-height: 0;
     overflow: hidden;
   }
 
@@ -416,7 +437,7 @@
 
   /* Termine: horizontal zwischen Tagen wischen (nicht vertikal durch alle Tage) */
   .wall-cal-mobile-strip {
-    flex: 1 1 auto;
+    flex: 1 1 0;
     min-height: 0;
     display: flex;
     flex-direction: row;
@@ -426,7 +447,9 @@
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
     scroll-snap-type: x proximity;
-    padding: 0 0.15rem 0.2rem;
+    padding: 0.1rem 0.15rem 0.2rem;
+    position: relative;
+    z-index: 1;
   }
 
   .wall-cal-mobile-strip--month {
@@ -439,8 +462,8 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
-    height: 100%;
-    max-height: none;
+    max-height: 100%;
+    align-self: stretch;
     padding: 0.35rem 0.3rem;
     border-radius: 8px;
     background: var(--surface-solid);
@@ -779,18 +802,71 @@
   }
 
   .wall-extern-list {
-    max-height: 6.5rem;
+    --wall-extern-row: 4rem;
+    max-height: none;
+    overflow-y: visible;
+    padding: 0.25rem 0;
+  }
+
+  /* Ab 4. Eintrag: Scroll, Höhe für genau 3 sichtbare Zeilen */
+  .wall-extern-list:has(.wall-extern-person:nth-child(4)) {
+    max-height: calc(var(--wall-extern-row) * 3);
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .wall-extern-person {
-    padding: 0.35rem 0.65rem;
-    flex-wrap: wrap;
+    box-sizing: border-box;
+    min-height: var(--wall-extern-row);
+    padding: 0.28rem 0.55rem;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .wall-extern-person-main {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .wall-extern-meta {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .wall-extern-actions {
-    width: 100%;
+    width: auto;
+    flex-shrink: 0;
+    flex-direction: row;
+    flex-wrap: nowrap;
     justify-content: flex-end;
+    gap: 0.2rem;
+  }
+
+  .wall-extern-list .wall-freigabe-btn,
+  .wall-extern-list .wall-retour-btn {
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    min-height: 32px;
+    padding: 0.22rem 0.4rem;
+    font-size: 0.58rem;
+  }
+
+  .wall-extern-list .wall-freigabe-edit {
+    flex-wrap: nowrap;
+    gap: 0.2rem;
+  }
+
+  .wall-extern-list .wall-freigabe-date {
+    width: 6.5rem;
+    min-width: 0;
+    flex: 0 1 auto;
+    font-size: 14px;
+    padding: 0.2rem 0.25rem;
+    min-height: 32px;
   }
 
   .wall-freigabe-edit {
@@ -806,7 +882,11 @@
   }
 
   .wall-extern-name {
+    display: block;
     font-size: 0.8rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .wall-extern-meta {
