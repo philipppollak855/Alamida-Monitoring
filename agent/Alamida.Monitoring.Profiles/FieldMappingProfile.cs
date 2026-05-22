@@ -43,6 +43,8 @@ public sealed class NeuerSterbefallMaskConfig
 public sealed class FieldLocator
 {
     public List<string> AutomationIdContains { get; set; } = [];
+    /// <summary>AutomationId darf keines dieser Teilstrings enthalten (z. B. Trauerfeier2 bei TF1).</summary>
+    public List<string> AutomationIdExcludes { get; set; } = [];
     public List<string> NameContains { get; set; } = [];
     public List<string> ControlTypes { get; set; } = [];
 }

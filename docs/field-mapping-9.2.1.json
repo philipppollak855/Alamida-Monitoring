@@ -54,6 +54,7 @@
             "Trauerfeier_Datum",
             "Trauerfeier_Termin"
           ],
+          "automationIdExcludes": ["Trauerfeier2", "Trauerfeier_2", "Trauerfeier 2"],
           "controlTypes": ["Calendar", "Edit"]
         },
         "trauerfeierzeit": {
@@ -62,6 +63,7 @@
             "Trauerfeier_Uhrzeit",
             "Trauerfeier_Zeit"
           ],
+          "automationIdExcludes": ["Trauerfeier2", "Trauerfeier_2", "Trauerfeier 2"],
           "controlTypes": ["Edit", "Text"]
         },
         "trauerfeier2datum": {
@@ -238,10 +240,12 @@
       },
       "trauerfeierdatum": {
         "automationIdContains": ["Termin_Trauerfeier_Datum", "Trauerfeier_Datum"],
+        "automationIdExcludes": ["Trauerfeier2", "Trauerfeier_2", "Trauerfeier 2"],
         "controlTypes": ["Calendar", "Edit"]
       },
       "trauerfeierzeit": {
         "automationIdContains": ["Termin_Trauerfeier_Zeit", "Trauerfeier_Uhrzeit"],
+        "automationIdExcludes": ["Trauerfeier2", "Trauerfeier_2", "Trauerfeier 2"],
         "controlTypes": ["Edit", "Text"]
       },
       "trauerfeier2datum": {
@@ -249,7 +253,7 @@
         "controlTypes": ["Calendar", "Edit"]
       },
       "trauerfeier2zeit": {
-        "automationIdContains": ["Termin_Trauerfeier2_Zeit", "Trauerfeier2_Zeit"],
+        "automationIdContains": ["Termin_Trauerfeier2_Zeit", "Trauerfeier2_Zeit", "Trauerfeier_2_Zeit"],
         "controlTypes": ["Edit", "Text"]
       },
       "rosenkranzdatum": {

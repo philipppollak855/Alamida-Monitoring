@@ -14,7 +14,7 @@ public static class UiaFieldExtractor
 
         foreach (var (key, locator) in locators)
         {
-            var value = FindBestMatch(candidates, locator);
+            var value = FindBestMatch(candidates, locator, key);
             if (!string.IsNullOrWhiteSpace(value))
                 result[key] = value.Trim();
         }
@@ -22,29 +22,80 @@ public static class UiaFieldExtractor
         return result;
     }
 
-    private static string? FindBestMatch(AutomationElement[] candidates, FieldLocator locator)
+    private static bool IsTrauerfeier2AutomationId(string automationId) =>
+        automationId.Contains("Trauerfeier2", StringComparison.OrdinalIgnoreCase)
+        || automationId.Contains("Trauerfeier_2", StringComparison.OrdinalIgnoreCase)
+        || automationId.Contains("Trauerfeier 2", StringComparison.OrdinalIgnoreCase);
+
+    private static bool AutomationIdMatches(string automationId, FieldLocator locator, string fieldKey)
+    {
+        if (locator.AutomationIdExcludes.Count > 0
+            && locator.AutomationIdExcludes.Any(ex =>
+                automationId.Contains(ex, StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        if (!locator.AutomationIdContains.Any(id =>
+                automationId.Contains(id, StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        return fieldKey switch
+        {
+            "trauerfeierdatum" or "trauerfeierzeit" => !IsTrauerfeier2AutomationId(automationId),
+            "trauerfeier2datum" or "trauerfeier2zeit" => IsTrauerfeier2AutomationId(automationId),
+            _ => true,
+        };
+    }
+
+    private static int LongestMatchingPatternLength(string automationId, FieldLocator locator) =>
+        locator.AutomationIdContains
+            .Where(id => automationId.Contains(id, StringComparison.OrdinalIgnoreCase))
+            .Select(id => id.Length)
+            .DefaultIfEmpty(0)
+            .Max();
+
+    private static string? FindBestMatch(
+        AutomationElement[] candidates,
+        FieldLocator locator,
+        string fieldKey)
     {
         if (locator.AutomationIdContains.Count > 0)
         {
+            string? bestDate = null;
+            var bestDateScore = 0;
             string? fallback = null;
+            var bestFallbackScore = 0;
+
             foreach (var el in candidates)
             {
                 var aid = UiaValueReader.SafeGet(() => el.AutomationId) ?? "";
-                if (!locator.AutomationIdContains.Any(id =>
-                        aid.Contains(id, StringComparison.OrdinalIgnoreCase)))
-                    continue;
+                if (!AutomationIdMatches(aid, locator, fieldKey)) continue;
 
+                var score = LongestMatchingPatternLength(aid, locator);
                 var val = UiaValueReader.Read(el);
                 if (string.IsNullOrWhiteSpace(val)) continue;
+                val = val.Trim();
 
                 if (UeberfuehrungSnapshotBuilder.TryParseDatum(val, out _))
-                    return val.Trim();
-
-                fallback ??= val.Trim();
+                {
+                    if (score > bestDateScore)
+                    {
+                        bestDateScore = score;
+                        bestDate = val;
+                    }
+                }
+                else if (score > bestFallbackScore)
+                {
+                    bestFallbackScore = score;
+                    fallback = val;
+                }
             }
 
-            if (!string.IsNullOrWhiteSpace(fallback))
-                return fallback;
+            if (!string.IsNullOrWhiteSpace(bestDate)) return bestDate;
+            if (!string.IsNullOrWhiteSpace(fallback)) return fallback;
         }
 
         string? best = null;
@@ -54,9 +105,11 @@ public static class UiaFieldExtractor
         {
             var name = UiaValueReader.SafeGet(() => el.Name) ?? "";
             var ct = UiaValueReader.SafeGet(() => el.ControlType.ToString()) ?? "";
-            if (locator.ControlTypes.Count > 0 &&
-                !locator.ControlTypes.Any(t => ct.Contains(t, StringComparison.OrdinalIgnoreCase)))
+            if (locator.ControlTypes.Count > 0
+                && !locator.ControlTypes.Any(t => ct.Contains(t, StringComparison.OrdinalIgnoreCase)))
+            {
                 continue;
+            }
 
             var score = locator.NameContains.Count(term =>
                 name.Contains(term, StringComparison.OrdinalIgnoreCase));
