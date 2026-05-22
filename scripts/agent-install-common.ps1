@@ -93,11 +93,23 @@ function Unblock-AlamidaPath {
 }
 
 function Find-AlamidaServiceAccountNearby {
-    $dirs = @($PSScriptRoot, (Split-Path $PSScriptRoot -Parent), (Get-Location).Path)
+    $dirs = @(
+        $PSScriptRoot,
+        (Split-Path $PSScriptRoot -Parent),
+        [Environment]::GetFolderPath('Desktop'),
+        (Get-Location).Path
+    )
     foreach ($d in $dirs) {
         if (-not $d -or -not (Test-Path $d)) { continue }
-        $p = Join-Path $d 'serviceAccount.json'
-        if (Test-Path $p) { return (Resolve-Path $p).Path }
+        $exact = Join-Path $d 'serviceAccount.json'
+        if (Test-AlamidaServiceAccountFile $exact) {
+            return (Resolve-Path $exact).Path
+        }
+        foreach ($f in Get-ChildItem -Path $d -Filter '*.json' -File -ErrorAction SilentlyContinue) {
+            if (Test-AlamidaServiceAccountFile $f.FullName) {
+                return $f.FullName
+            }
+        }
     }
     return $null
 }

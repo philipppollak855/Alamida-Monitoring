@@ -28,7 +28,7 @@ function Find-NearbyAgentZip {
 function Show-WizardForm {
     $form = New-Object System.Windows.Forms.Form
     $form.Text = 'Alamida Monitoring - Installation'
-    $form.Size = New-Object System.Drawing.Size(560, 440)
+    $form.Size = New-Object System.Drawing.Size(580, 480)
     $form.StartPosition = 'CenterScreen'
     $form.FormBorderStyle = 'FixedDialog'
     $form.MaximizeBox = $false
@@ -82,17 +82,26 @@ function Show-WizardForm {
     $lblZipPath.ForeColor = [System.Drawing.Color]::Gray
     $lblZipPath.Visible = $false
 
-    $btnBrowseCred = New-Object System.Windows.Forms.Button
-    $btnBrowseCred.Location = New-Object System.Drawing.Point(24, 200)
-    $btnBrowseCred.Size = New-Object System.Drawing.Size(160, 28)
-    $btnBrowseCred.Text = 'serviceAccount waehlen...'
-    $btnBrowseCred.Visible = $false
+    $pnlFirebase = New-Object System.Windows.Forms.Panel
+    $pnlFirebase.Location = New-Object System.Drawing.Point(22, 168)
+    $pnlFirebase.Size = New-Object System.Drawing.Size(520, 100)
+    $pnlFirebase.BorderStyle = 'FixedSingle'
+    $pnlFirebase.Visible = $false
 
-    $lblCredPath = New-Object System.Windows.Forms.Label
-    $lblCredPath.Location = New-Object System.Drawing.Point(24, 235)
-    $lblCredPath.Size = New-Object System.Drawing.Size(500, 50)
-    $lblCredPath.ForeColor = [System.Drawing.Color]::DarkGreen
-    $lblCredPath.Visible = $false
+    $btnBrowseCred = New-Object System.Windows.Forms.Button
+    $btnBrowseCred.Location = New-Object System.Drawing.Point(12, 10)
+    $btnBrowseCred.Size = New-Object System.Drawing.Size(220, 32)
+    $btnBrowseCred.Text = 'Firebase JSON-Datei waehlen...'
+    $btnBrowseCred.Font = New-Object System.Drawing.Font('Segoe UI', 10, [System.Drawing.FontStyle]::Bold)
+
+    $txtCredPath = New-Object System.Windows.Forms.TextBox
+    $txtCredPath.Location = New-Object System.Drawing.Point(12, 50)
+    $txtCredPath.Size = New-Object System.Drawing.Size(492, 26)
+    $txtCredPath.ReadOnly = $true
+    $txtCredPath.BackColor = [System.Drawing.Color]::White
+    $txtCredPath.Text = 'Noch keine Datei gewaehlt'
+
+    $pnlFirebase.Controls.AddRange(@($btnBrowseCred, $txtCredPath))
 
     $progress = New-Object System.Windows.Forms.ProgressBar
     $progress.Location = New-Object System.Drawing.Point(24, 280)
@@ -108,33 +117,43 @@ function Show-WizardForm {
     $lblStatus.Visible = $false
 
     $btnBack = New-Object System.Windows.Forms.Button
-    $btnBack.Location = New-Object System.Drawing.Point(24, 350)
+    $btnBack.Location = New-Object System.Drawing.Point(24, 390)
     $btnBack.Size = New-Object System.Drawing.Size(100, 32)
     $btnBack.Text = 'Zurueck'
     $btnBack.Enabled = $false
 
     $btnNext = New-Object System.Windows.Forms.Button
-    $btnNext.Location = New-Object System.Drawing.Point(410, 350)
+    $btnNext.Location = New-Object System.Drawing.Point(410, 390)
     $btnNext.Size = New-Object System.Drawing.Size(100, 32)
     $btnNext.Text = 'Weiter'
 
     $btnCancel = New-Object System.Windows.Forms.Button
-    $btnCancel.Location = New-Object System.Drawing.Point(300, 350)
+    $btnCancel.Location = New-Object System.Drawing.Point(300, 390)
     $btnCancel.Size = New-Object System.Drawing.Size(100, 32)
     $btnCancel.Text = 'Abbrechen'
 
     $form.Controls.AddRange(@(
         $lblTitle, $lblBody, $txtInstallDir, $btnBrowseDir,
         $rbDownload, $rbLocal, $btnBrowseZip, $lblZipPath,
-        $btnBrowseCred, $lblCredPath,
-        $progress, $lblStatus, $btnBack, $btnNext, $btnCancel
+        $progress, $lblStatus, $btnBack, $btnNext, $btnCancel,
+        $pnlFirebase
     ))
+
+    function Update-CredPathDisplay {
+        if ($script:WizardServiceAccountPath) {
+            $txtCredPath.Text = $script:WizardServiceAccountPath
+            $txtCredPath.ForeColor = [System.Drawing.Color]::DarkGreen
+        } else {
+            $txtCredPath.Text = 'Noch keine Datei gewaehlt - bitte Button oben klicken'
+            $txtCredPath.ForeColor = [System.Drawing.Color]::DarkRed
+        }
+    }
 
     $nearbySa = Find-AlamidaServiceAccountNearby
     if ($nearbySa) {
         $script:WizardServiceAccountPath = $nearbySa
-        $lblCredPath.Text = "Gefunden: $(Split-Path $nearbySa -Leaf)"
     }
+    Update-CredPathDisplay
 
     $nearbyZip = Find-NearbyAgentZip
     if ($nearbyZip) {
@@ -153,8 +172,18 @@ function Show-WizardForm {
         $rbLocal.Visible = $Step -eq 2
         $btnBrowseZip.Visible = ($Step -eq 2) -and $rbLocal.Checked
         $lblZipPath.Visible = $Step -eq 2
-        $btnBrowseCred.Visible = $Step -eq 3
-        $lblCredPath.Visible = $Step -eq 3
+        $pnlFirebase.Visible = $Step -eq 3
+        if ($Step -eq 3) {
+            $lblBody.Height = 105
+            $pnlFirebase.BringToFront()
+            if (-not $script:WizardServiceAccountPath) {
+                $auto = Find-AlamidaServiceAccountNearby
+                if ($auto) { $script:WizardServiceAccountPath = $auto }
+            }
+            Update-CredPathDisplay
+        } else {
+            $lblBody.Height = 220
+        }
         $progress.Visible = $Step -eq 4
         $lblStatus.Visible = $Step -ge 4
         $btnBack.Enabled = $Step -gt 0 -and $Step -lt 5
@@ -164,7 +193,7 @@ function Show-WizardForm {
 
         switch ($Step) {
             0 {
-                $lblTitle.Text = 'Willkommen'
+                $lblTitle.Text = 'Schritt 1 von 5: Willkommen'
                 $lblBody.Text = @"
 Richtet auf diesem PC ein:
 
@@ -177,11 +206,11 @@ neben diesen Wizard (USB) oder waehlen Sie die Datei im naechsten Schritt.
 "@
             }
             1 {
-                $lblTitle.Text = 'Installationsordner'
+                $lblTitle.Text = 'Schritt 2 von 5: Installationsordner'
                 $lblBody.Text = 'Der Agent wird in diesen Ordner entpackt. Bestehende Installation wird ersetzt.'
             }
             2 {
-                $lblTitle.Text = 'Agent-Paket'
+                $lblTitle.Text = 'Schritt 3 von 5: Agent-Paket'
                 $lblBody.Text = 'Waehlen Sie, wie das Installations-ZIP bezogen werden soll.'
                 if ($script:WizardZipPath) {
                     $lblZipPath.Text = (Split-Path $script:WizardZipPath -Leaf)
@@ -189,16 +218,14 @@ neben diesen Wizard (USB) oder waehlen Sie die Datei im naechsten Schritt.
                 $btnBrowseZip.Visible = $rbLocal.Checked
             }
             3 {
-                $lblTitle.Text = 'Firebase-Zugang'
+                $lblTitle.Text = 'Schritt 4 von 5: Firebase-Zugang'
                 $lblBody.Text = @"
-Ohne serviceAccount.json synchronisiert der Agent nicht mit der Cloud.
+Pflicht: JSON-Schluessel aus der Firebase Console (Dienstkonto).
 
-Datei aus Firebase Console (Projekt alamida---monitoring ->
-Dienstkonten -> Schluessel JSON) hier waehlen oder neben den Wizard legen.
+Klicken Sie unten im Kasten auf den Button
+"Firebase JSON-Datei waehlen".
+Dateiname egal (z.B. alamida---monitoring-firebase-adminsdk-....json).
 "@
-                if ($script:WizardServiceAccountPath) {
-                    $lblCredPath.Text = $script:WizardServiceAccountPath
-                }
             }
             4 {
                 $lblTitle.Text = 'Installation laeuft...'
@@ -238,17 +265,18 @@ Dienstkonten -> Schluessel JSON) hier waehlen oder neben den Wizard legen.
 
     $btnBrowseCred.Add_Click({
         $ofd = New-Object System.Windows.Forms.OpenFileDialog
-        $ofd.Filter = 'Firebase Service Account (*.json)|*.json'
-        $ofd.Title = 'serviceAccount.json'
+        $ofd.Filter = 'Firebase JSON (*.json)|*.json|Alle Dateien (*.*)|*.*'
+        $ofd.Title = 'Firebase Dienstkonto-Schluessel (JSON)'
+        $ofd.InitialDirectory = $PSScriptRoot
         if ($ofd.ShowDialog() -eq 'OK') {
             if (-not (Test-AlamidaServiceAccountFile $ofd.FileName)) {
                 [System.Windows.Forms.MessageBox]::Show(
-                    'Die Datei enthaelt kein gueltiges Firebase-Dienstkonto (private_key / client_email).',
+                    'Ungueltige Datei. Es muss ein Firebase-Dienstkonto sein (Felder private_key und client_email).',
                     'Ungueltige Datei', 'OK', 'Warning') | Out-Null
                 return
             }
             $script:WizardServiceAccountPath = $ofd.FileName
-            $lblCredPath.Text = $ofd.FileName
+            Update-CredPathDisplay
         }
     })
 
@@ -283,10 +311,10 @@ Dienstkonten -> Schluessel JSON) hier waehlen oder neben den Wizard legen.
             if (-not (Test-AlamidaServiceAccountFile $script:WizardServiceAccountPath)) {
                 [System.Windows.Forms.MessageBox]::Show(
                     @"
-Bitte serviceAccount.json waehlen.
+Bitte Firebase-JSON waehlen (Button im Kasten auf Schritt 4).
 
-Diese Datei einmalig aus der Firebase Console exportieren und
-auf jeden PC kopieren (oder neben install-wizard.bat ablegen).
+Schluessel einmalig in der Firebase Console erzeugen
+(Dienstkonten -> Neuer privater Schluessel).
 "@,
                     'Firebase erforderlich', 'OK', 'Warning') | Out-Null
                 return

@@ -8,11 +8,12 @@ Pro PC (oder einmalig auf USB mit dem Installer):
 
 2. „Neuen privaten Schlüssel generieren“ → JSON speichern
 
-3. Datei umbenennen in: serviceAccount.json
+3. Optional umbenennen in: serviceAccount.json
+   (im Wizard kann der Original-Dateiname bleiben)
 
 4. Entweder:
-   - neben install-wizard.bat ablegen, ODER
-   - im Wizard Schritt „Firebase-Zugang“ auswählen
+   - JSON neben install-wizard.bat ablegen, ODER
+   - im Wizard Schritt 4: "Firebase JSON-Datei waehlen"
 
 Die Datei wird nach kopiert:
    %AppData%\AlamidaMonitoring\serviceAccount.json
