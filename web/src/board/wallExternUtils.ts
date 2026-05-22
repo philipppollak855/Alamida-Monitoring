@@ -55,9 +55,18 @@ function hinweisFuerFall(s: Sterbefall, typ: 'krankenhaus' | 'kremation'): strin
   const n = naechsterSchritt(s);
   if (n && isAusstehendHeute(n)) return 'Termin heute';
   if (n?.status === 'abholung_noetig') return 'Abholung ausstehend';
+
+  // Noch am KH/Sterbeort — vor „Überführung ohne Datum“, auch wenn KR-Überführung vorgebucht ist
+  if (typ === 'krankenhaus') {
+    if (s.aktuellePositionTyp === 'sterbeort' || isAmKrankenhausOderSterbeort(s)) {
+      return 'Am Sterbeort';
+    }
+  } else if (s.aktuellePositionTyp === 'sterbeort') {
+    return 'Am Sterbeort';
+  }
+
   if (hatAusstehendeUeberfuehrungInsEigeneKr(s)) return 'Überführung ohne Datum';
   if (typ === 'kremation' && istAktuellImKrematorium(s)) return 'Im Krematorium';
-  if (s.aktuellePositionTyp === 'sterbeort') return 'Am Sterbeort';
   if (n?.schrittTyp === 'abholung') return 'Wartet auf Abholung';
   if (n?.schrittTyp === 'kremation') return 'Kremation geplant';
   return 'Wartend';
