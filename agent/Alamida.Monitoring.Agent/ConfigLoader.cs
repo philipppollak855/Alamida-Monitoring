@@ -30,6 +30,20 @@ public static class ConfigLoader
             .Replace("%AppData%", appData, StringComparison.OrdinalIgnoreCase)
             ?? Path.Combine(appData, "AlamidaMonitoring", "serviceAccount.json");
 
+        var autoUpdate = new AutoUpdateConfig();
+        var autoSection = config.GetSection("AutoUpdate");
+        if (autoSection.Exists())
+        {
+            if (bool.TryParse(autoSection["Enabled"], out var enabled))
+                autoUpdate.Enabled = enabled;
+            if (bool.TryParse(autoSection["CheckOnStartup"], out var onStart))
+                autoUpdate.CheckOnStartup = onStart;
+            if (!string.IsNullOrWhiteSpace(autoSection["RepoRoot"]))
+                autoUpdate.RepoRoot = autoSection["RepoRoot"]!;
+            if (!string.IsNullOrWhiteSpace(autoSection["Branch"]))
+                autoUpdate.Branch = autoSection["Branch"]!;
+        }
+
         return new AgentConfig
         {
             FirebaseProjectId = config["FirebaseProjectId"] ?? "alamida---monitoring",
@@ -41,6 +55,7 @@ public static class ConfigLoader
             FieldMappingPath = string.IsNullOrWhiteSpace(config["FieldMappingPath"])
                 ? defaultMapping
                 : config["FieldMappingPath"]!,
+            AutoUpdate = autoUpdate,
         };
     }
 

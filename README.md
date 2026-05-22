@@ -35,6 +35,17 @@ dotnet run --project agent\Alamida.Monitoring.Agent -- --once
 
 Nach Alamida-Start: Überführungs-Detailmaske öffnen → Agent erkennt Kühlraum, von/nach, Abholung → Firestore.
 
+### Auto-Update (Git)
+
+Wenn der Agent aus einem **Git-Klon** des Repos läuft (oder `AutoUpdate:RepoRoot` gesetzt ist), prüft er beim Start per `git fetch`, ob `origin/main` neuer ist. Bei Bedarf: `git pull --ff-only`, `dotnet build`, Neustart.
+
+- Tray: **Update von GitHub…** (manuell)
+- Skript: `scripts\update-agent.ps1 -Apply`
+- Abschalten: in `appsettings.json` → `"AutoUpdate": { "Enabled": false }`
+- Voraussetzung: **Git** im PATH, Zugriff auf GitHub (SSH/HTTPS-Credentials)
+
+`serviceAccount.json` und `%AppData%\AlamidaMonitoring\` werden vom Update nicht angetastet.
+
 ## Web deployen
 
 **Firebase Hosting** (bereits eingerichtet):
@@ -69,7 +80,7 @@ Console: https://console.firebase.google.com/project/alamida---monitoring
 | `web/` | React + Vite |
 | `firebase/` | Rules + Hosting |
 | `docs/` | Field-Mapping, Discovery |
-| `scripts/` | setup-complete, deploy-web |
+| `scripts/` | setup-complete, deploy-web, update-agent |
 
 ## Field-Mapping anpassen
 

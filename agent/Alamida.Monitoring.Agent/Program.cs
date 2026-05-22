@@ -204,6 +204,15 @@ internal static class Program
             return;
         }
 
+        if (TryRunStartupAutoUpdate(config))
+            return;
+
         Application.Run(new TrayApplicationContext(config, profile));
+    }
+
+    private static bool TryRunStartupAutoUpdate(Core.Models.AgentConfig config)
+    {
+        var checker = new AgentUpdateChecker(config.AutoUpdate, AppContext.BaseDirectory);
+        return checker.TryApplyUpdateIfAvailable(out _);
     }
 }

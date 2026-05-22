@@ -174,16 +174,32 @@
   /* Kühlraum: 3×3 gleichmäßig im verfügbaren Bereich */
   .wall-urnen-section {
     flex-shrink: 0;
-    max-height: 22vh;
+    max-height: 26vh;
     overflow-y: auto;
+    padding-top: 0.65rem;
+  }
+
+  .wall-urnen-title {
+    font-size: 1.15rem;
+  }
+
+  .wall-urnen-sub {
+    font-size: 0.82rem;
+    margin-bottom: 0.5rem;
   }
 
   .wall-urnen-item {
-    padding: 0.3rem 0.45rem;
+    padding: 0.45rem 0.55rem;
+    min-width: 0;
+    flex: 1 1 100%;
   }
 
   .wall-urnen-name {
-    font-size: 0.72rem;
+    font-size: 0.88rem;
+  }
+
+  .wall-urnen-section .urnen-undo-btn {
+    font-size: 0.68rem;
   }
 
   .wall-retour-btn {

@@ -57,6 +57,7 @@ public sealed class TrayApplicationContext : ApplicationContext
         menu.Items.Add(new ToolStripMenuItem("Jetzt synchronisieren", null, (_, _) => _ = SyncJetztAsync()));
         menu.Items.Add(_pauseItem);
         menu.Items.Add(new ToolStripMenuItem("Neustarten", null, (_, _) => Neustarten()));
+        menu.Items.Add(new ToolStripMenuItem("Update von GitHub…", null, (_, _) => UpdateVonGitHub()));
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(new ToolStripMenuItem("Web-Dashboard öffnen", null, (_, _) =>
             OeffneUrl("https://alamida---monitoring.web.app")));
@@ -136,6 +137,37 @@ public sealed class TrayApplicationContext : ApplicationContext
         }
     }
 
+    private void UpdateVonGitHub()
+    {
+        var checker = new AgentUpdateChecker(_config.AutoUpdate, AppContext.BaseDirectory);
+        if (checker.ResolveRepoRoot() == null)
+        {
+            MessageBox.Show(
+                "Kein Git-Repository gefunden.\n\n" +
+                "Auto-Update funktioniert nur, wenn der Agent aus einem geklonten Repo läuft " +
+                "oder AutoUpdate:RepoRoot in appsettings.json gesetzt ist.",
+                "Alamida Monitoring",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            return;
+        }
+
+        if (!checker.IsUpdateAvailable())
+        {
+            ShowBalloon("Bereits aktuelle Version", ToolTipIcon.Info);
+            return;
+        }
+
+        if (!checker.StartUpdateScript(apply: true))
+        {
+            ShowBalloon("Update-Skript konnte nicht gestartet werden", ToolTipIcon.Error);
+            return;
+        }
+
+        ShowBalloon("Update wird installiert — Agent beendet sich kurz", ToolTipIcon.Info);
+        Application.Exit();
+    }
+
     private async Task SyncJetztAsync()
     {
         _pauseItem.Enabled = false;
@@ -167,6 +199,13 @@ public sealed class TrayApplicationContext : ApplicationContext
             lines.Add($"Firestore: {_firestoreHinweis}");
         else
             lines.Add("Firestore: verbunden");
+
+        var updater = new AgentUpdateChecker(_config.AutoUpdate, AppContext.BaseDirectory);
+        var repo = updater.ResolveRepoRoot();
+        if (repo != null)
+            lines.Add($"Git-Repo: {repo}");
+        if (_config.AutoUpdate.Enabled)
+            lines.Add($"Auto-Update: {(_config.AutoUpdate.CheckOnStartup ? "beim Start" : "nur manuell")} ({_config.AutoUpdate.Branch})");
 
         MessageBox.Show(
             string.Join(Environment.NewLine, lines),

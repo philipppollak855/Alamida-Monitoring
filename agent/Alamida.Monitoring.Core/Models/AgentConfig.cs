@@ -9,4 +9,5 @@ public sealed class AgentConfig
     public string WorkstationId { get; set; } = Environment.MachineName;
     public int PollIntervalMs { get; set; } = 1500;
     public string FieldMappingPath { get; set; } = "";
+    public AutoUpdateConfig AutoUpdate { get; set; } = new();
 }
