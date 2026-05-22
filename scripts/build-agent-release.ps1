@@ -89,6 +89,21 @@ foreach ($inf in $installerFiles) {
     Copy-Item (Join-Path $Root "scripts\$inf") (Join-Path $installerDir $inf) -Force
 }
 
+$readmeInstaller = @"
+Alamida Monitoring — Installation (Windows)
+
+1. install-wizard.bat doppelklicken
+2. ZIP von GitHub laden lassen (oder lokale Agent-ZIP waehlen)
+3. Fertig — Autostart + Desktop „Alamida Wandmonitor“
+
+Version: $versionLine
+"@
+Set-Content -Path (Join-Path $installerDir "README.txt") -Value $readmeInstaller -Encoding UTF8
+
+$installerZip = Join-Path $OutputDir "AlamidaMonitoring-Installer.zip"
+if (Test-Path $installerZip) { Remove-Item $installerZip -Force }
+Compress-Archive -Path (Join-Path $installerDir "*") -DestinationPath $installerZip -Force
+
 if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
 Compress-Archive -Path (Join-Path $publishDir "*") -DestinationPath $zipPath -Force
 
@@ -96,3 +111,4 @@ Write-Host "Version:  $versionLine" -ForegroundColor Green
 Write-Host "Ordner:   $publishDir" -ForegroundColor Green
 Write-Host "ZIP:      $zipPath" -ForegroundColor Green
 Write-Host "Wizard:   $installerDir\install-wizard.bat" -ForegroundColor Green
+Write-Host "Bundle:   $installerZip" -ForegroundColor Green
