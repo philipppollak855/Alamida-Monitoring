@@ -35,11 +35,13 @@ dotnet run --project agent\Alamida.Monitoring.Agent -- --once
 
 Nach Alamida-Start: Überführungs-Detailmaske öffnen → Agent erkennt Kühlraum, von/nach, Abholung → Firestore.
 
-### Agent auf Arbeitsplätzen (ZIP, ohne Git)
+### Agent auf Arbeitsplätzen (Wizard, ohne Git)
 
-1. [Neuestes Release](https://github.com/philipppollak855/Alamida-Monitoring/releases/latest) → `AlamidaMonitoringAgent-win-x64.zip` entpacken (z. B. `C:\AlamidaMonitoring\`)
-2. Einmal: `scripts\setup-agent-install.ps1 -InstallDir C:\AlamidaMonitoring`
-3. Firebase-Credential in `%AppData%\AlamidaMonitoring\` (Setup oder `serviceAccount.json`)
+1. `scripts\install-wizard.bat` starten (oder Release-Ordner `installer\install-wizard.bat`)
+2. Wizard lädt ZIP, entpackt nach `C:\AlamidaMonitoring`, richtet Autostart + Desktop-Verknüpfung **„Alamida Wandmonitor“** ein
+3. Einmalig Firebase-Credential in `%AppData%\AlamidaMonitoring\` falls der Wizard keins gefunden hat
+
+Die Wandmonitor-Verknüpfung prüft bei jedem Öffnen Agent-Updates und öffnet dann `/wall`.
 
 Details: [docs/agent-install.md](docs/agent-install.md)
 
@@ -85,7 +87,7 @@ Console: https://console.firebase.google.com/project/alamida---monitoring
 | `web/` | React + Vite |
 | `firebase/` | Rules + Hosting |
 | `docs/` | Field-Mapping, Discovery |
-| `scripts/` | setup-complete, setup-agent-install, build-agent-release, deploy-web |
+| `scripts/` | install-wizard, setup-agent-install, build-agent-release, deploy-web |
 
 ## Field-Mapping anpassen
 

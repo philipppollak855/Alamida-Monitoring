@@ -8,6 +8,8 @@ on:
       - 'docs/field-mapping-9.2.1.json'
       - 'scripts/build-agent-release.ps1'
       - 'scripts/apply-agent-release.ps1'
+      - 'scripts/install-wizard.ps1'
+      - 'scripts/agent-install-common.ps1'
   workflow_dispatch:
 
 permissions:
@@ -34,6 +36,14 @@ jobs:
         with:
           tag_name: agent-v0.${{ github.run_number }}
           name: Agent v0.${{ github.run_number }}
-          body: Portable Windows Agent (self-contained). Entpacken und setup-agent-install.ps1 einmal ausführen.
-          files: dist/agent-release/AlamidaMonitoringAgent-win-x64.zip
+          body: |
+            Portable Windows Agent (self-contained).
+            Installation: installer/install-wizard.bat aus dem Release-Asset-Ordner oder Repo scripts/.
+          files: |
+            dist/agent-release/AlamidaMonitoringAgent-win-x64.zip
+            dist/agent-release/installer/install-wizard.bat
+            dist/agent-release/installer/install-wizard.ps1
+            dist/agent-release/installer/agent-install-common.ps1
+            dist/agent-release/installer/launch-wall-monitor.ps1
+            dist/agent-release/installer/apply-agent-release.ps1
           make_latest: true

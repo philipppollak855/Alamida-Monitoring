@@ -1,57 +1,50 @@
-# Agent installieren (ohne Git)
+# Agent installieren (Wizard, ohne Git)
 
-Für Alamida-PCs **ohne** Git und ohne .NET SDK.
+## Schnellstart (empfohlen)
 
-## 1. Release laden
+1. Ordner `dist/agent-release/installer` vom Release oder Repo `scripts\` auf den PC kopieren (z. B. USB oder Desktop).
+2. **`install-wizard.bat`** doppelklicken.
+3. Im Wizard:
+   - Zielordner bestätigen (Standard: `C:\AlamidaMonitoring`)
+   - ZIP von GitHub laden **oder** lokale `AlamidaMonitoringAgent-win-x64.zip` wählen
+   - Fertigstellen
 
-1. Öffne [GitHub Releases](https://github.com/philipppollak855/Alamida-Monitoring/releases/latest)
-2. Datei **`AlamidaMonitoringAgent-win-x64.zip`** herunterladen
-3. In einen festen Ordner entpacken, z. B. `C:\AlamidaMonitoring\`
+Der Wizard:
 
-Der Ordner enthält u. a. `AlamidaMonitoringAgent.exe`, `version.txt`, `appsettings.json`.
+- entpackt das ZIP am richtigen Ort,
+- richtet Firebase/AppData ein (wenn `firebase login` vorhanden),
+- trägt den **Agent im Windows-Autostart** ein,
+- legt auf dem **Desktop** die Verknüpfung **„Alamida Wandmonitor“** an.
 
-## 2. Einmal pro PC: Setup
+## Wandmonitor-Verknüpfung
 
-Im entpackten Ordner (oder vom Repo `scripts\`):
+Öffnet bei jedem Start:
+
+1. Prüfung auf neues **Agent-Release** (GitHub) → bei Bedarf Update + Neustart
+2. Start des Agents (falls nicht läuft)
+3. Wandmonitor im Edge-App-Fenster: https://alamida---monitoring.web.app/wall
+
+## Einmal pro PC: Firebase
+
+Falls der Wizard kein OAuth findet, nach `%AppData%\AlamidaMonitoring\` legen:
+
+- `firebase-oauth.json` (via `firebase login` auf diesem PC), oder
+- `serviceAccount.json`
+
+`WorkstationId` in `appsettings.json` **leer lassen** → PC-Name wird verwendet.
+
+## Manuell (ohne Wizard)
 
 ```powershell
-cd C:\AlamidaMonitoring
-# Falls setup-Skript aus Repo vorhanden:
-powershell -ExecutionPolicy Bypass -File "C:\Pfad\zum\Repo\scripts\setup-agent-install.ps1" -InstallDir "C:\AlamidaMonitoring"
+# ZIP nach C:\AlamidaMonitoring entpacken, dann:
+powershell -ExecutionPolicy Bypass -File setup-agent-install.ps1 -InstallDir "C:\AlamidaMonitoring"
 ```
-
-Das Skript:
-
-- legt **Autostart** an
-- kopiert Field-Mapping nach `%AppData%\AlamidaMonitoring\` (falls noch nicht da)
-- übernimmt **Firebase OAuth** von `firebase login` (falls auf diesem PC ausgeführt)
-
-### Firebase-Zugang
-
-Der Agent braucht **einmalig** Credentials in `%AppData%\AlamidaMonitoring\`:
-
-- `firebase-oauth.json` (via Setup-Skript / `firebase login`), oder
-- `serviceAccount.json` (manuell vom Firebase-Projekt)
-
-`WorkstationId` in `appsettings.json` **leer lassen** → Windows-PC-Name wird verwendet.
-
-## 3. Agent starten
-
-Doppelklick auf `AlamidaMonitoringAgent.exe` oder Autostart nach Setup.
 
 ## Updates
 
-- Beim Start prüft der Agent automatisch das **neueste GitHub-Release** und installiert es (Tray: **Update prüfen…**).
-- Voraussetzung: Internet + öffentliches Repo (kein Git nötig).
-- Lokale `appsettings.json` bleibt beim Update erhalten.
+- Automatisch beim **Agent-Start** und bei **Öffnen der Wandmonitor-Verknüpfung**
+- Tray: **Update prüfen…**
 
-## Neuen PC einrichten (Kurz)
+## Entwickler
 
-1. ZIP entpacken  
-2. `setup-agent-install.ps1 -InstallDir …`  
-3. Firebase-Credential in AppData (falls Setup keins gefunden hat)  
-4. Fertig — kein Repo-Klon nötig
-
-## Entwickler (mit Git)
-
-Im Repo `AutoUpdate:Mode` auf `"git"` setzen oder `scripts\update-agent.ps1 -Apply` nutzen.
+Im Git-Repo: `AutoUpdate.Mode = "git"` in `appsettings.json`.

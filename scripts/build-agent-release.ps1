@@ -67,7 +67,27 @@ if (Test-Path $appsettingsRelease) {
 }
 
 Copy-Item (Join-Path $Root "docs\field-mapping-9.2.1.json") (Join-Path $publishDir "field-mapping-9.2.1.json") -Force
-Copy-Item (Join-Path $Root "scripts\apply-agent-release.ps1") (Join-Path $publishDir "apply-agent-release.ps1") -Force
+$scriptFiles = @(
+    "apply-agent-release.ps1",
+    "agent-install-common.ps1",
+    "launch-wall-monitor.ps1"
+)
+foreach ($sf in $scriptFiles) {
+    Copy-Item (Join-Path $Root "scripts\$sf") (Join-Path $publishDir $sf) -Force
+}
+
+$installerDir = Join-Path $OutputDir "installer"
+New-Item -ItemType Directory -Force -Path $installerDir | Out-Null
+$installerFiles = @(
+    "install-wizard.ps1",
+    "install-wizard.bat",
+    "agent-install-common.ps1",
+    "launch-wall-monitor.ps1",
+    "apply-agent-release.ps1"
+)
+foreach ($inf in $installerFiles) {
+    Copy-Item (Join-Path $Root "scripts\$inf") (Join-Path $installerDir $inf) -Force
+}
 
 if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
 Compress-Archive -Path (Join-Path $publishDir "*") -DestinationPath $zipPath -Force
@@ -75,3 +95,4 @@ Compress-Archive -Path (Join-Path $publishDir "*") -DestinationPath $zipPath -Fo
 Write-Host "Version:  $versionLine" -ForegroundColor Green
 Write-Host "Ordner:   $publishDir" -ForegroundColor Green
 Write-Host "ZIP:      $zipPath" -ForegroundColor Green
+Write-Host "Wizard:   $installerDir\install-wizard.bat" -ForegroundColor Green
