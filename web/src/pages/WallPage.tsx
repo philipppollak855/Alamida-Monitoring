@@ -31,6 +31,7 @@ import { RouteFlow } from '../ui/RouteFlow';
 import { WallCalendarPanel, wallCalendarTabCount } from '../components/WallCalendarPanel';
 import { WallFreigabeControl } from '../components/WallFreigabeControl';
 import { useNarrowViewport } from '../hooks/useNarrowViewport';
+import { useWallEdgeSwipe } from '../hooks/useWallEdgeSwipe';
 import type { Sterbefall } from '../types';
 
 const WALL_TAB_LABELS: Record<WallView, string> = {
@@ -104,6 +105,7 @@ export function WallPage() {
     rotationPaused,
     !isNarrow
   );
+  const edgeSwipe = useWallEdgeSwipe(isNarrow, slide, goToSlide);
 
   const sterbefaelleQuery = useFirestoreCollection<Sterbefall>('sterbefaelle', 'updatedAt');
   const { items: sterbefaelleRaw, lastSyncAt, isLive, loading } = sterbefaelleQuery;
@@ -259,7 +261,21 @@ export function WallPage() {
         ))}
       </div>
 
-      <div className="wall-stage">
+      <div className={`wall-stage ${isNarrow ? 'wall-stage--edge-swipe' : ''}`}>
+        {isNarrow && (
+          <>
+            <div
+              className="wall-edge-swipe wall-edge-swipe--left"
+              aria-hidden
+              {...edgeSwipe}
+            />
+            <div
+              className="wall-edge-swipe wall-edge-swipe--right"
+              aria-hidden
+              {...edgeSwipe}
+            />
+          </>
+        )}
         {view === 'kuehlraum' && (
           <div className="wall-kuehlraum-stage">
             <h2 className="wall-stage-title">{cfg.label}</h2>
@@ -455,7 +471,7 @@ export function WallPage() {
             </>
           ) : (
             <span className="wall-rotate-hint wall-rotate-hint--mobile">
-              Tabs manuell — kein automatischer Wechsel
+              Am linken/rechten Rand wischen zum Tabwechsel
             </span>
           )}
         </div>

@@ -194,6 +194,27 @@
     padding: 0 0.65rem;
   }
 
+  .wall-stage--edge-swipe {
+    position: relative;
+  }
+
+  .wall-edge-swipe {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: clamp(40px, 11vw, 56px);
+    z-index: 12;
+    touch-action: pan-y;
+  }
+
+  .wall-edge-swipe--left {
+    left: 0;
+  }
+
+  .wall-edge-swipe--right {
+    right: 0;
+  }
+
   .wall-stage-title {
     font-size: 0.8rem;
     margin: 0 0 0.35rem;
