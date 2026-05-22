@@ -10,6 +10,8 @@ import { buildPrimaerKuehlraumSlots, flattenOffene } from '../board/boardUtils';
 import { useDispositionSettings } from '../settings/SettingsProvider';
 import { filterAktiveSterbefaelle } from '../board/historieLogic';
 import { buildExternGruppen, externGesamt } from '../board/wallExternUtils';
+import { buildUrnenListe } from '../board/urnenLogic';
+import { markSterbefallUrnenRetour } from '../services/urnenRetour';
 import {
   useWallTabRotation,
   wallDurationsFromSettings,
@@ -41,6 +43,8 @@ export function WallPage() {
   const { signOut } = useAuth();
   const now = useClock();
   const [rotationPaused, setRotationPaused] = useState(false);
+  const [retourPending, setRetourPending] = useState<string | null>(null);
+  const [retourError, setRetourError] = useState<string | null>(null);
   const tabDurations = useMemo(
     () => wallDurationsFromSettings(settings.wallTabWechselSekunden),
     [settings.wallTabWechselSekunden]
@@ -71,6 +75,19 @@ export function WallPage() {
   const heuteOffen = useMemo(() => offene.filter((o) => o.status === 'heute'), [offene, calendarDay]);
   const belegt = slots.filter(Boolean).length;
   const kuehlraumRows = Math.max(1, Math.ceil(cfg.plaetze / 3));
+  const urnenListe = useMemo(() => buildUrnenListe(sterbefaelle), [sterbefaelle]);
+
+  async function handleRetour(docId: string, retourVon?: string) {
+    setRetourError(null);
+    setRetourPending(docId);
+    try {
+      await markSterbefallUrnenRetour(docId, retourVon);
+    } catch (e) {
+      setRetourError(e instanceof Error ? e.message : 'Retour fehlgeschlagen');
+    } finally {
+      setRetourPending(null);
+    }
+  }
 
   if (!firebaseConfigured) {
     return (
@@ -138,7 +155,7 @@ export function WallPage() {
             onClick={() => goToSlide(i)}
           >
             {v === 'kuehlraum'
-              ? `Kühlraum (${belegt}/${cfg.plaetze})`
+              ? `Kühlraum (${belegt}/${cfg.plaetze}${urnenListe.length > 0 ? ` · ${urnenListe.length} Urnen` : ''})`
               : v === 'extern'
                 ? `Extern (${externTotal})`
                 : v === 'abholungen'
@@ -180,6 +197,23 @@ export function WallPage() {
                 </div>
               ))}
             </div>
+
+            {urnenListe.length > 0 && (
+              <section className="wall-urnen-section" aria-label="Urnen">
+                <h3 className="wall-urnen-title">Urnen</h3>
+                <p className="wall-urnen-sub">Retour aus Kremation</p>
+                <ul className="wall-urnen-list">
+                  {urnenListe.map((u) => (
+                    <li key={u.docId} className="wall-urnen-item">
+                      <span className="wall-urnen-name">{u.name}</span>
+                      {u.retourVon && (
+                        <span className="wall-urnen-meta">von {u.retourVon}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
           </div>
         )}
 
@@ -190,6 +224,11 @@ export function WallPage() {
               Verstorbene außerhalb des Firmenkühlraums, noch am Sterbeort oder im
               Krematorium
             </p>
+            {retourError && (
+              <p className="wall-retour-error" role="alert">
+                {retourError}
+              </p>
+            )}
             {externGruppen.length === 0 ? (
               <p className="wall-empty">Keine externen Verstorbenen</p>
             ) : (
@@ -208,12 +247,25 @@ export function WallPage() {
                     </header>
                     <ul className="wall-extern-list">
                       {g.faelle.map((f) => (
-                        <li key={f.sterbefallId} className="wall-extern-person">
-                          <span className="wall-extern-name">{f.name}</span>
-                          <span className="wall-extern-meta">
-                            {f.hinweis}
-                            {f.terminAm ? ` · ${f.terminAm}` : ''}
-                          </span>
+                        <li key={f.docId} className="wall-extern-person">
+                          <div className="wall-extern-person-main">
+                            <span className="wall-extern-name">{f.name}</span>
+                            <span className="wall-extern-meta">
+                              {f.hinweis}
+                              {f.terminAm ? ` · ${f.terminAm}` : ''}
+                            </span>
+                          </div>
+                          {g.typ === 'kremation' && (
+                            <button
+                              type="button"
+                              className="wall-retour-btn"
+                              disabled={retourPending === f.docId}
+                              title="In Bereich Urnen unter Kühlraum übernehmen"
+                              onClick={() => void handleRetour(f.docId, f.kremationOrt)}
+                            >
+                              {retourPending === f.docId ? '…' : 'Retour'}
+                            </button>
+                          )}
                         </li>
                       ))}
                     </ul>

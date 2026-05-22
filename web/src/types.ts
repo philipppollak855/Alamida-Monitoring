@@ -63,6 +63,10 @@ export interface Sterbefall {
   ausstehend?: AusstehendEintrag[];
   workstationId?: string;
   aktivInAlamida?: boolean;
+  /** Wandmonitor: Retour aus Extern/Kremation → Bereich Urnen unter Kühlraum */
+  urnenBereich?: boolean;
+  urnenSeit?: { seconds: number };
+  retourVon?: string;
   lastSeenAt?: { seconds: number };
   updatedAt?: { seconds: number };
 }

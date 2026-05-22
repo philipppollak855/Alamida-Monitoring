@@ -14,13 +14,17 @@ import {
   isAmKrankenhausOderSterbeort,
   isImEigenenKuehlraum,
 } from './kuehlraumLogic';
+import { istInUrnenBereich } from './urnenLogic';
 import { istAktuellImKrematorium, letzteAbgeschlosseneEtappe } from './positionLogic';
 
 export interface ExternFallEintrag {
+  docId: string;
   sterbefallId: string;
   name: string;
   hinweis: string;
   terminAm?: string;
+  /** Nur bei typ kremation — Retour → Urnen */
+  kremationOrt?: string;
 }
 
 export interface ExternOrtGruppe {
@@ -194,6 +198,7 @@ export function resolveExternStandort(
   s: Sterbefall
 ): { typ: 'krankenhaus' | 'kremation'; ort: string } | null {
   if (!isAktiv(s)) return null;
+  if (istInUrnenBereich(s)) return null;
   if (isImEigenenKuehlraum(s)) return null;
 
   const krem = resolveKremationStandort(s);
@@ -238,10 +243,12 @@ export function buildExternGruppen(sterbefaelle: Sterbefall[]): ExternOrtGruppe[
     }
 
     map.get(key)!.faelle.push({
+      docId: s.id,
       sterbefallId: id,
       name,
       hinweis: hinweisFuerFall(s, standort.typ),
       terminAm: n?.terminAm ?? n?.abholungAm ?? s.naechsterSchrittAm,
+      kremationOrt: standort.typ === 'kremation' ? displayOrt : undefined,
     });
   }
 

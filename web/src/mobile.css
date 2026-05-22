@@ -172,10 +172,29 @@
   }
 
   /* Kühlraum: 3×3 gleichmäßig im verfügbaren Bereich */
+  .wall-urnen-section {
+    flex-shrink: 0;
+    max-height: 22vh;
+    overflow-y: auto;
+  }
+
+  .wall-urnen-item {
+    padding: 0.3rem 0.45rem;
+  }
+
+  .wall-urnen-name {
+    font-size: 0.72rem;
+  }
+
+  .wall-retour-btn {
+    padding: 0.22rem 0.4rem;
+    font-size: 0.6rem;
+  }
+
   .wall-cool-grid {
     flex: 1;
     min-height: 0;
-    height: 100%;
+    height: auto;
     grid-template-columns: repeat(var(--kr-cols, 3), minmax(0, 1fr));
     grid-template-rows: repeat(var(--kr-rows, 3), minmax(0, 1fr));
     gap: 0.3rem;
