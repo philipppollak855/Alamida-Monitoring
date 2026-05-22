@@ -10,8 +10,12 @@ import { buildPrimaerKuehlraumSlots, flattenOffene } from '../board/boardUtils';
 import { useDispositionSettings } from '../settings/SettingsProvider';
 import { filterAktiveSterbefaelle } from '../board/historieLogic';
 import { buildExternGruppen, externGesamt } from '../board/wallExternUtils';
+import { UrnenBereichPanel } from '../components/UrnenBereichPanel';
 import { buildUrnenListe } from '../board/urnenLogic';
-import { markSterbefallUrnenRetour } from '../services/urnenRetour';
+import {
+  clearSterbefallUrnenRetour,
+  markSterbefallUrnenRetour,
+} from '../services/urnenRetour';
 import {
   useWallTabRotation,
   wallDurationsFromSettings,
@@ -43,8 +47,8 @@ export function WallPage() {
   const { signOut } = useAuth();
   const now = useClock();
   const [rotationPaused, setRotationPaused] = useState(false);
-  const [retourPending, setRetourPending] = useState<string | null>(null);
-  const [retourError, setRetourError] = useState<string | null>(null);
+  const [urnenPending, setUrnenPending] = useState<string | null>(null);
+  const [urnenError, setUrnenError] = useState<string | null>(null);
   const tabDurations = useMemo(
     () => wallDurationsFromSettings(settings.wallTabWechselSekunden),
     [settings.wallTabWechselSekunden]
@@ -78,14 +82,26 @@ export function WallPage() {
   const urnenListe = useMemo(() => buildUrnenListe(sterbefaelle), [sterbefaelle]);
 
   async function handleRetour(docId: string, retourVon?: string) {
-    setRetourError(null);
-    setRetourPending(docId);
+    setUrnenError(null);
+    setUrnenPending(docId);
     try {
       await markSterbefallUrnenRetour(docId, retourVon);
     } catch (e) {
-      setRetourError(e instanceof Error ? e.message : 'Retour fehlgeschlagen');
+      setUrnenError(e instanceof Error ? e.message : 'Retour fehlgeschlagen');
     } finally {
-      setRetourPending(null);
+      setUrnenPending(null);
+    }
+  }
+
+  async function handleUrnenUndo(docId: string) {
+    setUrnenError(null);
+    setUrnenPending(docId);
+    try {
+      await clearSterbefallUrnenRetour(docId);
+    } catch (e) {
+      setUrnenError(e instanceof Error ? e.message : 'Rückgängig fehlgeschlagen');
+    } finally {
+      setUrnenPending(null);
     }
   }
 
@@ -198,22 +214,12 @@ export function WallPage() {
               ))}
             </div>
 
-            {urnenListe.length > 0 && (
-              <section className="wall-urnen-section" aria-label="Urnen">
-                <h3 className="wall-urnen-title">Urnen</h3>
-                <p className="wall-urnen-sub">Retour aus Kremation</p>
-                <ul className="wall-urnen-list">
-                  {urnenListe.map((u) => (
-                    <li key={u.docId} className="wall-urnen-item">
-                      <span className="wall-urnen-name">{u.name}</span>
-                      {u.retourVon && (
-                        <span className="wall-urnen-meta">von {u.retourVon}</span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
+            <UrnenBereichPanel
+              liste={urnenListe}
+              pendingDocId={urnenPending}
+              onUndo={(id) => void handleUrnenUndo(id)}
+              variant="wall"
+            />
           </div>
         )}
 
@@ -224,9 +230,9 @@ export function WallPage() {
               Verstorbene außerhalb des Firmenkühlraums, noch am Sterbeort oder im
               Krematorium
             </p>
-            {retourError && (
+            {urnenError && (
               <p className="wall-retour-error" role="alert">
-                {retourError}
+                {urnenError}
               </p>
             )}
             {externGruppen.length === 0 ? (
@@ -259,11 +265,11 @@ export function WallPage() {
                             <button
                               type="button"
                               className="wall-retour-btn"
-                              disabled={retourPending === f.docId}
+                              disabled={urnenPending === f.docId}
                               title="In Bereich Urnen unter Kühlraum übernehmen"
                               onClick={() => void handleRetour(f.docId, f.kremationOrt)}
                             >
-                              {retourPending === f.docId ? '…' : 'Retour'}
+                              {urnenPending === f.docId ? '…' : 'Retour'}
                             </button>
                           )}
                         </li>

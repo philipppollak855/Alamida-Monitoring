@@ -31,11 +31,20 @@ service cloud.firestore {
         .hasOnly(['urnenBereich', 'urnenSeit', 'retourVon']);
     }
 
+    function sterbefallUrnenSet() {
+      return request.resource.data.urnenBereich == true;
+    }
+
+    function sterbefallUrnenClear() {
+      return resource.data.urnenBereich == true
+        && request.resource.data.urnenBereich == false;
+    }
+
     match /sterbefaelle/{id} {
       allow read: if isActivatedUser();
       allow update: if isActivatedUser()
         && sterbefallUrnenUpdateOnly()
-        && request.resource.data.urnenBereich == true;
+        && (sterbefallUrnenSet() || sterbefallUrnenClear());
       allow create, delete: if false;
     }
     match /ueberfuehrungen/{id} {

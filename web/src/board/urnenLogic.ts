@@ -11,6 +11,10 @@ export type UrnenEintrag = {
   retourVon?: string;
 };
 
+export function countUrnen(sterbefaelle: Sterbefall[]): number {
+  return sterbefaelle.filter(istInUrnenBereich).length;
+}
+
 export function buildUrnenListe(sterbefaelle: Sterbefall[]): UrnenEintrag[] {
   return sterbefaelle
     .filter(istInUrnenBereich)

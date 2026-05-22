@@ -9,6 +9,11 @@ import {
   flattenOffene,
 } from '../board/boardUtils';
 import { filterAktiveSterbefaelle } from '../board/historieLogic';
+import { buildUrnenListe, countUrnen } from '../board/urnenLogic';
+import { UrnenBereichPanel } from '../components/UrnenBereichPanel';
+import {
+  clearSterbefallUrnenRetour,
+} from '../services/urnenRetour';
 import { DispositionSettingsPanel } from '../components/DispositionSettingsPanel';
 import { EndzielChip, SchrittBadge, StatusChip } from '../ui/SchrittBadge';
 import { RouteFlow } from '../ui/RouteFlow';
@@ -33,6 +38,8 @@ export function BoardPage() {
   );
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'alle' | 'heute' | 'abholung'>('alle');
+  const [urnenPending, setUrnenPending] = useState<string | null>(null);
+  const [urnenError, setUrnenError] = useState<string | null>(null);
 
   const offene = useMemo(() => flattenOffene(sterbefaelle), [sterbefaelle, calendarDay]);
   const stats = useMemo(() => boardStats(sterbefaelle, offene), [sterbefaelle, offene, calendarDay]);
@@ -61,6 +68,20 @@ export function BoardPage() {
   }, [sterbefaelle]);
 
   const belegtGrafenbach = grafenbachSlots.filter(Boolean).length;
+  const urnenListe = useMemo(() => buildUrnenListe(sterbefaelle), [sterbefaelle]);
+  const urnenCount = useMemo(() => countUrnen(sterbefaelle), [sterbefaelle]);
+
+  async function handleUrnenUndo(docId: string) {
+    setUrnenError(null);
+    setUrnenPending(docId);
+    try {
+      await clearSterbefallUrnenRetour(docId);
+    } catch (e) {
+      setUrnenError(e instanceof Error ? e.message : 'Rückgängig fehlgeschlagen');
+    } finally {
+      setUrnenPending(null);
+    }
+  }
 
   if (!firebaseConfigured) {
     return (
@@ -81,6 +102,7 @@ export function BoardPage() {
       </header>
 
       {error && <div className="alert alert-danger">{error}</div>}
+      {urnenError && <div className="alert alert-danger">{urnenError}</div>}
 
       <DispositionSettingsPanel />
 
@@ -98,6 +120,12 @@ export function BoardPage() {
           value={`${belegtGrafenbach}/${grafenbachCfg.plaetze}`}
           hint={grafenbachCfg.label}
           accent="success"
+        />
+        <StatCard
+          label="Urnen"
+          value={urnenCount}
+          hint="Retour aus Kremation"
+          accent="accent"
         />
       </div>
 
@@ -202,6 +230,13 @@ export function BoardPage() {
               ))}
             </div>
           </section>
+
+          <UrnenBereichPanel
+            liste={urnenListe}
+            pendingDocId={urnenPending}
+            onUndo={(id) => void handleUrnenUndo(id)}
+            variant="board"
+          />
 
           {andereKuehlraeume.length > 0 && (
             <section className="panel">

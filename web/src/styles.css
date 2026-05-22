@@ -432,7 +432,7 @@ code {
 
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 1rem;
 }
 
@@ -1158,12 +1158,21 @@ code {
 
 .wall-urnen-item {
   display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
   padding: 0.4rem 0.65rem;
   background: var(--surface-solid);
   border: 1px solid rgba(77, 159, 255, 0.35);
   border-radius: var(--radius-sm);
+}
+
+.wall-urnen-item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+  flex: 1;
 }
 
 .wall-urnen-name {
@@ -1368,6 +1377,69 @@ code {
   color: var(--danger);
   background: rgba(248, 113, 113, 0.12);
   border-radius: var(--radius-sm);
+}
+
+.board-urnen-panel {
+  border-color: rgba(77, 159, 255, 0.25);
+}
+
+.board-urnen-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.board-urnen-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  background: var(--surface-solid);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.board-urnen-item-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.board-urnen-name {
+  display: block;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.board-urnen-meta {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.urnen-undo-btn {
+  flex-shrink: 0;
+  padding: 0.28rem 0.5rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.urnen-undo-btn:hover:not(:disabled) {
+  border-color: rgba(77, 159, 255, 0.45);
+  color: var(--text);
+}
+
+.urnen-undo-btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
 }
 
 .wall-extern-name {
