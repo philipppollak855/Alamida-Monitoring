@@ -427,7 +427,8 @@ export function buildWallCalendarEntries(sterbefaelle: Sterbefall[]): WallCalend
   return entries.sort((a, b) => a.sortMs - b.sortMs || a.name.localeCompare(b.name, 'de'));
 }
 
-/** Mindestens so viele Tage nach Monatsende (auch ohne Termine), damit der Monat weiterläuft. */
+/** Monatsansicht: mindestens so viele Tage vor/nach dem Kalendermonat (auch ohne Termine). */
+const MONTH_MIN_BACKWARD_DAYS = 365;
 const MONTH_MIN_FORWARD_DAYS = 365;
 
 function monthStartKey(anchor: Date): string {
@@ -438,7 +439,26 @@ function monthEndKey(anchor: Date): string {
   return dayKeyFromDate(new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0));
 }
 
-/** Monatsansicht: durchgehend ab Monatsanfang, nicht am letzten Kalendertag stoppen. */
+function dateFromDayKey(dayKey: string): Date {
+  const [y, m, d] = dayKey.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+/** Monatsansicht: auch in die Vergangenheit erweitern (Termine + Mindestfenster). */
+function monthRangeFromKey(anchor: Date, entries: WallCalendarEntry[]): string {
+  let fromKey = monthStartKey(anchor);
+  const minBackward = dayKeyFromDate(
+    addDays(new Date(anchor.getFullYear(), anchor.getMonth(), 1), -MONTH_MIN_BACKWARD_DAYS)
+  );
+  if (minBackward < fromKey) fromKey = minBackward;
+
+  for (const e of entries) {
+    if (e.dayKey < fromKey) fromKey = e.dayKey;
+  }
+  return fromKey;
+}
+
+/** Monatsansicht: durchgehend über Monatsende hinaus (Termine + Mindestfenster). */
 function monthRangeToKey(anchor: Date, entries: WallCalendarEntry[]): string {
   const fromKey = monthStartKey(anchor);
   let toKey = monthEndKey(anchor);
@@ -470,7 +490,7 @@ export function filterCalendarEntries(
   let toKey: string;
 
   if (range === 'month') {
-    fromKey = monthStartKey(anchor);
+    fromKey = monthRangeFromKey(anchor, entries);
     toKey = monthRangeToKey(anchor, entries);
   } else {
     const start = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
@@ -498,10 +518,10 @@ export function buildWallCalendarDays(
   let count: number;
 
   if (range === 'month') {
-    cursor = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+    const fromKey = monthRangeFromKey(anchor, entries);
     const toKey = monthRangeToKey(anchor, entries);
-    const [y, mo, da] = toKey.split('-').map(Number);
-    const endExtended = new Date(y, mo - 1, da);
+    cursor = dateFromDayKey(fromKey);
+    const endExtended = dateFromDayKey(toKey);
     count = Math.floor((endExtended.getTime() - cursor.getTime()) / 86400000) + 1;
     if (!Number.isFinite(count) || count < 1) {
       count = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0).getDate();

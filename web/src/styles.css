@@ -1873,10 +1873,32 @@ code {
   text-align: center;
 }
 
+.wall-cal-period-overview--interactive .wall-cal-period-cell {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+
+.wall-cal-period-overview--interactive .wall-cal-period-cell:hover {
+  border-color: var(--accent);
+  background: var(--surface-hover);
+}
+
+.wall-cal-period-cell.is-selected {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  box-shadow: 0 0 0 2px var(--accent-dim);
+}
+
 .wall-cal-period-cell.is-today {
   border-color: var(--accent);
   background: var(--accent-dim);
   box-shadow: 0 0 0 1px rgba(77, 159, 255, 0.2);
+}
+
+.wall-cal-period-cell.is-today.is-selected {
+  box-shadow: 0 0 0 2px var(--accent);
 }
 
 .wall-cal-period-cell.has-events .wall-cal-period-num {
@@ -2084,6 +2106,27 @@ code {
   font-size: 0.65rem;
   color: var(--muted);
   margin-top: 0.2rem;
+}
+
+.wall-cal-share-link {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #25d366;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.wall-cal-share-link:hover {
+  color: #1ebe57;
+}
+
+.wall-cal-share-link--compact {
+  margin-top: 0.2rem;
+  font-size: 0.62rem;
 }
 
 .wall-cal-card--compact .wall-cal-name {

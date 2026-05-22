@@ -445,6 +445,21 @@
     border-color: var(--border-strong);
   }
 
+  .wall-cal-period-overview--interactive .wall-cal-period-cell {
+    padding: 0;
+    min-height: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .wall-cal-period-cell.is-selected {
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+
+  .wall-cal-agenda-day.is-focused {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-dim);
+  }
+
   /* Termine: horizontal zwischen Tagen wischen (nicht vertikal durch alle Tage) */
   .wall-cal-mobile-strip {
     flex: 1 1 0;
@@ -660,6 +675,14 @@
   .wall-cal-card--mobile.is-grouped {
     border-color: rgba(77, 159, 255, 0.65);
     background: rgba(77, 159, 255, 0.18);
+  }
+
+  .wall-cal-card--mobile .wall-cal-share-link {
+    margin-top: 0.25rem;
+    min-height: 32px;
+    align-self: flex-start;
+    font-size: 0.65rem;
+    padding: 0.15rem 0;
   }
 
   [data-theme='alamida'] .wall-cal-card--mobile {
