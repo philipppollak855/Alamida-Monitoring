@@ -57,7 +57,7 @@ public sealed class TrayApplicationContext : ApplicationContext
         menu.Items.Add(new ToolStripMenuItem("Jetzt synchronisieren", null, (_, _) => _ = SyncJetztAsync()));
         menu.Items.Add(_pauseItem);
         menu.Items.Add(new ToolStripMenuItem("Neustarten", null, (_, _) => Neustarten()));
-        menu.Items.Add(new ToolStripMenuItem("Update von GitHub…", null, (_, _) => UpdateVonGitHub()));
+        menu.Items.Add(new ToolStripMenuItem("Update prüfen…", null, (_, _) => UpdatePruefen()));
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(new ToolStripMenuItem("Web-Dashboard öffnen", null, (_, _) =>
             OeffneUrl("https://alamida---monitoring.web.app")));
@@ -137,15 +137,16 @@ public sealed class TrayApplicationContext : ApplicationContext
         }
     }
 
-    private void UpdateVonGitHub()
+    private void UpdatePruefen()
     {
         var checker = new AgentUpdateChecker(_config.AutoUpdate, AppContext.BaseDirectory);
-        if (checker.ResolveRepoRoot() == null)
+        if (string.Equals(_config.AutoUpdate.Mode, "git", StringComparison.OrdinalIgnoreCase)
+            && checker.ResolveRepoRoot() == null)
         {
             MessageBox.Show(
                 "Kein Git-Repository gefunden.\n\n" +
-                "Auto-Update funktioniert nur, wenn der Agent aus einem geklonten Repo läuft " +
-                "oder AutoUpdate:RepoRoot in appsettings.json gesetzt ist.",
+                "Für Arbeitsplätze ohne Git: AutoUpdate:Mode auf \"release\" setzen " +
+                "(Standard im ZIP-Release).",
                 "Alamida Monitoring",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
@@ -200,12 +201,17 @@ public sealed class TrayApplicationContext : ApplicationContext
         else
             lines.Add("Firestore: verbunden");
 
-        var updater = new AgentUpdateChecker(_config.AutoUpdate, AppContext.BaseDirectory);
-        var repo = updater.ResolveRepoRoot();
-        if (repo != null)
-            lines.Add($"Git-Repo: {repo}");
+        var versionFile = Path.Combine(AppContext.BaseDirectory, "version.txt");
+        if (File.Exists(versionFile))
+            lines.Add($"Version: {File.ReadAllText(versionFile).Trim()}");
         if (_config.AutoUpdate.Enabled)
-            lines.Add($"Auto-Update: {(_config.AutoUpdate.CheckOnStartup ? "beim Start" : "nur manuell")} ({_config.AutoUpdate.Branch})");
+        {
+            var mode = _config.AutoUpdate.Mode ?? "release";
+            var detail = mode.Equals("git", StringComparison.OrdinalIgnoreCase)
+                ? $"git/{_config.AutoUpdate.Branch}"
+                : $"release/{_config.AutoUpdate.GitHubRepo}";
+            lines.Add($"Auto-Update: {(_config.AutoUpdate.CheckOnStartup ? "beim Start" : "manuell")} ({detail})");
+        }
 
         MessageBox.Show(
             string.Join(Environment.NewLine, lines),

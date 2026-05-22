@@ -1,35 +1,218 @@
 using System.Diagnostics;
+using System.Reflection;
+using System.Text.Json;
 using Alamida.Monitoring.Core.Models;
 
 namespace Alamida.Monitoring.Agent;
 
 /// <summary>
-/// Prüft per Git, ob origin/{Branch} neuer ist, und startet scripts/update-agent.ps1 zum Pull/Build/Neustart.
+/// Auto-Update: Standard per GitHub-Release-ZIP (ohne Git), optional Git für Entwickler.
 /// </summary>
 public sealed class AgentUpdateChecker
 {
+    private static readonly HttpClient Http = new()
+    {
+        DefaultRequestHeaders =
+        {
+            { "User-Agent", "AlamidaMonitoring-Agent" },
+            { "Accept", "application/vnd.github+json" },
+        },
+    };
+
     private readonly AutoUpdateConfig _config;
-    private readonly string _baseDirectory;
+    private readonly string _installDir;
 
     public AgentUpdateChecker(AutoUpdateConfig config, string baseDirectory)
     {
         _config = config;
-        _baseDirectory = baseDirectory;
+        _installDir = baseDirectory;
     }
+
+    public string? LocalVersion { get; private set; }
+
+    public string? RemoteVersion { get; private set; }
 
     public string? ResolvedRepoRoot { get; private set; }
 
-    public string? LocalCommit { get; private set; }
-
-    public string? RemoteCommit { get; private set; }
-
-    /// <returns>true wenn ein Updater-Prozess gestartet wurde (Aufrufer soll beenden).</returns>
     public bool TryApplyUpdateIfAvailable(out string? message)
     {
         message = null;
         if (!_config.Enabled || !_config.CheckOnStartup)
             return false;
 
+        if (IsGitMode())
+            return TryApplyGitUpdate(out message);
+
+        return TryApplyReleaseUpdate(out message);
+    }
+
+    public bool IsUpdateAvailable()
+    {
+        if (IsGitMode())
+            return IsGitUpdateAvailable();
+
+        return IsReleaseUpdateAvailable();
+    }
+
+    public bool StartUpdateScript(bool apply)
+    {
+        if (IsGitMode())
+            return StartGitUpdateScript(apply);
+
+        return StartReleaseUpdateScript(apply);
+    }
+
+    public string? ResolveRepoRoot()
+    {
+        if (!string.IsNullOrWhiteSpace(_config.RepoRoot))
+        {
+            var configured = Path.GetFullPath(_config.RepoRoot);
+            return Directory.Exists(Path.Combine(configured, ".git")) ? configured : null;
+        }
+
+        var dir = _installDir;
+        for (var i = 0; i < 10; i++)
+        {
+            if (Directory.Exists(Path.Combine(dir, ".git")))
+                return dir;
+            var parent = Directory.GetParent(dir);
+            if (parent == null)
+                break;
+            dir = parent.FullName;
+        }
+
+        return null;
+    }
+
+    private bool IsGitMode() =>
+        string.Equals(_config.Mode, "git", StringComparison.OrdinalIgnoreCase);
+
+    private bool TryApplyReleaseUpdate(out string? message)
+    {
+        message = null;
+        try
+        {
+            if (!IsReleaseUpdateAvailable())
+                return false;
+
+            if (!StartReleaseUpdateScript(apply: true))
+            {
+                message = "Update-Skript konnte nicht gestartet werden.";
+                return false;
+            }
+
+            message = $"Update wird installiert ({LocalVersion} → {RemoteVersion})…";
+            return true;
+        }
+        catch (Exception ex)
+        {
+            message = $"Auto-Update übersprungen: {ex.Message}";
+            return false;
+        }
+    }
+
+    private bool IsReleaseUpdateAvailable()
+    {
+        LocalVersion = ReadLocalVersion();
+        RemoteVersion = FetchLatestReleaseVersion();
+        if (string.IsNullOrEmpty(RemoteVersion))
+            return false;
+
+        return IsRemoteNewer(RemoteVersion, LocalVersion);
+    }
+
+    private bool StartReleaseUpdateScript(bool apply)
+    {
+        var scriptInInstall = Path.Combine(_installDir, "apply-agent-release.ps1");
+        var scriptInRepo = FindRepoScript("apply-agent-release.ps1");
+        var script = File.Exists(scriptInInstall) ? scriptInInstall : scriptInRepo;
+        if (script == null)
+            return false;
+
+        var args =
+            $"-NoProfile -ExecutionPolicy Bypass -File \"{script}\" " +
+            $"-InstallDir \"{_installDir}\" " +
+            $"-GitHubOwner \"{_config.GitHubOwner}\" " +
+            $"-GitHubRepo \"{_config.GitHubRepo}\" " +
+            $"-AssetFileName \"{_config.AssetFileName}\"";
+        if (apply)
+            args += " -Apply";
+
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = "powershell.exe",
+            Arguments = args,
+            UseShellExecute = true,
+            WorkingDirectory = _installDir,
+        });
+        return true;
+    }
+
+    private string? FetchLatestReleaseVersion()
+    {
+        var url =
+            $"https://api.github.com/repos/{_config.GitHubOwner}/{_config.GitHubRepo}/releases/latest";
+        using var response = Http.GetAsync(url).GetAwaiter().GetResult();
+        if (!response.IsSuccessStatusCode)
+            return null;
+
+        using var doc = JsonDocument.Parse(response.Content.ReadAsStringAsync().GetAwaiter().GetResult());
+        if (!doc.RootElement.TryGetProperty("tag_name", out var tag))
+            return null;
+
+        return ParseReleaseTag(tag.GetString());
+    }
+
+    private static string? ParseReleaseTag(string? tagName)
+    {
+        if (string.IsNullOrWhiteSpace(tagName))
+            return null;
+        if (tagName.StartsWith("agent-v", StringComparison.OrdinalIgnoreCase))
+            return tagName["agent-v".Length..];
+        if (tagName.StartsWith('v') && tagName.Length > 1)
+            return tagName[1..];
+        return tagName;
+    }
+
+    private string ReadLocalVersion()
+    {
+        var versionFile = Path.Combine(_installDir, "version.txt");
+        if (File.Exists(versionFile))
+        {
+            var fromFile = File.ReadAllText(versionFile).Trim();
+            if (!string.IsNullOrEmpty(fromFile))
+                return fromFile;
+        }
+
+        var informational = Assembly.GetExecutingAssembly()
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion;
+        if (!string.IsNullOrWhiteSpace(informational))
+        {
+            var plus = informational.IndexOf('+');
+            return plus >= 0 ? informational[..plus] : informational;
+        }
+
+        return Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "0.0.0";
+    }
+
+    private static bool IsRemoteNewer(string remote, string local)
+    {
+        try
+        {
+            var r = new Version(remote);
+            var l = new Version(local);
+            return r > l;
+        }
+        catch
+        {
+            return !string.Equals(remote, local, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    private bool TryApplyGitUpdate(out string? message)
+    {
+        message = null;
         ResolvedRepoRoot = ResolveRepoRoot();
         if (ResolvedRepoRoot == null)
             return false;
@@ -43,19 +226,19 @@ public sealed class AgentUpdateChecker
         try
         {
             RunGit(ResolvedRepoRoot, "fetch", "origin", _config.Branch, "--quiet");
-            LocalCommit = RunGit(ResolvedRepoRoot, "rev-parse", "HEAD");
-            RemoteCommit = RunGit(ResolvedRepoRoot, "rev-parse", $"origin/{_config.Branch}");
+            LocalVersion = RunGit(ResolvedRepoRoot, "rev-parse", "HEAD");
+            RemoteVersion = RunGit(ResolvedRepoRoot, "rev-parse", $"origin/{_config.Branch}");
 
-            if (LocalCommit == RemoteCommit)
+            if (LocalVersion == RemoteVersion)
                 return false;
 
-            if (!StartUpdateScript(apply: true))
+            if (!StartGitUpdateScript(apply: true))
             {
                 message = "Update-Skript konnte nicht gestartet werden.";
                 return false;
             }
 
-            message = $"Update wird installiert ({ShortHash(LocalCommit)} → {ShortHash(RemoteCommit)})…";
+            message = $"Update wird installiert ({ShortHash(LocalVersion)} → {ShortHash(RemoteVersion)})…";
             return true;
         }
         catch (Exception ex)
@@ -65,7 +248,7 @@ public sealed class AgentUpdateChecker
         }
     }
 
-    public bool IsUpdateAvailable()
+    private bool IsGitUpdateAvailable()
     {
         ResolvedRepoRoot = ResolveRepoRoot();
         if (ResolvedRepoRoot == null || !IsGitAvailable())
@@ -74,9 +257,9 @@ public sealed class AgentUpdateChecker
         try
         {
             RunGit(ResolvedRepoRoot, "fetch", "origin", _config.Branch, "--quiet");
-            LocalCommit = RunGit(ResolvedRepoRoot, "rev-parse", "HEAD");
-            RemoteCommit = RunGit(ResolvedRepoRoot, "rev-parse", $"origin/{_config.Branch}");
-            return LocalCommit != RemoteCommit;
+            LocalVersion = RunGit(ResolvedRepoRoot, "rev-parse", "HEAD");
+            RemoteVersion = RunGit(ResolvedRepoRoot, "rev-parse", $"origin/{_config.Branch}");
+            return LocalVersion != RemoteVersion;
         }
         catch
         {
@@ -84,17 +267,15 @@ public sealed class AgentUpdateChecker
         }
     }
 
-    public bool StartUpdateScript(bool apply)
+    private bool StartGitUpdateScript(bool apply)
     {
         var repo = ResolveRepoRoot() ?? ResolvedRepoRoot;
-        if (repo == null)
+        var script = repo == null ? null : Path.Combine(repo, "scripts", "update-agent.ps1");
+        if (script == null || !File.Exists(script))
             return false;
 
-        var script = Path.Combine(repo, "scripts", "update-agent.ps1");
-        if (!File.Exists(script))
-            return false;
-
-        var args = $"-NoProfile -ExecutionPolicy Bypass -File \"{script}\" -RepoRoot \"{repo}\" -Branch \"{_config.Branch}\"";
+        var args =
+            $"-NoProfile -ExecutionPolicy Bypass -File \"{script}\" -RepoRoot \"{repo}\" -Branch \"{_config.Branch}\"";
         if (apply)
             args += " -Apply";
 
@@ -108,19 +289,14 @@ public sealed class AgentUpdateChecker
         return true;
     }
 
-    public string? ResolveRepoRoot()
+    private string? FindRepoScript(string fileName)
     {
-        if (!string.IsNullOrWhiteSpace(_config.RepoRoot))
-        {
-            var configured = Path.GetFullPath(_config.RepoRoot);
-            return Directory.Exists(Path.Combine(configured, ".git")) ? configured : null;
-        }
-
-        var dir = _baseDirectory;
+        var dir = _installDir;
         for (var i = 0; i < 10; i++)
         {
-            if (Directory.Exists(Path.Combine(dir, ".git")))
-                return dir;
+            var candidate = Path.Combine(dir, "scripts", fileName);
+            if (File.Exists(candidate))
+                return candidate;
             var parent = Directory.GetParent(dir);
             if (parent == null)
                 break;

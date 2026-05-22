@@ -35,16 +35,21 @@ dotnet run --project agent\Alamida.Monitoring.Agent -- --once
 
 Nach Alamida-Start: Überführungs-Detailmaske öffnen → Agent erkennt Kühlraum, von/nach, Abholung → Firestore.
 
-### Auto-Update (Git)
+### Agent auf Arbeitsplätzen (ZIP, ohne Git)
 
-Wenn der Agent aus einem **Git-Klon** des Repos läuft (oder `AutoUpdate:RepoRoot` gesetzt ist), prüft er beim Start per `git fetch`, ob `origin/main` neuer ist. Bei Bedarf: `git pull --ff-only`, `dotnet build`, Neustart.
+1. [Neuestes Release](https://github.com/philipppollak855/Alamida-Monitoring/releases/latest) → `AlamidaMonitoringAgent-win-x64.zip` entpacken (z. B. `C:\AlamidaMonitoring\`)
+2. Einmal: `scripts\setup-agent-install.ps1 -InstallDir C:\AlamidaMonitoring`
+3. Firebase-Credential in `%AppData%\AlamidaMonitoring\` (Setup oder `serviceAccount.json`)
 
-- Tray: **Update von GitHub…** (manuell)
-- Skript: `scripts\update-agent.ps1 -Apply`
-- Abschalten: in `appsettings.json` → `"AutoUpdate": { "Enabled": false }`
-- Voraussetzung: **Git** im PATH, Zugriff auf GitHub (SSH/HTTPS-Credentials)
+Details: [docs/agent-install.md](docs/agent-install.md)
 
-`serviceAccount.json` und `%AppData%\AlamidaMonitoring\` werden vom Update nicht angetastet.
+**Updates:** Beim Start lädt der Agent bei Bedarf das neueste Release-ZIP von GitHub (kein Git, kein SDK). Tray: **Update prüfen…**
+
+Release bauen (lokal): `scripts\build-agent-release.ps1`
+
+### Auto-Update für Entwickler (Git)
+
+Im Repo optional `"AutoUpdate": { "Mode": "git" }` — dann `git pull` + `dotnet build` via `scripts\update-agent.ps1 -Apply`.
 
 ## Web deployen
 
@@ -80,7 +85,7 @@ Console: https://console.firebase.google.com/project/alamida---monitoring
 | `web/` | React + Vite |
 | `firebase/` | Rules + Hosting |
 | `docs/` | Field-Mapping, Discovery |
-| `scripts/` | setup-complete, deploy-web, update-agent |
+| `scripts/` | setup-complete, setup-agent-install, build-agent-release, deploy-web |
 
 ## Field-Mapping anpassen
 

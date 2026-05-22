@@ -1,0 +1,39 @@
+name: Agent Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'agent/**'
+      - 'docs/field-mapping-9.2.1.json'
+      - 'scripts/build-agent-release.ps1'
+      - 'scripts/apply-agent-release.ps1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build portable ZIP
+        shell: pwsh
+        run: |
+          $version = "0.$env:GITHUB_RUN_NUMBER"
+          ./scripts/build-agent-release.ps1 -Version $version
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: agent-v0.${{ github.run_number }}
+          name: Agent v0.${{ github.run_number }}
+          body: Portable Windows Agent (self-contained). Entpacken und setup-agent-install.ps1 einmal ausführen.
+          files: dist/agent-release/AlamidaMonitoringAgent-win-x64.zip
+          make_latest: true

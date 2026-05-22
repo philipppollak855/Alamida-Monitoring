@@ -7,6 +7,7 @@ firebase/.firebase/
 # .NET
 agent/**/bin/
 agent/**/obj/
+dist/
 *.user
 *.suo
 

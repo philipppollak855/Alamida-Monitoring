@@ -1,0 +1,77 @@
+# Portable Agent-Release (ZIP, self-contained, kein Git auf Ziel-PCs)
+param(
+    [string] $Version = "",
+    [string] $OutputDir = ""
+)
+
+$ErrorActionPreference = "Stop"
+$Root = Split-Path $PSScriptRoot -Parent
+$AgentProj = Join-Path $Root "agent\Alamida.Monitoring.Agent\Alamida.Monitoring.Agent.csproj"
+
+if (-not $Version) {
+    try {
+        $hash = (git -C $Root rev-parse --short HEAD 2>$null).Trim()
+        if ($hash) { $Version = "0.0.0+$hash" }
+    } catch { }
+    if (-not $Version) {
+        $Version = "0.0.0-local"
+    }
+}
+
+if (-not $OutputDir) {
+    $OutputDir = Join-Path $Root "dist\agent-release"
+}
+
+$publishDir = Join-Path $OutputDir "publish"
+$zipName = "AlamidaMonitoringAgent-win-x64.zip"
+$zipPath = Join-Path $OutputDir $zipName
+
+Get-Process -Name "AlamidaMonitoringAgent" -ErrorAction SilentlyContinue | Stop-Process -Force
+Start-Sleep -Milliseconds 500
+
+if (Test-Path $OutputDir) {
+    Remove-Item $OutputDir -Recurse -Force
+}
+New-Item -ItemType Directory -Force -Path $publishDir | Out-Null
+
+Write-Host "=== Agent Release v$Version ===" -ForegroundColor Cyan
+
+Push-Location (Join-Path $Root "agent")
+dotnet publish $AgentProj `
+    -c Release `
+    -r win-x64 `
+    --self-contained true `
+    -p:PublishSingleFile=false `
+    -p:AgentVersion=$Version `
+    -o $publishDir | Out-Host
+if ($LASTEXITCODE -ne 0) {
+    Pop-Location
+    throw "dotnet publish fehlgeschlagen"
+}
+Pop-Location
+
+$versionLine = ($Version -split '\+')[0]
+Set-Content -Path (Join-Path $publishDir "version.txt") -Value $versionLine -Encoding ASCII -NoNewline
+
+$appsettingsRelease = Join-Path $publishDir "appsettings.json"
+if (Test-Path $appsettingsRelease) {
+    $json = Get-Content $appsettingsRelease -Raw | ConvertFrom-Json
+    if (-not $json.AutoUpdate) { $json | Add-Member -NotePropertyName AutoUpdate -NotePropertyValue (@{}) }
+    $json.AutoUpdate.Enabled = $true
+    $json.AutoUpdate.CheckOnStartup = $true
+    $json.AutoUpdate.Mode = "release"
+    $json.AutoUpdate.GitHubOwner = "philipppollak855"
+    $json.AutoUpdate.GitHubRepo = "Alamida-Monitoring"
+    $json.AutoUpdate.AssetFileName = $zipName
+    $json | ConvertTo-Json -Depth 6 | Set-Content $appsettingsRelease -Encoding UTF8
+}
+
+Copy-Item (Join-Path $Root "docs\field-mapping-9.2.1.json") (Join-Path $publishDir "field-mapping-9.2.1.json") -Force
+Copy-Item (Join-Path $Root "scripts\apply-agent-release.ps1") (Join-Path $publishDir "apply-agent-release.ps1") -Force
+
+if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
+Compress-Archive -Path (Join-Path $publishDir "*") -DestinationPath $zipPath -Force
+
+Write-Host "Version:  $versionLine" -ForegroundColor Green
+Write-Host "Ordner:   $publishDir" -ForegroundColor Green
+Write-Host "ZIP:      $zipPath" -ForegroundColor Green

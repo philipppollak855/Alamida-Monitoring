@@ -42,6 +42,14 @@ public static class ConfigLoader
                 autoUpdate.RepoRoot = autoSection["RepoRoot"]!;
             if (!string.IsNullOrWhiteSpace(autoSection["Branch"]))
                 autoUpdate.Branch = autoSection["Branch"]!;
+            if (!string.IsNullOrWhiteSpace(autoSection["Mode"]))
+                autoUpdate.Mode = autoSection["Mode"]!;
+            if (!string.IsNullOrWhiteSpace(autoSection["GitHubOwner"]))
+                autoUpdate.GitHubOwner = autoSection["GitHubOwner"]!;
+            if (!string.IsNullOrWhiteSpace(autoSection["GitHubRepo"]))
+                autoUpdate.GitHubRepo = autoSection["GitHubRepo"]!;
+            if (!string.IsNullOrWhiteSpace(autoSection["AssetFileName"]))
+                autoUpdate.AssetFileName = autoSection["AssetFileName"]!;
         }
 
         return new AgentConfig
