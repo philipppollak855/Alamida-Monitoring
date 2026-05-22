@@ -17,5 +17,7 @@ Pro PC (oder einmalig auf USB mit dem Installer):
 Die Datei wird nach kopiert:
    %AppData%\AlamidaMonitoring\serviceAccount.json
 
-Ohne diese Datei läuft der Agent zwar, synchronisiert aber NICHT
-(meldet „Firestore nicht verbunden“ im Tray).
+Ohne diese Datei laeuft der Agent zwar, synchronisiert aber NICHT
+(meldet "Firestore nicht verbunden" im Tray).
+
+Release-Build: scripts\build-agent-release.ps1
