@@ -205,14 +205,14 @@ export function WallPage() {
     <div className="wall">
       <div className="wall-bg" aria-hidden />
       <header className="wall-topbar">
-        <div className="wall-brand">
+        <div className="wall-brand" aria-label="Alamida Monitoring">
           <span className="brand-mark" />
-          <div>
-            <span className="wall-brand-title">
-              {isNarrow ? 'Alamida' : 'Alamida Monitoring'}
-            </span>
-            <span className="wall-brand-sub">Wandmonitor · Live</span>
-          </div>
+          {!isNarrow && (
+            <div>
+              <span className="wall-brand-title">Alamida Monitoring</span>
+              <span className="wall-brand-sub">Wandmonitor · Live</span>
+            </div>
+          )}
         </div>
         <div className="wall-clock">
           <span className="wall-time">{timeStr}</span>

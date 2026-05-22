@@ -255,74 +255,136 @@ function buildSearchText(s: Sterbefall, parts: AtomicTermin[]): string {
     .toLowerCase();
 }
 
+const TRAUERBLOCK_ART_ORDER: CalendarTerminArt[] = [
+  'trauerfeier',
+  'verabschiedung',
+  'rosenkranz',
+  'beisetzung',
+];
+
+function sortPartsChronologically(parts: AtomicTermin[]): AtomicTermin[] {
+  return [...parts].sort((a, b) => a.sortMs - b.sortMs);
+}
+
+/** Zeitfenster ab Rosenkranz (falls vorhanden) bis letztem Teiltermin. */
 function timeLabelFromParts(parts: AtomicTermin[]): string {
-  const times = parts.map((p) => p.zeit).filter(Boolean);
+  const sorted = sortPartsChronologically(parts);
+  const times = sorted.map((p) => p.zeit).filter((t): t is string => Boolean(t));
   if (times.length === 0) return '—';
   const uniq = [...new Set(times)];
-  return uniq.join(' · ');
+  if (uniq.length === 1) return uniq[0]!;
+  return `${uniq[0]}–${uniq[uniq.length - 1]}`;
 }
 
-function subtitleFromParts(parts: AtomicTermin[]): string {
-  const routes = parts.map((p) => p.route).filter(Boolean);
-  if (routes.length) return routes[0]!;
-  const orte = parts.map((p) => p.ort).filter(Boolean);
-  return orte.length ? [...new Set(orte)].join(' · ') : '';
+function primaryArtFromParts(parts: AtomicTermin[]): CalendarTerminArt {
+  for (const art of TRAUERBLOCK_ART_ORDER) {
+    if (parts.some((p) => p.art === art)) return art;
+  }
+  return parts[0]!.art;
 }
 
-function tryBuildTrauerblock(
+function orderedBadgesFromParts(parts: AtomicTermin[]): string[] {
+  const badges: string[] = [];
+  for (const art of TRAUERBLOCK_ART_ORDER) {
+    const p = parts.find((x) => x.art === art);
+    if (p) badges.push(p.label);
+  }
+  return badges;
+}
+
+function subtitleFromGroupedParts(parts: AtomicTermin[]): string {
+  const sorted = sortPartsChronologically(parts);
+  const orte = sorted
+    .map((p) => p.ort || p.route)
+    .filter((o): o is string => Boolean(o));
+  if (orte.length) return [...new Set(orte)].join(' · ');
+  return '';
+}
+
+function buildTrauerblockEntry(
+  s: Sterbefall,
+  groupParts: AtomicTermin[],
+  dayKey: string
+): WallCalendarEntry {
+  const sorted = sortPartsChronologically(groupParts);
+  const badges = orderedBadgesFromParts(sorted);
+  const primaryArt = primaryArtFromParts(sorted);
+  const arts = [
+    primaryArt,
+    ...sorted.map((p) => p.art).filter((a, i, arr) => arr.indexOf(a) === i && a !== primaryArt),
+  ];
+
+  return {
+    id: `${s.id}:block:${dayKey}`,
+    docId: s.id,
+    sterbefallId: s.sterbefallId ?? s.id,
+    dayKey,
+    dayLabel: formatDayLabelDe(dayKey),
+    timeLabel: timeLabelFromParts(sorted),
+    sortMs: Math.min(...sorted.map((p) => p.sortMs)),
+    name: fallName(s),
+    title: badges.join(' · '),
+    subtitle: subtitleFromGroupedParts(sorted),
+    badges,
+    grouped: true,
+    arts,
+    searchText: buildSearchText(s, sorted),
+  };
+}
+
+/** Rosenkranz + Trauerfeier/Verabschiedung (+ Beisetzung im Anschluss am selben Tag) = ein Termin. */
+function collectTrauerblockEntries(
   s: Sterbefall,
   atoms: AtomicTermin[],
   used: Set<string>
-): WallCalendarEntry | null {
-  const rosen = atoms.filter((a) => a.art === 'rosenkranz' && !used.has(a.key));
-  const verabs = atoms.filter(
-    (a) => (a.art === 'verabschiedung' || a.art === 'trauerfeier') && !used.has(a.key)
-  );
-  const beisetzungen = atoms.filter((a) => a.art === 'beisetzung' && !used.has(a.key));
+): WallCalendarEntry[] {
   const imAnschluss = istImAnschluss(s.imAnschluss);
+  const byDay = new Map<string, AtomicTermin[]>();
 
-  for (const r of rosen) {
-    const v = verabs.find((t) => t.dayKey === r.dayKey);
-    if (!v) continue;
-
-    const groupParts: AtomicTermin[] = [r, v];
-    used.add(r.key);
-    used.add(v.key);
-
-    let beisetzung: AtomicTermin | undefined;
-    if (imAnschluss) {
-      beisetzung = beisetzungen.find((b) => b.dayKey === r.dayKey);
-      if (beisetzung) {
-        groupParts.push(beisetzung);
-        used.add(beisetzung.key);
-      }
+  for (const a of atoms) {
+    if (used.has(a.key)) continue;
+    if (
+      a.art !== 'rosenkranz' &&
+      a.art !== 'verabschiedung' &&
+      a.art !== 'trauerfeier' &&
+      a.art !== 'beisetzung'
+    ) {
+      continue;
     }
-
-    const badges = groupParts.map((p) => p.label);
-    const title =
-      badges.length >= 2
-        ? badges.join(' · ')
-        : badges[0] ?? 'Trauertermin';
-
-    return {
-      id: `${s.id}:block:${r.dayKey}`,
-      docId: s.id,
-      sterbefallId: s.sterbefallId ?? s.id,
-      dayKey: r.dayKey,
-      dayLabel: formatDayLabelDe(r.dayKey),
-      timeLabel: timeLabelFromParts(groupParts),
-      sortMs: Math.min(...groupParts.map((p) => p.sortMs)),
-      name: fallName(s),
-      title,
-      subtitle: subtitleFromParts(groupParts),
-      badges,
-      grouped: true,
-      arts: ['trauerblock', ...groupParts.map((p) => p.art)],
-      searchText: buildSearchText(s, groupParts),
-    };
+    const list = byDay.get(a.dayKey) ?? [];
+    list.push(a);
+    byDay.set(a.dayKey, list);
   }
 
-  return null;
+  const entries: WallCalendarEntry[] = [];
+
+  for (const [dayKey, dayAtoms] of byDay) {
+    const rosen = dayAtoms.find((a) => a.art === 'rosenkranz' && !used.has(a.key));
+    const trauerfeier = dayAtoms.find(
+      (a) =>
+        (a.art === 'trauerfeier' || a.art === 'verabschiedung') && !used.has(a.key)
+    );
+    const beisetzung = dayAtoms.find((a) => a.art === 'beisetzung' && !used.has(a.key));
+
+    if (!trauerfeier) continue;
+
+    const groupParts: AtomicTermin[] = [];
+    if (rosen) groupParts.push(rosen);
+    groupParts.push(trauerfeier);
+    if (imAnschluss && beisetzung && beisetzung.dayKey === dayKey) {
+      groupParts.push(beisetzung);
+    }
+
+    const hasRosen = Boolean(rosen);
+    const hasBeisetzungImBlock = groupParts.some((p) => p.art === 'beisetzung');
+    if (groupParts.length < 2) continue;
+    if (!hasRosen && !hasBeisetzungImBlock) continue;
+
+    for (const p of groupParts) used.add(p.key);
+    entries.push(buildTrauerblockEntry(s, groupParts, dayKey));
+  }
+
+  return entries;
 }
 
 function atomicToEntry(s: Sterbefall, a: AtomicTermin): WallCalendarEntry {
@@ -354,8 +416,7 @@ export function buildWallCalendarEntries(sterbefaelle: Sterbefall[]): WallCalend
     const atoms = collectAtomics(s);
     const used = new Set<string>();
 
-    const block = tryBuildTrauerblock(s, atoms, used);
-    if (block) entries.push(block);
+    entries.push(...collectTrauerblockEntries(s, atoms, used));
 
     for (const a of atoms) {
       if (used.has(a.key)) continue;
@@ -366,7 +427,8 @@ export function buildWallCalendarEntries(sterbefaelle: Sterbefall[]): WallCalend
   return entries.sort((a, b) => a.sortMs - b.sortMs || a.name.localeCompare(b.name, 'de'));
 }
 
-const MONTH_OVERFLOW_MAX_DAYS = 45;
+/** Mindestens so viele Tage nach Monatsende (auch ohne Termine), damit der Monat weiterläuft. */
+const MONTH_MIN_FORWARD_DAYS = 365;
 
 function monthStartKey(anchor: Date): string {
   return dayKeyFromDate(new Date(anchor.getFullYear(), anchor.getMonth(), 1));
@@ -376,18 +438,20 @@ function monthEndKey(anchor: Date): string {
   return dayKeyFromDate(new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0));
 }
 
-/** Monatsansicht: bis zum letzten Termin nach Monatsende (gedeckelt), nicht am 31. stoppen. */
+/** Monatsansicht: durchgehend ab Monatsanfang, nicht am letzten Kalendertag stoppen. */
 function monthRangeToKey(anchor: Date, entries: WallCalendarEntry[]): string {
   const fromKey = monthStartKey(anchor);
   let toKey = monthEndKey(anchor);
-  const capKey = dayKeyFromDate(
-    addDays(new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0), MONTH_OVERFLOW_MAX_DAYS)
+
+  const minForward = dayKeyFromDate(
+    addDays(new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0), MONTH_MIN_FORWARD_DAYS)
   );
+  if (minForward > toKey) toKey = minForward;
 
   for (const e of entries) {
     if (e.dayKey >= fromKey && e.dayKey > toKey) toKey = e.dayKey;
   }
-  return toKey > capKey ? capKey : toKey;
+  return toKey;
 }
 
 export function isWallCalendarDayInAnchorMonth(dayKey: string, anchor: Date): boolean {

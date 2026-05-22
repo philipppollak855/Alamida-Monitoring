@@ -474,7 +474,9 @@ function WallCalendarEventCard({
 
 }) {
 
-  const artClass = entry.arts[0] ? `wall-cal-card--art-${entry.arts[0]}` : '';
+  const displayArt =
+    entry.arts.find((a) => a === 'trauerfeier' || a === 'verabschiedung') ?? entry.arts[0];
+  const artClass = displayArt ? `wall-cal-card--art-${displayArt}` : '';
 
 
 

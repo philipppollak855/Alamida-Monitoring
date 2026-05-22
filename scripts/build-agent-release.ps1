@@ -28,6 +28,10 @@ if (-not $Version) {
 if (-not $OutputDir) {
     $OutputDir = Join-Path $Root "dist\agent-release"
 }
+if (-not [System.IO.Path]::IsPathRooted($OutputDir)) {
+    $OutputDir = Join-Path $Root $OutputDir
+}
+$OutputDir = [System.IO.Path]::GetFullPath($OutputDir)
 
 $publishDir = Join-Path $OutputDir "publish"
 $zipName = "AlamidaMonitoringAgent-win-x64.zip"
@@ -47,8 +51,12 @@ if (Test-Path $OutputDir) {
     try {
         Remove-Item $OutputDir -Recurse -Force -ErrorAction Stop
     } catch {
-        $msg = $_.Exception.Message
-        throw "Ausgabeordner gesperrt: $OutputDir. Agent beenden oder anderen -OutputDir waehlen. $msg"
+        Write-Warning "Ausgabeordner gesperrt — publish wird ueberschrieben: $OutputDir"
+        if (Test-Path $publishDir) {
+            Get-ChildItem $publishDir -Force -ErrorAction SilentlyContinue | ForEach-Object {
+                Remove-Item $_.FullName -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        }
     }
 }
 New-Item -ItemType Directory -Force -Path $publishDir | Out-Null
