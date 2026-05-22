@@ -11,7 +11,7 @@ interface Props {
 export function WallCalendarPeriodOverview({ days, columns = 7, compact }: Props) {
   return (
     <div
-      className={`wall-cal-period-overview ${compact ? 'wall-cal-period-overview--compact' : ''}`}
+      className={`wall-cal-period-overview ${compact ? 'wall-cal-period-overview--compact' : ''} wall-cal-period-overview--even`}
       style={{ '--cal-overview-cols': columns } as React.CSSProperties}
       aria-label="Zeitraumübersicht"
     >

@@ -164,22 +164,28 @@
     font-size: 0.7rem;
   }
 
+  .wall-view-tabs.wall-view-tabs--one-row {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.2rem;
+    padding: 0.3rem 0.5rem 0;
+  }
+
   .wall-view-tabs {
     margin-bottom: 0;
-    padding: 0.35rem 0.65rem 0;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.28rem;
     flex-shrink: 0;
   }
 
   .wall-view-tab {
     flex: unset;
-    font-size: 0.68rem;
-    padding: 0.4rem 0.3rem;
-    min-height: 44px;
-    line-height: 1.15;
+    font-size: clamp(0.55rem, 2.4vw, 0.68rem);
+    padding: 0.38rem 0.12rem;
+    min-height: 42px;
+    line-height: 1.2;
     border-radius: 8px;
+    text-align: center;
+    word-break: break-word;
+    hyphens: auto;
   }
 
   .wall-stage {
@@ -279,10 +285,36 @@
     overflow: hidden;
   }
 
-  .wall-cal-art-filters {
+  .wall-cal-filters-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    flex-shrink: 0;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.4rem 0.55rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-strong);
+    background: var(--surface-solid);
+    color: var(--text);
+    cursor: pointer;
+    min-height: 40px;
+  }
+
+  .wall-cal-filters-chevron {
+    font-size: 0.65rem;
+    opacity: 0.75;
+  }
+
+  .wall-cal-art-filters.is-collapsed {
+    display: none;
+  }
+
+  .wall-cal-art-filters:not(.is-collapsed) {
     flex-shrink: 0;
     gap: 0.25rem;
-    max-height: 4.5rem;
+    max-height: 5.5rem;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }
@@ -293,13 +325,33 @@
     min-height: 32px;
   }
 
-  .wall-cal-period-overview {
-    gap: 0.2rem;
+  .wall-cal-period-overview--even {
+    width: 100%;
+    gap: 0.15rem;
     padding-bottom: 0.25rem;
   }
 
+  .wall-cal-period-overview--even .wall-cal-period-cell {
+    width: 100%;
+    aspect-ratio: 1;
+    min-height: 0;
+    justify-content: center;
+    padding: 0.12rem 0.08rem;
+  }
+
+  .wall-cal-period-overview--even .wall-cal-period-num {
+    font-size: 0.7rem;
+  }
+
+  .wall-cal-period-overview--even .wall-cal-period-wd {
+    font-size: 0.55rem;
+  }
+
+  .wall-cal-period-overview--compact.wall-cal-period-overview--even {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+
   .wall-cal-period-cell {
-    min-height: 2rem;
     background: var(--surface-solid);
     border-color: var(--border-strong);
   }
@@ -468,10 +520,22 @@
   }
 
   .wall-cal-card--mobile .wall-cal-name {
-    font-size: 0.82rem;
-    white-space: nowrap;
+    font-size: 0.85rem;
+    font-weight: 700;
+    line-height: 1.25;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
     overflow: hidden;
-    text-overflow: ellipsis;
+  }
+
+  .wall-cal-card--mobile .wall-cal-mobile-types,
+  .wall-cal-card--mobile .wall-cal-meta {
+    white-space: normal;
+    line-height: 1.2;
   }
 
   .wall-cal-mobile-line {
@@ -767,6 +831,14 @@
 
   .wall-tab-countdown--desktop {
     display: none;
+  }
+
+  .wall-rotate-hint--mobile {
+    display: block;
+    font-size: 0.72rem;
+    color: var(--muted);
+    text-align: center;
+    width: 100%;
   }
 }
 

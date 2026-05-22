@@ -29,11 +29,14 @@ export function wallDurationsFromSettings(
 
 export function useWallTabRotation(
   durations: Record<WallView, number>,
-  rotationPaused: boolean
+  rotationPaused: boolean,
+  /** z. B. Mobil: kein automatischer Tabwechsel */
+  autoRotateEnabled = true
 ) {
   const [slide, setSlide] = useState(0);
   const [view, setView] = useState<WallView>(WALL_VIEWS[0]);
   const [secondsLeft, setSecondsLeft] = useState(durations[WALL_VIEWS[0]]);
+  const rotationOff = rotationPaused || !autoRotateEnabled;
 
   const goToSlide = useCallback(
     (index: number) => {
@@ -46,7 +49,7 @@ export function useWallTabRotation(
   );
 
   useEffect(() => {
-    if (rotationPaused) return;
+    if (rotationOff) return;
     const current = WALL_VIEWS[slide];
     setSecondsLeft(durations[current]);
 
@@ -63,7 +66,7 @@ export function useWallTabRotation(
     }, 1000);
 
     return () => window.clearInterval(id);
-  }, [slide, rotationPaused, durations]);
+  }, [slide, rotationOff, durations]);
 
-  return { slide, view, secondsLeft, goToSlide, setView, setSlide };
+  return { slide, view, secondsLeft, goToSlide, setView, setSlide, rotationOff };
 }

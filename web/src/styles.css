@@ -1833,6 +1833,10 @@ code {
   overflow: hidden;
 }
 
+.wall-cal-filters-toggle {
+  display: none;
+}
+
 .wall-cal-period-overview {
   flex-shrink: 0;
   display: grid;
@@ -1840,6 +1844,16 @@ code {
   gap: 0.35rem;
   padding-bottom: 0.35rem;
   border-bottom: 1px solid var(--border);
+}
+
+.wall-cal-period-overview--even {
+  width: 100%;
+}
+
+.wall-cal-period-overview--even .wall-cal-period-cell {
+  width: 100%;
+  aspect-ratio: 1;
+  min-height: 0;
 }
 
 .wall-cal-period-overview--compact .wall-cal-period-wd {

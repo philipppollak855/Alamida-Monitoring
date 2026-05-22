@@ -65,8 +65,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
   const [search, setSearch] = useState('');
 
   const { activeArts, toggle, selectAll, isActive } = useCalendarArtFilter();
-
-
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const allEntries = useMemo(() => buildWallCalendarEntries(sterbefaelle), [sterbefaelle]);
 
@@ -200,40 +199,41 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
 
 
 
-      <div className="wall-cal-art-filters" role="group" aria-label="Terminarten filtern">
+      {isNarrow && (
+        <button
+          type="button"
+          className="wall-cal-filters-toggle"
+          aria-expanded={filtersOpen}
+          onClick={() => setFiltersOpen((o) => !o)}
+        >
+          Filter ({activeArts.size}/{ALL_CALENDAR_TERMIN_ARTEN.length})
+          <span className="wall-cal-filters-chevron" aria-hidden>
+            {filtersOpen ? '▲' : '▼'}
+          </span>
+        </button>
+      )}
 
+      <div
+        className={`wall-cal-art-filters ${isNarrow && !filtersOpen ? 'is-collapsed' : ''}`}
+        role="group"
+        aria-label="Terminarten filtern"
+      >
         {!filterAllOn && (
-
           <button type="button" className="wall-cal-art-all" onClick={selectAll}>
-
             Alle
-
           </button>
-
         )}
-
         {ALL_CALENDAR_TERMIN_ARTEN.map((art) => (
-
           <button
-
             key={art}
-
             type="button"
-
             className={`wall-cal-art-chip wall-cal-art-chip--${art} ${isActive(art) ? 'active' : ''}`}
-
             aria-pressed={isActive(art)}
-
             onClick={() => toggle(art)}
-
           >
-
             {CALENDAR_TERMIN_ART_LABELS[art]}
-
           </button>
-
         ))}
-
       </div>
 
 

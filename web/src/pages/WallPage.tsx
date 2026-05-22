@@ -74,11 +74,11 @@ function formatWallTabLabel(
   }
   switch (v) {
     case 'kuehlraum':
-      return `KR ${counts.belegt}/${counts.plaetze}`;
+      return `Kühlr. ${counts.belegt}/${counts.plaetze}`;
     case 'extern':
-      return `Ext ${counts.extern}`;
+      return `Extern ${counts.extern}`;
     case 'kalender':
-      return `Kal ${counts.kalender}`;
+      return `Kal. ${counts.kalender}`;
     case 'abholungen':
       return `Heute ${counts.heute}`;
     default:
@@ -99,9 +99,10 @@ export function WallPage() {
     () => wallDurationsFromSettings(settings.wallTabWechselSekunden),
     [settings.wallTabWechselSekunden]
   );
-  const { slide, view, secondsLeft, goToSlide } = useWallTabRotation(
+  const { slide, view, secondsLeft, goToSlide, rotationOff } = useWallTabRotation(
     tabDurations,
-    rotationPaused
+    rotationPaused,
+    !isNarrow
   );
 
   const sterbefaelleQuery = useFirestoreCollection<Sterbefall>('sterbefaelle', 'updatedAt');
@@ -222,7 +223,7 @@ export function WallPage() {
             label="Live"
             hideSyncAge
           />
-          {!rotationPaused && (
+          {!rotationOff && !isNarrow && (
             <span className="wall-tab-countdown wall-tab-countdown--desktop" title="Zeit bis zum nächsten Tab">
               Tabwechsel in {secondsLeft}s
             </span>
@@ -236,12 +237,13 @@ export function WallPage() {
         </div>
       </header>
 
-      <div className="wall-view-tabs">
+      <div className={`wall-view-tabs ${isNarrow ? 'wall-view-tabs--one-row' : ''}`}>
         {WALL_VIEWS.map((v, i) => (
           <button
             key={v}
             type="button"
-            className={`wall-view-tab ${view === v ? 'active' : ''} ${!rotationPaused && slide === i ? 'auto' : ''}`}
+            className={`wall-view-tab ${view === v ? 'active' : ''} ${!rotationOff && slide === i ? 'auto' : ''}`}
+            title={WALL_TAB_LABELS[v]}
             onClick={() => goToSlide(i)}
           >
             {formatWallTabLabel(v, isNarrow, {
@@ -435,19 +437,27 @@ export function WallPage() {
           ))}
         </div>
         <div className="wall-footer-actions">
-          <button
-            type="button"
-            className={`wall-pause-btn ${rotationPaused ? 'is-paused' : ''}`}
-            aria-pressed={rotationPaused}
-            onClick={() => setRotationPaused((p) => !p)}
-          >
-            {rotationPaused ? 'Fortsetzen' : 'Pause'}
-          </button>
-          <span className="wall-rotate-hint">
-            {rotationPaused
-              ? 'Automatischer Wechsel pausiert · Tabs manuell wählbar'
-              : `${WALL_TAB_LABELS[view]}: ${tabDurations[view]}s · als Nächstes ${WALL_TAB_LABELS[WALL_VIEWS[(slide + 1) % WALL_VIEWS.length]]}`}
-          </span>
+          {!isNarrow ? (
+            <>
+              <button
+                type="button"
+                className={`wall-pause-btn ${rotationPaused ? 'is-paused' : ''}`}
+                aria-pressed={rotationPaused}
+                onClick={() => setRotationPaused((p) => !p)}
+              >
+                {rotationPaused ? 'Fortsetzen' : 'Pause'}
+              </button>
+              <span className="wall-rotate-hint">
+                {rotationPaused
+                  ? 'Automatischer Wechsel pausiert · Tabs manuell wählbar'
+                  : `${WALL_TAB_LABELS[view]}: ${tabDurations[view]}s · als Nächstes ${WALL_TAB_LABELS[WALL_VIEWS[(slide + 1) % WALL_VIEWS.length]]}`}
+              </span>
+            </>
+          ) : (
+            <span className="wall-rotate-hint wall-rotate-hint--mobile">
+              Tabs manuell — kein automatischer Wechsel
+            </span>
+          )}
         </div>
       </footer>
     </div>
