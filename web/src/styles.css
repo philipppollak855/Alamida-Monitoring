@@ -1837,6 +1837,46 @@ code {
   display: none;
 }
 
+.wall-cal-period-row {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.wall-cal-period-row .wall-cal-period-overview {
+  flex: 1;
+  min-width: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.wall-cal-today-btn {
+  flex-shrink: 0;
+  align-self: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.35rem 0.55rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--accent);
+  background: var(--accent-dim);
+  color: var(--accent);
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+.wall-cal-today-btn:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--surface-solid, #fff);
+}
+
+.wall-cal-today-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 .wall-cal-period-overview {
   flex-shrink: 0;
   display: grid;

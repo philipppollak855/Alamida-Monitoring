@@ -436,6 +436,11 @@
     line-height: 1;
   }
 
+  .wall-cal--narrow .wall-cal-today-btn {
+    padding: 0.28rem 0.42rem;
+    font-size: 0.65rem;
+  }
+
   .wall-cal-period-overview--compact.wall-cal-period-overview--even {
     grid-template-columns: repeat(7, minmax(0, 1fr));
   }

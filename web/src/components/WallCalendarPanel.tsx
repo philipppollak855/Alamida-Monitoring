@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { Sterbefall } from '../types';
 
@@ -71,6 +71,12 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
   const { activeArts, toggle, selectAll, isActive } = useCalendarArtFilter();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [focusDayKey, setFocusDayKey] = useState<string | null>(null);
+  const scrollToFocusPending = useRef(false);
+
+  const selectFocusDay = useCallback((dayKey: string) => {
+    scrollToFocusPending.current = true;
+    setFocusDayKey(dayKey);
+  }, []);
 
   const allEntries = useMemo(() => buildWallCalendarEntries(sterbefaelle), [sterbefaelle]);
 
@@ -125,24 +131,32 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
 
   useEffect(() => {
     if (!showPeriodOverview) return;
+    scrollToFocusPending.current = true;
     setFocusDayKey(todayKey);
   }, [range, todayKey, showPeriodOverview]);
 
   useEffect(() => {
-    if (!focusDayKey || activeArts.size === 0) return;
+    if (!scrollToFocusPending.current || !focusDayKey || activeArts.size === 0) return;
+    const el = document.getElementById(`wall-cal-focus-${focusDayKey}`);
+    if (!el) return;
+
+    scrollToFocusPending.current = false;
     const t = window.setTimeout(() => {
-      document.getElementById(`wall-cal-focus-${focusDayKey}`)?.scrollIntoView({
+      el.scrollIntoView({
         behavior: 'smooth',
         block: 'nearest',
         inline: isNarrow ? 'start' : 'nearest',
       });
     }, 60);
     return () => window.clearTimeout(t);
-  }, [focusDayKey, days, isNarrow, activeArts.size]);
+  }, [focusDayKey, days.length, isNarrow, activeArts.size]);
 
 
 
   const filterAllOn = activeArts.size >= ALL_CALENDAR_TERMIN_ARTEN.length;
+
+  const onToday = todayKey;
+  const focusIsToday = focusDayKey === onToday;
 
 
 
@@ -284,16 +298,16 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
         <div className="wall-cal-mobile-body">
 
           {showPeriodOverview && (
-
-            <WallCalendarPeriodOverview
+            <WallCalendarPeriodRow
               days={overviewDays}
               columns={overviewColumns}
               compact
               denseMonth={range === 'month'}
               selectedDayKey={focusDayKey}
-              onDaySelect={setFocusDayKey}
+              onDaySelect={selectFocusDay}
+              onToday={() => selectFocusDay(onToday)}
+              todayDisabled={focusIsToday}
             />
-
           )}
 
           <WallCalendarMobileAgenda
@@ -309,14 +323,14 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
         <div className="wall-cal-desktop-body">
 
           {showPeriodOverview && (
-
-            <WallCalendarPeriodOverview
+            <WallCalendarPeriodRow
               days={overviewDays}
               columns={overviewColumns}
               selectedDayKey={focusDayKey}
-              onDaySelect={setFocusDayKey}
+              onDaySelect={selectFocusDay}
+              onToday={() => selectFocusDay(onToday)}
+              todayDisabled={focusIsToday}
             />
-
           )}
 
           {range === 'month' ? (
@@ -372,6 +386,48 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
 }
 
 
+
+function WallCalendarPeriodRow({
+  days,
+  columns,
+  compact,
+  denseMonth,
+  selectedDayKey,
+  onDaySelect,
+  onToday,
+  todayDisabled,
+}: {
+  days: WallCalendarDay[];
+  columns: number;
+  compact?: boolean;
+  denseMonth?: boolean;
+  selectedDayKey?: string | null;
+  onDaySelect: (dayKey: string) => void;
+  onToday: () => void;
+  todayDisabled: boolean;
+}) {
+  return (
+    <div className="wall-cal-period-row">
+      <WallCalendarPeriodOverview
+        days={days}
+        columns={columns}
+        compact={compact}
+        denseMonth={denseMonth}
+        selectedDayKey={selectedDayKey}
+        onDaySelect={onDaySelect}
+      />
+      <button
+        type="button"
+        className="wall-cal-today-btn"
+        onClick={onToday}
+        disabled={todayDisabled}
+        aria-label="Zu heute springen"
+      >
+        Heute
+      </button>
+    </div>
+  );
+}
 
 function WallCalendarMobileAgenda({
   days,
