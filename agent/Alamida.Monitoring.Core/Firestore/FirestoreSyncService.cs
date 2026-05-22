@@ -241,12 +241,23 @@ public sealed class FirestoreSyncService : IAsyncDisposable
         return false;
     }
 
+    private const string ManuellEntferntGrund = "manuell_entfernt";
+
     private static bool ResolveInHistory(DetailSnapshot snapshot, DocumentSnapshot existing)
     {
+        if (existing.Exists)
+        {
+            if (existing.ContainsField("historieGrund")
+                && existing.GetValue<string>("historieGrund") == ManuellEntferntGrund)
+                return true;
+
+            if (existing.ContainsField("inHistory"))
+                return existing.GetValue<bool>("inHistory");
+        }
+
         if (snapshot.IsDetailMaske)
             return snapshot.InHistory;
-        if (existing.Exists && existing.ContainsField("inHistory"))
-            return existing.GetValue<bool>("inHistory");
+
         return false;
     }
 

@@ -37,18 +37,34 @@ internal static class Program
         }
 
         var config = ConfigLoader.Load();
+        LogAgentStartup($"Start, Mapping={config.FieldMappingPath}");
 
         if (!File.Exists(config.FieldMappingPath))
         {
+            LogAgentStartup($"FEHLER: Mapping fehlt: {config.FieldMappingPath}");
             MessageBox.Show(
-                $"Field-Mapping nicht gefunden:\n{config.FieldMappingPath}\n\nBitte docs/field-mapping-9.2.1.json kopieren.",
+                $"Field-Mapping nicht gefunden:\n{config.FieldMappingPath}\n\nBitte docs/field-mapping-9.2.1.json kopieren oder Wizard erneut ausfuehren.",
                 "Alamida Monitoring",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
             return;
         }
 
-        var profile = FieldMappingProfile.Load(config.FieldMappingPath);
+        FieldMappingProfile profile;
+        try
+        {
+            profile = FieldMappingProfile.Load(config.FieldMappingPath);
+        }
+        catch (Exception ex)
+        {
+            LogTrayCrash(ex);
+            MessageBox.Show(
+                $"Field-Mapping ungueltig:\n{config.FieldMappingPath}\n\n{ex.Message}",
+                "Alamida Monitoring",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+            return;
+        }
 
         if (args.Contains("--inspect"))
         {
@@ -209,11 +225,20 @@ internal static class Program
             return;
         }
 
-        if (TryRunStartupAutoUpdate(config))
+        if (TryRunStartupAutoUpdate(config, out var updateMsg))
+        {
+            LogAgentStartup($"Beende fuer Auto-Update: {updateMsg}");
+            MessageBox.Show(
+                updateMsg ?? "Ein Agent-Update wird installiert. Der Agent startet danach neu.",
+                "Alamida Monitoring",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
             return;
+        }
 
         try
         {
+            LogAgentStartup("Tray starten");
             Application.Run(new TrayApplicationContext(config, profile));
         }
         catch (Exception ex)
@@ -243,9 +268,24 @@ internal static class Program
         catch { /* ignore */ }
     }
 
-    private static bool TryRunStartupAutoUpdate(Core.Models.AgentConfig config)
+    private static bool TryRunStartupAutoUpdate(Core.Models.AgentConfig config, out string? message)
     {
         var checker = new AgentUpdateChecker(config.AutoUpdate, AppContext.BaseDirectory);
-        return checker.TryApplyUpdateIfAvailable(out _);
+        return checker.TryApplyUpdateIfAvailable(out message);
+    }
+
+    private static void LogAgentStartup(string line)
+    {
+        try
+        {
+            var dir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "AlamidaMonitoring");
+            Directory.CreateDirectory(dir);
+            File.AppendAllText(
+                Path.Combine(dir, "agent-startup.log"),
+                $"[{DateTime.Now:O}] {line}\n");
+        }
+        catch { /* ignore */ }
     }
 }

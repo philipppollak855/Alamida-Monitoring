@@ -26,21 +26,44 @@ function Get-ReleaseVersion {
     return $TagName
 }
 
+function Get-VersionParts {
+    param([string] $Version)
+    $s = $Version.Trim()
+    if ($s -match '^agent-v(.+)$') { $s = $Matches[1] }
+    elseif ($s -match '^v(.+)$') { $s = $Matches[1] }
+    $head = ($s -split '[+-]')[0]
+    $parts = [System.Collections.Generic.List[int]]::new()
+    foreach ($seg in $head.Split('.')) {
+        if ($seg -notmatch '^\d+$') { return @() }
+        [void]$parts.Add([int]$seg)
+    }
+    return $parts.ToArray()
+}
+
 function Test-VersionNewer {
     param([string] $Remote, [string] $Local)
-    try {
-        $r = [Version]$Remote
-        $l = [Version]$Local
-        return $r -gt $l
-    } catch {
+    $r = Get-VersionParts $Remote
+    $l = Get-VersionParts $Local
+    if ($r.Count -eq 0 -or $l.Count -eq 0) {
         return ($Remote -ne $Local)
     }
+    $len = [Math]::Max($r.Count, $l.Count)
+    for ($i = 0; $i -lt $len; $i++) {
+        $ri = if ($i -lt $r.Count) { $r[$i] } else { 0 }
+        $li = if ($i -lt $l.Count) { $l[$i] } else { 0 }
+        if ($ri -ne $li) { return $ri -gt $li }
+    }
+    return $false
 }
 
 if (-not $InstallDir) {
     $InstallDir = $PSScriptRoot
 }
-$InstallDir = (Resolve-Path $InstallDir).Path
+$InstallDir = $InstallDir.Trim().TrimEnd('\')
+if (-not (Test-Path -LiteralPath $InstallDir)) {
+    throw "Installationsordner nicht gefunden: $InstallDir"
+}
+$InstallDir = (Get-Item -LiteralPath $InstallDir).FullName
 
 $headers = @{
     "User-Agent" = "AlamidaMonitoring-Agent"

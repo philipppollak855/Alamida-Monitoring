@@ -198,16 +198,46 @@ public sealed class AgentUpdateChecker
 
     private static bool IsRemoteNewer(string remote, string local)
     {
-        try
-        {
-            var r = new Version(remote);
-            var l = new Version(local);
-            return r > l;
-        }
-        catch
-        {
+        var r = ParseVersionParts(remote);
+        var l = ParseVersionParts(local);
+        if (r.Length == 0 || l.Length == 0)
             return !string.Equals(remote, local, StringComparison.OrdinalIgnoreCase);
+
+        var len = Math.Max(r.Length, l.Length);
+        for (var i = 0; i < len; i++)
+        {
+            var ri = i < r.Length ? r[i] : 0;
+            var li = i < l.Length ? l[i] : 0;
+            if (ri != li)
+                return ri > li;
         }
+
+        return false;
+    }
+
+    private static int[] ParseVersionParts(string version)
+    {
+        if (string.IsNullOrWhiteSpace(version))
+            return [];
+
+        var s = version.Trim();
+        if (s.StartsWith("agent-v", StringComparison.OrdinalIgnoreCase))
+            s = s["agent-v".Length..];
+        if (s.StartsWith('v') && s.Length > 1)
+            s = s[1..];
+
+        var head = s.Split('+', '-')[0];
+        var parts = new List<int>();
+        foreach (var segment in head.Split('.'))
+        {
+            if (string.IsNullOrWhiteSpace(segment))
+                continue;
+            if (!int.TryParse(segment, out var n))
+                return [];
+            parts.Add(n);
+        }
+
+        return parts.ToArray();
     }
 
     private bool TryApplyGitUpdate(out string? message)

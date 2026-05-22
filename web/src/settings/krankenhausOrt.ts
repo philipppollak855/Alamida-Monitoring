@@ -1,5 +1,6 @@
 import type { Sterbefall } from '../types';
 import type { DispositionSettings } from '../types/dispositionSettings';
+import { parseUeberfuehrungRoute } from '../board/routeParse';
 import { getDispositionSettings } from './dispositionSettingsStore';
 import { istKrankenhausOrt } from './recognitionEngine';
 
@@ -49,8 +50,13 @@ export function isGenericKrankenhausKey(key: string): boolean {
 /**
  * Gruppierungsschlüssel — gleiche Klinik trotz UK/KH/Krankenhaus/Schreibweise.
  */
+function krankenhausOrtBasis(ort: string): string {
+  const { von } = parseUeberfuehrungRoute(ort);
+  return (von || ort).trim();
+}
+
 export function krankenhausOrtKey(ort: string, settings?: DispositionSettings): string {
-  let s = ort.trim().toLowerCase();
+  let s = krankenhausOrtBasis(ort).toLowerCase();
   s = stripLeadingMarkers(s);
 
   const cfg = settings ?? getDispositionSettings();
@@ -84,7 +90,7 @@ export function krankenhausOrtKey(ort: string, settings?: DispositionSettings): 
   s = stripLeadingMarkers(s);
   s = s.replace(/^[\s.\-_]+/, '').replace(/[\s.\-_]+/g, '');
 
-  const raw = ort.trim().toLowerCase().replace(/[\s.\-_]+/g, '');
+  const raw = krankenhausOrtBasis(ort).toLowerCase().replace(/[\s.\-_]+/g, '');
   const result = s || raw;
   if (isGenericKrankenhausKey(result)) return result;
   return result;
@@ -111,6 +117,62 @@ export function canonicalKrankenhausAnzeigeLabel(
   return `UK - ${city}`;
 }
 
+function gatherSterbefallTexts(s: Sterbefall): string {
+  const parts: string[] = [];
+  const push = (v?: string) => {
+    if (v?.trim()) parts.push(v.trim());
+  };
+  push(s.sterbeort);
+  push(s.aktuellePosition);
+  push(s.abholort);
+  push(s.naechsterSchrittVon);
+  push(s.naechsterSchrittNach);
+  push(s.naechsteUeberfuehrungVon);
+  push(s.naechsteUeberfuehrungNach);
+  for (const v of s.verlauf ?? []) {
+    push(v.ort);
+    push(v.vonOrt);
+    push(v.nachOrt);
+  }
+  for (const a of s.ausstehend ?? []) {
+    push(a.vonOrt);
+    push(a.nachOrt);
+  }
+  return parts.join('\n');
+}
+
+/** UK-Kliniknamen aus beliebigen Textfeldern (auch wenn Sterbeort nur „UK“ ist). */
+export function extractUkKlinikFromTexts(text: string): string[] {
+  const found: string[] = [];
+  const seen = new Set<string>();
+
+  const add = (name: string) => {
+    const t = name.replace(/\s+/g, ' ').trim();
+    if (!t || seen.has(t.toLowerCase())) return;
+    seen.add(t.toLowerCase());
+    found.push(t);
+  };
+
+  for (const line of text.split('\n')) {
+    const head = line.split(/\s+\/\s+/)[0]?.trim() ?? '';
+    if (/^UK\b/i.test(head)) add(head);
+  }
+
+  const reDash = /\bUK\s*[-–]\s*([A-Za-zÄÖÜäöüß][A-Za-zÄÖÜäöüß.-]{1,30})/gi;
+  let m: RegExpExecArray | null;
+  while ((m = reDash.exec(text))) {
+    add(`UK - ${m[1].trim()}`);
+  }
+
+  const reSpace = /\bUK\s+([A-Za-zÄÖÜäöüß]{4,30})/gi;
+  while ((m = reSpace.exec(text))) {
+    const city = m[1].trim();
+    if (!/^(nach|und|die)$/i.test(city)) add(`UK ${city}`);
+  }
+
+  return found;
+}
+
 /** Alle Orts-Strings eines Falls, die ein KH bezeichnen können. */
 export function collectKrankenhausKandidaten(s: Sterbefall): string[] {
   const seen = new Set<string>();
@@ -124,6 +186,10 @@ export function collectKrankenhausKandidaten(s: Sterbefall): string[] {
     if (!force && !istKrankenhaus(t)) return;
     seen.add(norm);
     out.push(t);
+
+    const route = parseUeberfuehrungRoute(t);
+    if (route.von && route.von !== t) add(route.von, force || istKrankenhaus(route.von));
+    if (route.nach && route.nach !== t) add(route.nach, force || istKrankenhaus(route.nach));
   };
 
   add(s.aktuellePosition);
@@ -144,6 +210,10 @@ export function collectKrankenhausKandidaten(s: Sterbefall): string[] {
     add(a.nachOrt);
   }
 
+  for (const ukName of extractUkKlinikFromTexts(gatherSterbefallTexts(s))) {
+    add(ukName, true);
+  }
+
   return out;
 }
 
@@ -154,21 +224,90 @@ export function resolveBestKrankenhausOrt(
 ): string | null {
   if (kandidaten.length === 0) return null;
 
+  const cfg = settings ?? getDispositionSettings();
+
+  // „UK - Neunkirchen / Kühlr. …“ — von-Teil hat Vorrang vor kaputtem „UK“-Sterbeort
+  let bestRouteVon: string | null = null;
+  let bestRouteKeyLen = -1;
+  for (const ort of kandidaten) {
+    const { von, nach } = parseUeberfuehrungRoute(ort);
+    if (!nach || !von || !istKrankenhaus(von)) continue;
+    const basis = krankenhausOrtBasis(von);
+    const key = krankenhausOrtKey(basis, cfg);
+    if (isGenericKrankenhausKey(key)) continue;
+    if (key.length > bestRouteKeyLen) {
+      bestRouteKeyLen = key.length;
+      bestRouteVon = basis;
+    }
+  }
+  if (bestRouteVon) return bestRouteVon;
+
   let bestOrt: string | null = null;
   let bestKeyLen = -1;
 
   for (const ort of kandidaten) {
-    const key = krankenhausOrtKey(ort, settings);
+    const basis = krankenhausOrtBasis(ort);
+    const key = krankenhausOrtKey(basis, cfg);
     if (isGenericKrankenhausKey(key)) continue;
     if (key.length > bestKeyLen) {
       bestKeyLen = key.length;
-      bestOrt = ort;
+      bestOrt = basis;
     }
   }
 
   if (bestOrt) return bestOrt;
 
-  return kandidaten.reduce((a, b) => (a.trim().length >= b.trim().length ? a : b));
+  const khKandidaten = kandidaten
+    .filter((k) => istKrankenhaus(k))
+    .map((k) => krankenhausOrtBasis(k))
+    .sort((a, b) => {
+      const ka = krankenhausOrtKey(a, cfg);
+      const kb = krankenhausOrtKey(b, cfg);
+      const aSpec = isGenericKrankenhausKey(ka) ? 0 : ka.length;
+      const bSpec = isGenericKrankenhausKey(kb) ? 0 : kb.length;
+      if (bSpec !== aSpec) return bSpec - aSpec;
+      return b.length - a.length;
+    });
+
+  for (const candidate of khKandidaten) {
+    if (!isGenericKrankenhausKey(krankenhausOrtKey(candidate, cfg))) return candidate;
+  }
+
+  return khKandidaten[0] ?? null;
+}
+
+/** Benannte KH-Gruppe für einen Fall mit nur generischem „UK“-Schlüssel. */
+export function matchNamedKrankenhausGruppe(
+  s: Sterbefall,
+  namedGruppenKeys: { key: string; slug: string }[]
+): string | null {
+  const kandidaten = collectKrankenhausKandidaten(s);
+  const slugSet = new Set(
+    kandidaten.map((k) => krankenhausOrtKey(krankenhausOrtBasis(k)))
+  );
+
+  for (const { key, slug } of namedGruppenKeys) {
+    if (slugSet.has(slug)) return key;
+  }
+
+  for (const k of kandidaten) {
+    const { von } = parseUeberfuehrungRoute(k);
+    if (!von) continue;
+    const vonSlug = krankenhausOrtKey(von);
+    if (isGenericKrankenhausKey(vonSlug)) continue;
+    const hit = namedGruppenKeys.find((g) => g.slug === vonSlug);
+    if (hit) return hit.key;
+  }
+
+  for (const { key, slug } of namedGruppenKeys) {
+    for (const k of kandidaten) {
+      const t = krankenhausOrtBasis(k).toLowerCase();
+      const city = titleCaseOrt(slug).toLowerCase();
+      if (city.length >= 3 && t.includes(city)) return key;
+    }
+  }
+
+  return null;
 }
 
 export function preferKrankenhausAnzeigeLabel(a: string, b: string): string {

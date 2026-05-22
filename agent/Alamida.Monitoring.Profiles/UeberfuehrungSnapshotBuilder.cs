@@ -91,7 +91,12 @@ public static class UeberfuehrungSnapshotBuilder
         var abholortIstKh = UeberfuehrungTypResolver.IstKrankenhausAbholort(abholort)
             || UeberfuehrungTypResolver.IstKrankenhausAbholort(sterbeort);
 
-        var effektiverSterbeort = string.IsNullOrWhiteSpace(sterbeort) ? abholort : sterbeort;
+        var sterbeortKh = string.IsNullOrWhiteSpace(sterbeort)
+            ? null
+            : AlamidaFieldParser.ParseUeberfuehrungText(sterbeort).Von;
+        var effektiverSterbeort = string.IsNullOrWhiteSpace(sterbeort)
+            ? abholort
+            : (sterbeortKh ?? sterbeort);
 
 
 

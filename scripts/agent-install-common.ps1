@@ -1,4 +1,7 @@
 # Gemeinsame Hilfen fuer Wizard, Setup und Wandmonitor-Launcher
+if (-not $script:AlamidaCommonScriptRoot) {
+    $script:AlamidaCommonScriptRoot = $PSScriptRoot
+}
 $script:AlamidaWallUrl = 'https://alamida---monitoring.web.app/wall'
 $script:AlamidaGitHubOwner = 'philipppollak855'
 $script:AlamidaGitHubRepo = 'Alamida-Monitoring'
@@ -27,10 +30,22 @@ function Read-AlamidaInstallConfig {
     }
 }
 
+function Get-AlamidaDirectoryPath {
+    param([string] $Path)
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        throw 'Kein Installationsordner angegeben.'
+    }
+    $Path = $Path.Trim().TrimEnd('\')
+    if (-not (Test-Path -LiteralPath $Path)) {
+        throw "Ordner nicht gefunden: $Path"
+    }
+    return (Get-Item -LiteralPath $Path -ErrorAction Stop).FullName
+}
+
 function Write-AlamidaInstallConfig {
     param([string] $InstallDir)
     $cfg = @{
-        InstallDir = (Resolve-Path $InstallDir).Path
+        InstallDir = (Get-AlamidaDirectoryPath $InstallDir)
         WallUrl    = $script:AlamidaWallUrl
         InstalledAt = (Get-Date).ToString('o')
     }
@@ -39,8 +54,8 @@ function Write-AlamidaInstallConfig {
 
 function Resolve-AlamidaInstallDir {
     param([string] $Hint = '')
-    if ($Hint -and (Test-Path (Join-Path $Hint 'AlamidaMonitoringAgent.exe'))) {
-        return (Resolve-Path $Hint).Path
+    if ($Hint -and (Test-Path -LiteralPath (Join-Path $Hint 'AlamidaMonitoringAgent.exe'))) {
+        return (Get-AlamidaDirectoryPath $Hint)
     }
     $cfg = Read-AlamidaInstallConfig
     if ($cfg -and $cfg.InstallDir) {
@@ -103,7 +118,7 @@ function Find-AlamidaServiceAccountNearby {
         if (-not $d -or -not (Test-Path $d)) { continue }
         $exact = Join-Path $d 'serviceAccount.json'
         if (Test-AlamidaServiceAccountFile $exact) {
-            return (Resolve-Path $exact).Path
+            return (Get-Item -LiteralPath $exact).FullName
         }
         foreach ($f in Get-ChildItem -Path $d -Filter '*.json' -File -ErrorAction SilentlyContinue) {
             if (Test-AlamidaServiceAccountFile $f.FullName) {
@@ -134,8 +149,14 @@ function Get-AlamidaServiceAccountValidationError {
     if ([string]::IsNullOrWhiteSpace($Path)) {
         return 'Kein Dateipfad angegeben.'
     }
-    if (-not (Test-Path -LiteralPath $Path)) {
-        return "Datei nicht gefunden oder Laufwerk nicht erreichbar:`n$Path"
+    $item = $null
+    try {
+        $item = Get-Item -LiteralPath $Path -ErrorAction Stop
+    } catch {
+        return "Datei nicht gefunden oder Laufwerk nicht erreichbar:`n$Path`n($($_.Exception.Message))"
+    }
+    if ($item.PSIsContainer) {
+        return "Erwartet wird eine Datei, kein Ordner:`n$Path"
     }
 
     $text = Read-AlamidaTextFile $Path
@@ -185,15 +206,54 @@ function Test-AlamidaServiceAccountFile {
     return $null -eq (Get-AlamidaServiceAccountValidationError $Path)
 }
 
-function Install-AlamidaServiceAccount {
+function Stage-AlamidaServiceAccountFromSource {
     param([string] $SourcePath)
     $err = Get-AlamidaServiceAccountValidationError $SourcePath
     if ($err) {
         throw "Ungueltige Firebase-JSON: $SourcePath`n$err"
     }
-    $dest = Join-Path (Get-AlamidaAppDataDir) 'serviceAccount.json'
-    Copy-Item -LiteralPath $SourcePath -Destination $dest -Force
+    $text = Read-AlamidaTextFile $SourcePath
+    if ([string]::IsNullOrWhiteSpace($text)) {
+        throw "Firebase-JSON ist leer oder nicht lesbar: $SourcePath"
+    }
+    $destDir = Get-AlamidaAppDataDir
+    $dest = Join-Path $destDir 'serviceAccount.json'
+    $utf8 = New-Object System.Text.UTF8Encoding $false
+    [System.IO.File]::WriteAllText($dest, $text, $utf8)
     return $dest
+}
+
+function Install-AlamidaServiceAccount {
+    param([string] $SourcePath = '')
+    $dest = Join-Path (Get-AlamidaAppDataDir) 'serviceAccount.json'
+    if ($SourcePath -and (Test-Path -LiteralPath $SourcePath)) {
+        return (Stage-AlamidaServiceAccountFromSource -SourcePath $SourcePath)
+    }
+    if (Test-AlamidaServiceAccountFile $dest) {
+        return $dest
+    }
+    $near = Find-AlamidaServiceAccountNearby
+    if ($near) {
+        return (Stage-AlamidaServiceAccountFromSource -SourcePath $near)
+    }
+    throw @"
+Keine gueltige Firebase-Dienstkonto-JSON.
+
+Bitte im Wizard erneut waehlen (USB-Laufwerk J: muss eingesteckt sein
+oder Datei auf diesem PC liegen).
+"@
+}
+
+function Resolve-AlamidaExistingFilePath {
+    param([string] $Path)
+    $Path = $Path.Trim().Trim('"')
+    if ([string]::IsNullOrWhiteSpace($Path)) { return $null }
+    if (-not (Test-AlamidaServiceAccountFile $Path)) { return $null }
+    try {
+        return (Get-Item -LiteralPath $Path -ErrorAction Stop).FullName
+    } catch {
+        return $null
+    }
 }
 
 function Test-AlamidaFirebaseReady {
@@ -208,8 +268,13 @@ function Expand-AlamidaAgentZip {
         [string] $ZipPath,
         [string] $InstallDir
     )
+    if (-not (Test-Path -LiteralPath $ZipPath)) {
+        throw "Agent-ZIP nicht gefunden: $ZipPath`n(Bitte lokale ZIP waehlen oder Internet pruefen.)"
+    }
+    $ZipPath = (Get-Item -LiteralPath $ZipPath).FullName
+    $InstallDir = $InstallDir.Trim().TrimEnd('\')
     Unblock-AlamidaPath $ZipPath
-    if (Test-Path $InstallDir) {
+    if (Test-Path -LiteralPath $InstallDir) {
         Get-Process -Name 'AlamidaMonitoringAgent' -ErrorAction SilentlyContinue | Stop-Process -Force
         Start-Sleep -Seconds 1
         Remove-Item $InstallDir -Recurse -Force
@@ -230,12 +295,28 @@ function Copy-AlamidaInstallScripts {
         'apply-agent-release.ps1',
         'launch-wall-monitor.ps1'
     )
+    $root = $script:AlamidaCommonScriptRoot
+    if (-not $root) { $root = $PSScriptRoot }
     foreach ($f in $files) {
-        $src = Join-Path $PSScriptRoot $f
-        if (Test-Path $src) {
-            Copy-Item $src (Join-Path $InstallDir $f) -Force
+        $src = Join-Path $root $f
+        if (Test-Path -LiteralPath $src) {
+            Copy-Item -LiteralPath $src (Join-Path $InstallDir $f) -Force
         }
     }
+}
+
+function Set-AlamidaAppsettingsNoStartupUpdate {
+    param([string] $InstallDir)
+    $path = Join-Path $InstallDir 'appsettings.json'
+    if (-not (Test-Path -LiteralPath $path)) { return }
+    try {
+        $json = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
+        if (-not $json.AutoUpdate) {
+            $json | Add-Member -NotePropertyName AutoUpdate -NotePropertyValue ([pscustomobject]@{})
+        }
+        $json.AutoUpdate.CheckOnStartup = $false
+        $json | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $path -Encoding UTF8
+    } catch { }
 }
 
 function Initialize-AlamidaAgentSetup {
@@ -243,9 +324,11 @@ function Initialize-AlamidaAgentSetup {
         [string] $InstallDir,
         [string] $ServiceAccountSource = ''
     )
-    $InstallDir = (Resolve-Path $InstallDir).Path
+    $InstallDir = Get-AlamidaDirectoryPath $InstallDir
     $exe = Join-Path $InstallDir 'AlamidaMonitoringAgent.exe'
     if (-not (Test-Path $exe)) { throw "Agent-EXE fehlt: $exe" }
+
+    Set-AlamidaAppsettingsNoStartupUpdate -InstallDir $InstallDir
 
     $agentDir = Get-AlamidaAppDataDir
     $mappingSrc = Join-Path $InstallDir 'field-mapping-9.2.1.json'
@@ -317,9 +400,13 @@ function Register-AlamidaAgentAutostart {
 
     # Fallback: geplante Aufgabe beim Anmelden (falls Startup-Ordner blockiert ist)
     $taskName = 'AlamidaMonitoringAgent'
-    schtasks.exe /Delete /TN $taskName /F 2>$null | Out-Null
     $tr = "`"$exe`""
-    schtasks.exe /Create /TN $taskName /TR $tr /SC ONLOGON /RL LIMITED /F 2>&1 | Out-Null
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    # /Delete ohne vorhandene Aufgabe schreibt sonst "Datei nicht gefunden" auf stderr -> bricht Wizard ab
+    schtasks.exe /Delete /TN $taskName /F *>$null
+    schtasks.exe /Create /TN $taskName /TR $tr /SC ONLOGON /RL LIMITED /F *>$null
+    $ErrorActionPreference = $prevEap
 }
 
 function Register-AlamidaAgentDesktopShortcut {
@@ -356,12 +443,19 @@ function New-AlamidaShortcut {
 function Register-AlamidaWallDesktopShortcut {
     param([string] $InstallDir)
     $launcher = Join-Path $InstallDir 'launch-wall-monitor.ps1'
-    if (-not (Test-Path $launcher)) {
+    if (-not (Test-Path -LiteralPath $launcher)) {
         Copy-AlamidaInstallScripts -InstallDir $InstallDir
     }
+    if (-not (Test-Path -LiteralPath $launcher)) {
+        throw "launch-wall-monitor.ps1 fehlt in $InstallDir (Installations-Skripte nicht kopiert)."
+    }
+    $launcher = (Get-Item -LiteralPath $launcher).FullName
     $desktop = [Environment]::GetFolderPath('Desktop')
     $lnk = Join-Path $desktop 'Alamida Wandmonitor.lnk'
     $ps = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    if (-not (Test-Path -LiteralPath $ps)) {
+        throw "PowerShell nicht gefunden: $ps"
+    }
     $args = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$launcher`""
     $icon = Resolve-AlamidaEdgeIcon
     New-AlamidaShortcut -ShortcutPath $lnk -TargetPath $ps -Arguments $args `
@@ -399,9 +493,11 @@ function Start-AlamidaAgentIfNeeded {
     param([string] $InstallDir)
     if (Get-Process -Name 'AlamidaMonitoringAgent' -ErrorAction SilentlyContinue) { return }
     $exe = Join-Path $InstallDir 'AlamidaMonitoringAgent.exe'
-    if (Test-Path $exe) {
-        Start-Process -FilePath $exe -WorkingDirectory $InstallDir
+    if (-not (Test-Path -LiteralPath $exe)) {
+        throw "Agent-EXE nicht gefunden: $exe"
     }
+    $exe = (Get-Item -LiteralPath $exe).FullName
+    Start-Process -FilePath $exe -WorkingDirectory $InstallDir
 }
 
 function Open-AlamidaWallMonitor {

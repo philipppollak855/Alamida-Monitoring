@@ -29,14 +29,14 @@ jobs:
       - name: Build portable ZIP
         shell: pwsh
         run: |
-          $version = "0.$env:GITHUB_RUN_NUMBER"
+          $version = "0.8.$env:GITHUB_RUN_NUMBER"
           ./scripts/build-agent-release.ps1 -Version $version
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: agent-v0.${{ github.run_number }}
-          name: Agent v0.${{ github.run_number }}
+          tag_name: agent-v0.8.${{ github.run_number }}
+          name: Agent v0.8.${{ github.run_number }}
           body: |
             ## Installation (empfohlen)
             1. **AlamidaMonitoring-Installer.zip** entpacken

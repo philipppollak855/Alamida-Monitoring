@@ -16,35 +16,53 @@ public static class AlamidaFieldParser
         return (m.Groups[1].Value.Trim(), m.Groups[2].Value.Trim());
     }
 
-    /// <summary>
-    /// Trennzeichen: „nach“, „über“, „/“, „ - “ (mit Leerzeichen, nicht UK-Neunkirchen).
-    /// z.B. „UK Neunkirchen / Kühlr. Grafenbach“, „A nach B“, „A - B“, „A über B“.
-    /// </summary>
-    private static readonly Regex UeberfuehrungRouteSeparator = new(
-        @"\s+(?:nach|über|ueber)\s+|\s+/\s+|\s+-\s+",
+    private static readonly Regex UeberfuehrungNachUeber = new(
+        @"\s+(?:nach|über|ueber)\s+",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
+    private static readonly Regex UkKhPrefixRegex = new(
+        @"^(uk|kh)\b",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
     /// <summary>
-    /// z.B. "UK Neunkirchen / Kühlr. Grafenbach" oder "Kühlr. Grafenbach / St. Johann"
+    /// z.B. "UK Neunkirchen / Kühlr. Grafenbach", "UK - Neunkirchen / Kühl. Grafenbach".
+    /// Slash zuerst — „ - “ in „UK - Neunkirchen“ ist kein Routen-Trenner.
     /// </summary>
     public static (string? Von, string? Nach, string? Kuehlraum) ParseUeberfuehrungText(string? text)
     {
         if (string.IsNullOrWhiteSpace(text)) return (null, null, null);
 
         var trimmed = text.Trim();
-        var parts = UeberfuehrungRouteSeparator.Split(trimmed)
-            .Select(p => p.Trim())
-            .Where(p => !string.IsNullOrWhiteSpace(p))
-            .ToArray();
 
-        if (parts.Length < 2)
-            return (trimmed, null, ExtractKuehlraum(trimmed));
+        var slashIdx = trimmed.IndexOf(" / ", StringComparison.Ordinal);
+        if (slashIdx >= 0)
+        {
+            var von = trimmed[..slashIdx].Trim();
+            var nach = trimmed[(slashIdx + 3)..].Trim();
+            return (von, nach, ExtractKuehlraum(nach));
+        }
 
-        var von = parts[0];
-        var nach = parts[1];
-        // Kühlraum = Ziel (nach), wie in Alamida „von / nach“
-        var kr = ExtractKuehlraum(nach);
-        return (von, nach, kr);
+        var nachMatch = UeberfuehrungNachUeber.Match(trimmed);
+        if (nachMatch.Success)
+        {
+            var von = trimmed[..nachMatch.Index].Trim();
+            var nach = trimmed[(nachMatch.Index + nachMatch.Length)..].Trim();
+            return (von, nach, ExtractKuehlraum(nach));
+        }
+
+        // „A - B“ nur ohne UK-/KH-Präfix (nicht „UK - Neunkirchen“)
+        if (!UkKhPrefixRegex.IsMatch(trimmed))
+        {
+            var dashIdx = trimmed.IndexOf(" - ", StringComparison.Ordinal);
+            if (dashIdx > 0)
+            {
+                var von = trimmed[..dashIdx].Trim();
+                var nach = trimmed[(dashIdx + 3)..].Trim();
+                return (von, nach, ExtractKuehlraum(nach));
+            }
+        }
+
+        return (trimmed, null, ExtractKuehlraum(trimmed));
     }
 
     /// <summary>

@@ -11,9 +11,8 @@ import {
 import { filterAktiveSterbefaelle } from '../board/historieLogic';
 import { buildUrnenListe, countUrnen } from '../board/urnenLogic';
 import { UrnenBereichPanel } from '../components/UrnenBereichPanel';
-import {
-  clearSterbefallUrnenRetour,
-} from '../services/urnenRetour';
+import { removeSterbefallFromDisposition } from '../services/dispositionFall';
+import { clearSterbefallUrnenRetour } from '../services/urnenRetour';
 import { DispositionSettingsPanel } from '../components/DispositionSettingsPanel';
 import { EndzielChip, SchrittBadge, StatusChip } from '../ui/SchrittBadge';
 import { RouteFlow } from '../ui/RouteFlow';
@@ -40,6 +39,8 @@ export function BoardPage() {
   const [filter, setFilter] = useState<'alle' | 'heute' | 'abholung'>('alle');
   const [urnenPending, setUrnenPending] = useState<string | null>(null);
   const [urnenError, setUrnenError] = useState<string | null>(null);
+  const [removePending, setRemovePending] = useState<string | null>(null);
+  const [removeError, setRemoveError] = useState<string | null>(null);
 
   const offene = useMemo(() => flattenOffene(sterbefaelle), [sterbefaelle, calendarDay]);
   const stats = useMemo(() => boardStats(sterbefaelle, offene), [sterbefaelle, offene, calendarDay]);
@@ -70,6 +71,26 @@ export function BoardPage() {
   const belegtGrafenbach = grafenbachSlots.filter(Boolean).length;
   const urnenListe = useMemo(() => buildUrnenListe(sterbefaelle), [sterbefaelle]);
   const urnenCount = useMemo(() => countUrnen(sterbefaelle), [sterbefaelle]);
+
+  async function handleRemoveFromDisposition(s: Sterbefall) {
+    const name = s.verstorbenerName || s.sterbefallId || s.id;
+    const ok = window.confirm(
+      `"${name}" aus Disposition und Wandmonitor entfernen?\n\n` +
+        'Der Fall bleibt in Alamida; er erscheint hier nicht mehr (z. B. Testfälle).'
+    );
+    if (!ok) return;
+
+    setRemoveError(null);
+    setRemovePending(s.id);
+    try {
+      await removeSterbefallFromDisposition(s.id, s.sterbefallId);
+      if (expandedId === s.id) setExpandedId(null);
+    } catch (e) {
+      setRemoveError(e instanceof Error ? e.message : 'Entfernen fehlgeschlagen');
+    } finally {
+      setRemovePending(null);
+    }
+  }
 
   async function handleUrnenUndo(docId: string) {
     setUrnenError(null);
@@ -287,30 +308,46 @@ export function BoardPage() {
           </div>
           <span className="panel-badge">{sterbefaelle.length} Fälle</span>
         </div>
+        {removeError && (
+          <p className="board-remove-error" role="alert">
+            {removeError}
+          </p>
+        )}
         <div className="case-list">
           {sterbefaelle.map((s) => {
             const open = expandedId === s.id;
             return (
               <div key={s.id} className={`case-card ${open ? 'open' : ''}`}>
-                <button
-                  type="button"
-                  className="case-card-trigger"
-                  onClick={() => setExpandedId(open ? null : s.id)}
-                  aria-expanded={open}
-                >
-                  <div className="case-card-main">
-                    <span className="case-name">{s.verstorbenerName || s.sterbefallId}</span>
-                    <span className="case-id">{s.sterbefallId}</span>
-                  </div>
-                  <div className="case-card-meta">
-                    {s.istNeuerFall && <span className="chip chip-abholung">Neu</span>}
-                    <span className="case-position">{s.aktuellePosition ?? '—'}</span>
-                    {s.endziel && (
-                      <EndzielChip typ={s.endzielTyp} ort={s.endziel} />
-                    )}
-                  </div>
-                  <span className="case-chevron" aria-hidden />
-                </button>
+                <div className="case-card-header">
+                  <button
+                    type="button"
+                    className="case-card-trigger"
+                    onClick={() => setExpandedId(open ? null : s.id)}
+                    aria-expanded={open}
+                  >
+                    <div className="case-card-main">
+                      <span className="case-name">{s.verstorbenerName || s.sterbefallId}</span>
+                      <span className="case-id">{s.sterbefallId}</span>
+                    </div>
+                    <div className="case-card-meta">
+                      {s.istNeuerFall && <span className="chip chip-abholung">Neu</span>}
+                      <span className="case-position">{s.aktuellePosition ?? '—'}</span>
+                      {s.endziel && (
+                        <EndzielChip typ={s.endzielTyp} ort={s.endziel} />
+                      )}
+                    </div>
+                    <span className="case-chevron" aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    className="case-remove-btn"
+                    title="Aus Disposition entfernen (Testfall)"
+                    disabled={removePending === s.id}
+                    onClick={() => void handleRemoveFromDisposition(s)}
+                  >
+                    {removePending === s.id ? '…' : 'Entfernen'}
+                  </button>
+                </div>
                 {open && (
                   <div className="case-timeline">
                     {(s.verlauf ?? []).map((v) => (

@@ -40,11 +40,31 @@ service cloud.firestore {
         && request.resource.data.urnenBereich == false;
     }
 
+    function sterbefallDispositionRemoveOnly() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly([
+          'inHistory',
+          'aktivInDisposition',
+          'historieGrund',
+          'archiviertAm',
+          'updatedAt',
+          'sterbefallId',
+        ]);
+    }
+
+    function sterbefallDispositionRemoveValid() {
+      return request.resource.data.inHistory == true
+        && request.resource.data.aktivInDisposition == false
+        && request.resource.data.historieGrund == 'manuell_entfernt';
+    }
+
     match /sterbefaelle/{id} {
       allow read: if isActivatedUser();
       allow update: if isActivatedUser()
-        && sterbefallUrnenUpdateOnly()
-        && (sterbefallUrnenSet() || sterbefallUrnenClear());
+        && (
+          (sterbefallUrnenUpdateOnly() && (sterbefallUrnenSet() || sterbefallUrnenClear()))
+          || (sterbefallDispositionRemoveOnly() && sterbefallDispositionRemoveValid())
+        );
       allow create, delete: if false;
     }
     match /ueberfuehrungen/{id} {

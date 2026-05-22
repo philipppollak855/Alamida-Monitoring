@@ -830,8 +830,15 @@ code {
   border-color: var(--border-strong);
 }
 
+.case-card-header {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+}
+
 .case-card-trigger {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -858,6 +865,39 @@ code {
 .case-id {
   font-size: 0.78rem;
   color: var(--muted);
+}
+
+.board-remove-error {
+  margin: 0 0 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  background: rgba(180, 40, 40, 0.12);
+  color: #8b2020;
+  font-size: 0.9rem;
+}
+
+.case-remove-btn {
+  flex-shrink: 0;
+  align-self: center;
+  margin-right: 0.65rem;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid rgba(140, 50, 50, 0.35);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #8b3030;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.case-remove-btn:hover:not(:disabled) {
+  background: rgba(180, 50, 50, 0.1);
+  border-color: rgba(140, 50, 50, 0.55);
+}
+
+.case-remove-btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
 }
 
 .case-card-meta {

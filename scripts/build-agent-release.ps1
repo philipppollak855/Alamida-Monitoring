@@ -33,11 +33,23 @@ $publishDir = Join-Path $OutputDir "publish"
 $zipName = "AlamidaMonitoringAgent-win-x64.zip"
 $zipPath = Join-Path $OutputDir $zipName
 
-Get-Process -Name "AlamidaMonitoringAgent" -ErrorAction SilentlyContinue | Stop-Process -Force
+Get-Process -Name "AlamidaMonitoringAgent" -ErrorAction SilentlyContinue | ForEach-Object {
+    $proc = $_
+    try {
+        Stop-Process -Id $proc.Id -Force -ErrorAction Stop
+    } catch {
+        Write-Warning "AlamidaMonitoringAgent (PID $($proc.Id)) konnte nicht beendet werden."
+    }
+}
 Start-Sleep -Milliseconds 500
 
 if (Test-Path $OutputDir) {
-    Remove-Item $OutputDir -Recurse -Force
+    try {
+        Remove-Item $OutputDir -Recurse -Force -ErrorAction Stop
+    } catch {
+        $msg = $_.Exception.Message
+        throw "Ausgabeordner gesperrt: $OutputDir. Agent beenden oder anderen -OutputDir waehlen. $msg"
+    }
 }
 New-Item -ItemType Directory -Force -Path $publishDir | Out-Null
 
@@ -65,7 +77,7 @@ if (Test-Path $appsettingsRelease) {
     $json = Get-Content $appsettingsRelease -Raw | ConvertFrom-Json
     if (-not $json.AutoUpdate) { $json | Add-Member -NotePropertyName AutoUpdate -NotePropertyValue (@{}) }
     $json.AutoUpdate.Enabled = $true
-    $json.AutoUpdate.CheckOnStartup = $true
+    $json.AutoUpdate.CheckOnStartup = $false
     $json.AutoUpdate.Mode = "release"
     $json.AutoUpdate.GitHubOwner = "philipppollak855"
     $json.AutoUpdate.GitHubRepo = "Alamida-Monitoring"
@@ -108,7 +120,7 @@ Copy-Item (Join-Path $Root "scripts\START-HIER.txt") (Join-Path $installerDir "S
 $readmeInstaller = @"
 Alamida Monitoring - Installation (Windows)
 
->>> START-HIER.bat doppelklicken <<<
+*** START-HIER.bat doppelklicken ***
 
 Dieses Paket enthaelt KEINE fertige EXE im Ordner!
 Der Wizard installiert nach C:\AlamidaMonitoring\

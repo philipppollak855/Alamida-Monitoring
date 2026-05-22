@@ -5,6 +5,7 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
 . (Join-Path $PSScriptRoot 'agent-install-common.ps1')
+$script:AlamidaCommonScriptRoot = $PSScriptRoot
 
 $script:WizardInstallDir = $script:AlamidaDefaultInstallDir
 $script:WizardZipPath = ''
@@ -19,7 +20,7 @@ function Find-NearbyAgentZip {
         if (-not $d -or -not (Test-Path $d)) { continue }
         foreach ($n in $names) {
             $p = Join-Path $d $n
-            if (Test-Path $p) { return (Resolve-Path $p).Path }
+            if (Test-Path -LiteralPath $p) { return (Get-Item -LiteralPath $p).FullName }
         }
     }
     return $null
@@ -140,27 +141,77 @@ function Show-WizardForm {
     ))
 
     function Set-ServiceAccountPath {
-        param([string] $Path)
+        param(
+            [string] $Path,
+            [switch] $Silent
+        )
         $Path = $Path.Trim().Trim('"')
         if (-not $Path) {
             $script:WizardServiceAccountPath = ''
             Update-CredPathDisplay
-            return
+            return $false
+        }
+        if ($script:WizardServiceAccountPath -and (Test-AlamidaServiceAccountFile $script:WizardServiceAccountPath)) {
+            $current = (Get-Item -LiteralPath $script:WizardServiceAccountPath).FullName
+            $candidate = $Path
+            try { $candidate = (Get-Item -LiteralPath $Path).FullName } catch { }
+            if ($current -eq $candidate) {
+                Update-CredPathDisplay
+                return $true
+            }
         }
         $err = Get-AlamidaServiceAccountValidationError $Path
         if ($err) {
             $script:WizardServiceAccountPath = ''
             $txtCredPath.Text = $Path
             $txtCredPath.ForeColor = [System.Drawing.Color]::DarkRed
-            [System.Windows.Forms.MessageBox]::Show(
-                "Die Datei wurde nicht akzeptiert:`n`n$err",
-                'Firebase-JSON',
-                'OK',
-                'Warning') | Out-Null
-            return
+            if (-not $Silent) {
+                [System.Windows.Forms.MessageBox]::Show(
+                    "Die Datei wurde nicht akzeptiert:`n`n$err",
+                    'Firebase-JSON',
+                    'OK',
+                    'Warning') | Out-Null
+            }
+            return $false
         }
-        $script:WizardServiceAccountPath = (Resolve-Path -LiteralPath $Path).Path
+        $resolved = Resolve-AlamidaExistingFilePath $Path
+        if (-not $resolved) {
+            $script:WizardServiceAccountPath = ''
+            if (-not $Silent) {
+                [System.Windows.Forms.MessageBox]::Show(
+                    "Die Datei konnte nicht uebernommen werden:`n$Path",
+                    'Firebase-JSON',
+                    'OK',
+                    'Warning') | Out-Null
+            }
+            return $false
+        }
+        try {
+            $staged = Stage-AlamidaServiceAccountFromSource -SourcePath $resolved
+            $script:WizardServiceAccountPath = $staged
+        } catch {
+            $script:WizardServiceAccountPath = ''
+            if (-not $Silent) {
+                [System.Windows.Forms.MessageBox]::Show(
+                    "Firebase-JSON konnte nicht gesichert werden:`n`n$($_.Exception.Message)",
+                    'Firebase-JSON',
+                    'OK',
+                    'Warning') | Out-Null
+            }
+            return $false
+        }
         Update-CredPathDisplay
+        return $true
+    }
+
+    function Test-WizardServiceAccountReady {
+        if ($script:WizardServiceAccountPath -and (Test-AlamidaServiceAccountFile $script:WizardServiceAccountPath)) {
+            return $true
+        }
+        if ($txtCredPath.Text) {
+            return (Set-ServiceAccountPath $txtCredPath.Text -Silent)
+        }
+        return $false
     }
 
     function Update-CredPathDisplay {
@@ -173,11 +224,14 @@ function Show-WizardForm {
         }
     }
 
-    $txtCredPath.Add_Leave({ Set-ServiceAccountPath $txtCredPath.Text })
+    $txtCredPath.Add_Leave({
+        if ($script:WizardStep -ne 3) { return }
+        [void](Set-ServiceAccountPath $txtCredPath.Text -Silent)
+    })
 
     $nearbySa = Find-AlamidaServiceAccountNearby
     if ($nearbySa) {
-        $script:WizardServiceAccountPath = $nearbySa
+        [void](Set-ServiceAccountPath $nearbySa -Silent)
     }
     Update-CredPathDisplay
 
@@ -204,7 +258,7 @@ function Show-WizardForm {
             $pnlFirebase.BringToFront()
             if (-not $script:WizardServiceAccountPath) {
                 $auto = Find-AlamidaServiceAccountNearby
-                if ($auto) { $script:WizardServiceAccountPath = $auto }
+                if ($auto) { [void](Set-ServiceAccountPath $auto -Silent) }
             }
             Update-CredPathDisplay
         } else {
@@ -295,7 +349,7 @@ Dateiname egal (z.B. alamida---monitoring-firebase-adminsdk-....json).
         $ofd.Title = 'Firebase Dienstkonto-Schluessel (JSON)'
         $ofd.InitialDirectory = $PSScriptRoot
         if ($ofd.ShowDialog() -eq 'OK') {
-            Set-ServiceAccountPath $ofd.FileName
+            [void](Set-ServiceAccountPath $ofd.FileName)
         }
     })
 
@@ -323,14 +377,11 @@ Dateiname egal (z.B. alamida---monitoring-firebase-adminsdk-....json).
             }
         }
         if ($script:WizardStep -eq 3) {
-            if ($txtCredPath.Text -and -not $script:WizardServiceAccountPath) {
-                Set-ServiceAccountPath $txtCredPath.Text
-            }
-            if (-not $script:WizardServiceAccountPath) {
+            if (-not (Test-WizardServiceAccountReady)) {
                 $auto = Find-AlamidaServiceAccountNearby
-                if ($auto) { Set-ServiceAccountPath $auto }
+                if ($auto) { [void](Set-ServiceAccountPath $auto) }
             }
-            if (-not $script:WizardServiceAccountPath) {
+            if (-not (Test-WizardServiceAccountReady)) {
                 [System.Windows.Forms.MessageBox]::Show(
                     @"
 Bitte gueltige Firebase-Dienstkonto-JSON waehlen.
@@ -354,7 +405,7 @@ In Firebase Console: Projekteinstellungen -> Dienstkonten
                 $lblBody.Text = $script:WizardResultText
             } catch {
                 [System.Windows.Forms.MessageBox]::Show(
-                    "Installation fehlgeschlagen:`n$($_.Exception.Message)",
+                    "Installation fehlgeschlagen:`n`n$($_.Exception.Message)`n`nHinweis: Firebase-JSON auf diesem PC waehlen; USB-Laufwerk eingesteckt lassen; Agent-ZIP im Installer-Ordner (AlamidaMonitoringAgent-win-x64.zip).",
                     'Fehler', 'OK', 'Error') | Out-Null
                 Set-StepControls 3
             }
@@ -366,42 +417,75 @@ In Firebase Console: Projekteinstellungen -> Dienstkonten
     $btnBack.Add_Click({ if ($script:WizardStep -gt 0) { Set-StepControls ($script:WizardStep - 1) } })
     $btnCancel.Add_Click({ $form.Close() })
 
+    function Invoke-WizardInstallStep {
+        param(
+            [string] $Label,
+            [scriptblock] $Action
+        )
+        try {
+            & $Action
+        } catch {
+            throw "${Label}: $($_.Exception.Message)"
+        }
+    }
+
     function Run-WizardInstall {
-        $installDir = $script:WizardInstallDir
+        $installDir = $script:WizardInstallDir.Trim().TrimEnd('\')
+        if ([string]::IsNullOrWhiteSpace($installDir)) {
+            $installDir = $script:AlamidaDefaultInstallDir
+        }
         $tempZip = Join-Path ([System.IO.Path]::GetTempPath()) $script:AlamidaAssetFileName
 
         $lblStatus.Text = 'Bitte warten...'
         $form.Refresh()
 
-        if ($script:WizardUseLocalZip) {
-            $lblStatus.Text = 'Entpacke lokales ZIP...'
-            $form.Refresh()
-            Expand-AlamidaAgentZip -ZipPath $script:WizardZipPath -InstallDir $installDir
-        } else {
-            $lblStatus.Text = 'Lade Release von GitHub...'
-            $form.Refresh()
-            Save-AlamidaAgentZip -DestinationPath $tempZip -OnProgress {
-                param($m)
-                $lblStatus.Text = $m
-                $form.Refresh()
-            }
-            $lblStatus.Text = 'Entpacke...'
-            $form.Refresh()
-            Expand-AlamidaAgentZip -ZipPath $tempZip -InstallDir $installDir
+        if (-not (Test-WizardServiceAccountReady)) {
+            throw 'Firebase: Keine gueltige Dienstkonto-JSON (bitte erneut waehlen).'
         }
 
-        $lblStatus.Text = 'Richte Agent ein (Firebase, Autostart)...'
-        $form.Refresh()
-        $setup = Initialize-AlamidaAgentSetup -InstallDir $installDir -ServiceAccountSource $script:WizardServiceAccountPath
+        if ($script:WizardUseLocalZip) {
+            Invoke-WizardInstallStep 'Agent-ZIP entpacken' {
+                $lblStatus.Text = 'Entpacke lokales ZIP...'
+                $form.Refresh()
+                if (-not $script:WizardZipPath -or -not (Test-Path -LiteralPath $script:WizardZipPath)) {
+                    throw "ZIP nicht gefunden: $($script:WizardZipPath)"
+                }
+                Expand-AlamidaAgentZip -ZipPath $script:WizardZipPath -InstallDir $installDir
+            }
+        } else {
+            Invoke-WizardInstallStep 'Agent von GitHub' {
+                $lblStatus.Text = 'Lade Release von GitHub...'
+                $form.Refresh()
+                Save-AlamidaAgentZip -DestinationPath $tempZip -OnProgress {
+                    param($m)
+                    $lblStatus.Text = $m
+                    $form.Refresh()
+                }
+                $lblStatus.Text = 'Entpacke...'
+                $form.Refresh()
+                Expand-AlamidaAgentZip -ZipPath $tempZip -InstallDir $installDir
+            }
+        }
 
-        $lblStatus.Text = 'Erstelle Desktop-Verknuepfung...'
-        $form.Refresh()
-        Register-AlamidaWallDesktopShortcut -InstallDir $installDir
-        Register-AlamidaAgentDesktopShortcut -InstallDir $installDir
+        Invoke-WizardInstallStep 'Agent einrichten' {
+            $lblStatus.Text = 'Richte Agent ein (Firebase, Autostart)...'
+            $form.Refresh()
+            $script:setupResult = Initialize-AlamidaAgentSetup -InstallDir $installDir -ServiceAccountSource $script:WizardServiceAccountPath
+        }
+        $setup = $script:setupResult
 
-        $lblStatus.Text = 'Starte Agent...'
-        $form.Refresh()
-        Start-AlamidaAgentVerified -InstallDir $installDir
+        Invoke-WizardInstallStep 'Desktop-Verknuepfungen' {
+            $lblStatus.Text = 'Erstelle Desktop-Verknuepfung...'
+            $form.Refresh()
+            Register-AlamidaWallDesktopShortcut -InstallDir $installDir
+            Register-AlamidaAgentDesktopShortcut -InstallDir $installDir
+        }
+
+        Invoke-WizardInstallStep 'Agent starten' {
+            $lblStatus.Text = 'Starte Agent...'
+            $form.Refresh()
+            Start-AlamidaAgentVerified -InstallDir $installDir
+        }
 
         $fbHint = if ($setup.HasFirebase) {
             'Firebase: eingerichtet'
