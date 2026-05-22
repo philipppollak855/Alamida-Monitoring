@@ -384,9 +384,18 @@
     min-height: 32px;
   }
 
+  .wall-cal--narrow .wall-cal-period-row {
+    width: 100%;
+  }
+
+  .wall-cal--narrow .wall-cal-period-row .wall-cal-period-overview {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: auto;
+  }
+
   /* Übersicht: flach — Hauptbereich für Termine (min-height: 0 gegen Flex-Überlappung) */
   .wall-cal--narrow .wall-cal-period-overview--even {
-    flex: 0 0 auto;
     min-height: 0;
     width: 100%;
     gap: 0.1rem;
@@ -411,8 +420,7 @@
     gap: 0.15rem;
   }
 
-  .wall-cal--narrow .wall-cal-period-overview--dense-month {
-    flex: 0 0 5.35rem;
+  .wall-cal--narrow .wall-cal-period-row .wall-cal-period-overview--dense-month {
     max-height: 5.35rem;
     min-height: 0;
     overflow: hidden;
