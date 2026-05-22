@@ -9,6 +9,8 @@ import {
   type ReactNode,
 } from 'react';
 import { useAuth } from '../auth/AuthContext';
+import { isFirestoreAuthError, normalizeFirestoreError } from '../auth/firestoreErrors';
+import { ensureFreshIdToken } from '../auth/sessionRefresh';
 import { db } from '../firebase';
 import { DEFAULT_DISPOSITION_SETTINGS } from '../config/defaultDispositionSettings';
 import type { DispositionSettings } from '../types/dispositionSettings';
@@ -37,6 +39,19 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reconnectTick, setReconnectTick] = useState(0);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && status === 'activated') {
+        void ensureFreshIdToken(true).finally(() => {
+          setReconnectTick((t) => t + 1);
+        });
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [status]);
 
   useEffect(() => {
     if (status !== 'activated' || !db) {
@@ -62,12 +77,19 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setError(null);
       },
       (err) => {
-        setError(err.message);
+        if (isFirestoreAuthError(err)) {
+          setError(normalizeFirestoreError(err));
+          void ensureFreshIdToken(true).then((ok) => {
+            if (ok) setReconnectTick((t) => t + 1);
+          });
+        } else {
+          setError(normalizeFirestoreError(err));
+        }
         setLoading(false);
       }
     );
     return () => unsub();
-  }, [status]);
+  }, [status, reconnectTick]);
 
   const saveSettings = useCallback(async (next: DispositionSettings) => {
     if (!db) throw new Error('Firebase nicht konfiguriert');

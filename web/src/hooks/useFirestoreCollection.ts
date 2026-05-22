@@ -9,6 +9,8 @@ import {
 } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
+import { isFirestoreAuthError, normalizeFirestoreError } from '../auth/firestoreErrors';
+import { ensureFreshIdToken } from '../auth/sessionRefresh';
 import { db } from '../firebase';
 
 export function useFirestoreCollection<T extends { id: string }>(
@@ -26,7 +28,9 @@ export function useFirestoreCollection<T extends { id: string }>(
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState === 'visible') {
-        setReconnectTick((t) => t + 1);
+        void ensureFreshIdToken(true).finally(() => {
+          setReconnectTick((t) => t + 1);
+        });
       }
     };
     document.addEventListener('visibilitychange', onVisible);
@@ -64,7 +68,14 @@ export function useFirestoreCollection<T extends { id: string }>(
         setError(null);
       },
       (err) => {
-        setError(err.message);
+        if (isFirestoreAuthError(err)) {
+          setError(normalizeFirestoreError(err));
+          void ensureFreshIdToken(true).then((ok) => {
+            if (ok) setReconnectTick((t) => t + 1);
+          });
+        } else {
+          setError(normalizeFirestoreError(err));
+        }
         setLoading(false);
       }
     );

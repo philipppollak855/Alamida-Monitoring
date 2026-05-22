@@ -1,5 +1,10 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+import {
+  browserLocalPersistence,
+  getAuth,
+  GoogleAuthProvider,
+  setPersistence,
+} from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const config = {
@@ -17,3 +22,9 @@ export const app = firebaseConfigured ? initializeApp(config) : null;
 export const auth = app ? getAuth(app) : null;
 export const db = app ? getFirestore(app) : null;
 export const googleProvider = new GoogleAuthProvider();
+
+if (auth) {
+  void setPersistence(auth, browserLocalPersistence).catch(() => {
+    /* Fallback: Firebase-Standard (meist ebenfalls local). */
+  });
+}
