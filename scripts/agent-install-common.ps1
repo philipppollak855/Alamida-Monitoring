@@ -43,8 +43,11 @@ function Resolve-AlamidaInstallDir {
         return (Resolve-Path $Hint).Path
     }
     $cfg = Read-AlamidaInstallConfig
-    if ($cfg -and $cfg.InstallDir -and (Test-Path (Join-Path $cfg.InstallDir 'AlamidaMonitoringAgent.exe'))) {
-        return $cfg.InstallDir
+    if ($cfg -and $cfg.InstallDir) {
+        $fromCfg = $cfg.InstallDir
+        if (Test-Path (Join-Path $fromCfg 'AlamidaMonitoringAgent.exe')) {
+            return $fromCfg
+        }
     }
     if (Test-Path (Join-Path $script:AlamidaDefaultInstallDir 'AlamidaMonitoringAgent.exe')) {
         return $script:AlamidaDefaultInstallDir
@@ -75,11 +78,60 @@ function Save-AlamidaAgentZip {
     return $asset
 }
 
+function Unblock-AlamidaPath {
+    param([string] $Path)
+    try {
+        if (Test-Path $Path) {
+            Unblock-File -Path $Path -ErrorAction SilentlyContinue
+        }
+        if (Test-Path $Path -PathType Container) {
+            Get-ChildItem -Path $Path -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
+                Unblock-File -LiteralPath $_.FullName -ErrorAction SilentlyContinue
+            }
+        }
+    } catch { }
+}
+
+function Find-AlamidaServiceAccountNearby {
+    $dirs = @($PSScriptRoot, (Split-Path $PSScriptRoot -Parent), (Get-Location).Path)
+    foreach ($d in $dirs) {
+        if (-not $d -or -not (Test-Path $d)) { continue }
+        $p = Join-Path $d 'serviceAccount.json'
+        if (Test-Path $p) { return (Resolve-Path $p).Path }
+    }
+    return $null
+}
+
+function Test-AlamidaServiceAccountFile {
+    param([string] $Path)
+    if (-not $Path -or -not (Test-Path $Path)) { return $false }
+    $text = Get-Content $Path -Raw -ErrorAction SilentlyContinue
+    return $text -match 'private_key' -and $text -match 'client_email'
+}
+
+function Install-AlamidaServiceAccount {
+    param([string] $SourcePath)
+    if (-not (Test-AlamidaServiceAccountFile $SourcePath)) {
+        throw "Ungültige serviceAccount.json: $SourcePath"
+    }
+    $dest = Join-Path (Get-AlamidaAppDataDir) 'serviceAccount.json'
+    Copy-Item $SourcePath $dest -Force
+    return $dest
+}
+
+function Test-AlamidaFirebaseReady {
+    $dir = Get-AlamidaAppDataDir
+    if (Test-AlamidaServiceAccountFile (Join-Path $dir 'serviceAccount.json')) { return $true }
+    if (Test-Path (Join-Path $dir 'firebase-oauth.json')) { return $true }
+    return $false
+}
+
 function Expand-AlamidaAgentZip {
     param(
         [string] $ZipPath,
         [string] $InstallDir
     )
+    Unblock-AlamidaPath $ZipPath
     if (Test-Path $InstallDir) {
         Get-Process -Name 'AlamidaMonitoringAgent' -ErrorAction SilentlyContinue | Stop-Process -Force
         Start-Sleep -Seconds 1
@@ -87,6 +139,7 @@ function Expand-AlamidaAgentZip {
     }
     New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
     Expand-Archive -Path $ZipPath -DestinationPath $InstallDir -Force
+    Unblock-AlamidaPath $InstallDir
     $exe = Join-Path $InstallDir 'AlamidaMonitoringAgent.exe'
     if (-not (Test-Path $exe)) {
         throw "Nach dem Entpacken fehlt: $exe"
@@ -109,7 +162,10 @@ function Copy-AlamidaInstallScripts {
 }
 
 function Initialize-AlamidaAgentSetup {
-    param([string] $InstallDir)
+    param(
+        [string] $InstallDir,
+        [string] $ServiceAccountSource = ''
+    )
     $InstallDir = (Resolve-Path $InstallDir).Path
     $exe = Join-Path $InstallDir 'AlamidaMonitoringAgent.exe'
     if (-not (Test-Path $exe)) { throw "Agent-EXE fehlt: $exe" }
@@ -117,13 +173,22 @@ function Initialize-AlamidaAgentSetup {
     $agentDir = Get-AlamidaAppDataDir
     $mappingSrc = Join-Path $InstallDir 'field-mapping-9.2.1.json'
     $mappingDst = Join-Path $agentDir 'field-mapping-9.2.1.json'
-    if ((Test-Path $mappingSrc) -and -not (Test-Path $mappingDst)) {
+    if (Test-Path $mappingSrc) {
         Copy-Item $mappingSrc $mappingDst -Force
+    }
+
+    if ($ServiceAccountSource) {
+        Install-AlamidaServiceAccount -SourcePath $ServiceAccountSource
+    } elseif (Test-Path (Join-Path $InstallDir 'serviceAccount.json')) {
+        Install-AlamidaServiceAccount -SourcePath (Join-Path $InstallDir 'serviceAccount.json')
+    } else {
+        $near = Find-AlamidaServiceAccountNearby
+        if ($near) { Install-AlamidaServiceAccount -SourcePath $near }
     }
 
     $firebaseConfig = Join-Path $env:USERPROFILE '.config\configstore\firebase-tools.json'
     $credPath = Join-Path $agentDir 'firebase-oauth.json'
-    if (Test-Path $firebaseConfig) {
+    if ((Test-Path $firebaseConfig) -and -not (Test-AlamidaFirebaseReady)) {
         $fb = Get-Content $firebaseConfig | ConvertFrom-Json
         @{
             projectId    = 'alamida---monitoring'
@@ -139,8 +204,20 @@ function Initialize-AlamidaAgentSetup {
 
     @{
         InstallDir = $InstallDir
-        HasFirebase = (Test-Path $credPath) -or (Test-Path (Join-Path $agentDir 'serviceAccount.json'))
+        HasFirebase = Test-AlamidaFirebaseReady
         CredPath = $agentDir
+    }
+}
+
+function Start-AlamidaAgentVerified {
+    param([string] $InstallDir)
+    Start-AlamidaAgentIfNeeded -InstallDir $InstallDir
+    Start-Sleep -Seconds 2
+    $p = Get-Process -Name 'AlamidaMonitoringAgent' -ErrorAction SilentlyContinue
+    if (-not $p) {
+        $log = Join-Path (Get-AlamidaAppDataDir) 'agent-crash.log'
+        $hint = if (Test-Path $log) { "`nSiehe: $log" } else { '' }
+        throw "Agent-Prozess startet nicht (Windows blockiert evtl. die EXE).$hint`nRechtsklick EXE → Eigenschaften → Zulassen."
     }
 }
 
@@ -254,6 +331,15 @@ function Invoke-AlamidaWallMonitorLaunch {
             'OK',
             'Warning') | Out-Null
         return
+    }
+
+    if (-not (Test-AlamidaFirebaseReady)) {
+        [System.Windows.Forms.MessageBox]::Show(
+            "Firebase-Zugang fehlt — der Agent kann nicht synchronisieren.`n`n" +
+            "serviceAccount.json nach`n$((Get-AlamidaAppDataDir))`nkopieren und Wizard erneut ausführen.",
+            'Wandmonitor',
+            'OK',
+            'Warning') | Out-Null
     }
 
     if (Test-AlamidaAgentUpdateAvailable -InstallDir $dir) {

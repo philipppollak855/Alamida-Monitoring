@@ -83,7 +83,8 @@ $installerFiles = @(
     "install-wizard.bat",
     "agent-install-common.ps1",
     "launch-wall-monitor.ps1",
-    "apply-agent-release.ps1"
+    "apply-agent-release.ps1",
+    "FIREBASE-SETUP.txt"
 )
 foreach ($inf in $installerFiles) {
     Copy-Item (Join-Path $Root "scripts\$inf") (Join-Path $installerDir $inf) -Force

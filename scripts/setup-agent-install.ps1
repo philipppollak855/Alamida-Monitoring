@@ -1,6 +1,7 @@
 # Einmal-Setup nach Entpacken (ohne Wizard) — Autostart + Wandmonitor-Verknüpfung
 param(
-    [string] $InstallDir = ""
+    [string] $InstallDir = "",
+    [string] $ServiceAccountPath = ""
 )
 
 $ErrorActionPreference = 'Stop'
@@ -15,9 +16,9 @@ if (-not $resolved) {
     throw "AlamidaMonitoringAgent.exe nicht gefunden unter: $InstallDir"
 }
 
-$setup = Initialize-AlamidaAgentSetup -InstallDir $resolved
+$setup = Initialize-AlamidaAgentSetup -InstallDir $resolved -ServiceAccountSource $ServiceAccountPath
 Register-AlamidaWallDesktopShortcut -InstallDir $resolved
-Start-AlamidaAgentIfNeeded -InstallDir $resolved
+Start-AlamidaAgentVerified -InstallDir $resolved
 
 Write-Host "Autostart und Desktop-Verknüpfung erstellt." -ForegroundColor Green
 Write-Host "Ordner: $resolved" -ForegroundColor Cyan

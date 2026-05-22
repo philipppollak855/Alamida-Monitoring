@@ -105,6 +105,12 @@ Get-ChildItem $extractDir | ForEach-Object {
     Copy-Item $_.FullName $InstallDir -Recurse -Force
 }
 
+try {
+    Get-ChildItem $InstallDir -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
+        Unblock-File -LiteralPath $_.FullName -ErrorAction SilentlyContinue
+    }
+} catch { }
+
 if (Test-Path $settingsBackup) {
     Copy-Item $settingsBackup $localSettings -Force
 }

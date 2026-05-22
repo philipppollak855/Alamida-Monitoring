@@ -20,6 +20,7 @@ public sealed class TrayApplicationContext : ApplicationContext
         var firestore = FirestoreClientFactory.TryCreate(
             config.FirebaseProjectId,
             config.WorkstationId,
+            config.ServiceAccountPath,
             out var fsError);
         _firestoreHinweis = fsError;
 
@@ -197,7 +198,14 @@ public sealed class TrayApplicationContext : ApplicationContext
             $"Mapping: {_config.FieldMappingPath}",
         };
         if (_firestoreHinweis != null)
+        {
             lines.Add($"Firestore: {_firestoreHinweis}");
+            var errLog = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "AlamidaMonitoring", "firestore-last-error.txt");
+            if (File.Exists(errLog))
+                lines.Add($"Log: {errLog}");
+        }
         else
             lines.Add("Firestore: verbunden");
 

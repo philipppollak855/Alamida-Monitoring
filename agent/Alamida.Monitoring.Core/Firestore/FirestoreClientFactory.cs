@@ -12,11 +12,18 @@ public static class FirestoreClientFactory
     private const string FirebaseCliClientSecret = "j9iVZfS8kkCEFUPaAeJV0sAi";
 
     public static FirestoreSyncService? TryCreate(string projectId, string workstationId) =>
-        TryCreate(projectId, workstationId, out _);
+        TryCreate(projectId, workstationId, null, out _);
 
     public static FirestoreSyncService? TryCreate(
         string projectId,
         string workstationId,
+        out string? error) =>
+        TryCreate(projectId, workstationId, null, out error);
+
+    public static FirestoreSyncService? TryCreate(
+        string projectId,
+        string workstationId,
+        string? serviceAccountPathHint,
         out string? error)
     {
         error = null;
@@ -24,7 +31,7 @@ public static class FirestoreClientFactory
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "AlamidaMonitoring");
 
-        var serviceAccount = Path.Combine(appData, "serviceAccount.json");
+        var serviceAccount = ResolveServiceAccountPath(appData, serviceAccountPathHint);
         if (IsValidServiceAccount(serviceAccount))
         {
             try
@@ -42,7 +49,10 @@ public static class FirestoreClientFactory
         var oauthPath = Path.Combine(appData, "firebase-oauth.json");
         if (!File.Exists(oauthPath))
         {
-            error = $"firebase-oauth.json fehlt ({oauthPath}). scripts\\setup-complete.ps1 ausführen.";
+            error =
+                "Firebase-Zugang fehlt. serviceAccount.json nach " +
+                $"{appData} kopieren (Firebase Console → Dienstkonto) " +
+                "oder Installation mit install-wizard.ps1 erneut ausführen.";
             WriteError(appData, error);
             return null;
         }
@@ -67,6 +77,18 @@ public static class FirestoreClientFactory
                 message + Environment.NewLine + DateTime.Now);
         }
         catch { /* ignore */ }
+    }
+
+    private static string ResolveServiceAccountPath(string appData, string? hint)
+    {
+        if (!string.IsNullOrWhiteSpace(hint))
+        {
+            var expanded = hint.Replace("%AppData%", appData, StringComparison.OrdinalIgnoreCase);
+            if (IsValidServiceAccount(expanded))
+                return expanded;
+        }
+
+        return Path.Combine(appData, "serviceAccount.json");
     }
 
     private static bool IsValidServiceAccount(string path)

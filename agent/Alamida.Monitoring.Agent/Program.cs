@@ -29,7 +29,12 @@ internal static class Program
             Console.OutputEncoding = System.Text.Encoding.UTF8;
         }
         else
+        {
             ApplicationConfiguration.Initialize();
+            Application.ThreadException += (_, e) => LogTrayCrash(e.Exception);
+            AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+                LogTrayCrash(e.ExceptionObject as Exception ?? new Exception(e.ExceptionObject?.ToString()));
+        }
 
         var config = ConfigLoader.Load();
 
@@ -143,7 +148,7 @@ internal static class Program
             }
 
             var firestore = Core.Firestore.FirestoreClientFactory.TryCreate(
-                config.FirebaseProjectId, config.WorkstationId, out var fsError);
+                config.FirebaseProjectId, config.WorkstationId, config.ServiceAccountPath, out var fsError);
             if (firestore == null)
             {
                 WriteSyncLog(fsError ?? "Firestore nicht verbunden. scripts\\setup-complete.ps1 ausführen.");
@@ -207,7 +212,35 @@ internal static class Program
         if (TryRunStartupAutoUpdate(config))
             return;
 
-        Application.Run(new TrayApplicationContext(config, profile));
+        try
+        {
+            Application.Run(new TrayApplicationContext(config, profile));
+        }
+        catch (Exception ex)
+        {
+            LogTrayCrash(ex);
+            MessageBox.Show(
+                $"Der Agent konnte nicht starten:\n{ex.Message}\n\nDetails: %AppData%\\AlamidaMonitoring\\agent-crash.log",
+                "Alamida Monitoring",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+        }
+    }
+
+    private static void LogTrayCrash(Exception? ex)
+    {
+        if (ex == null) return;
+        try
+        {
+            var dir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "AlamidaMonitoring");
+            Directory.CreateDirectory(dir);
+            File.AppendAllText(
+                Path.Combine(dir, "agent-crash.log"),
+                $"[{DateTime.Now:O}] {ex}\n\n");
+        }
+        catch { /* ignore */ }
     }
 
     private static bool TryRunStartupAutoUpdate(Core.Models.AgentConfig config)

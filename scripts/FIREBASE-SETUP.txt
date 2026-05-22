@@ -1,0 +1,21 @@
+Firebase-Zugang für den Alamida Monitoring Agent
+==============================================
+
+Pro PC (oder einmalig auf USB mit dem Installer):
+
+1. Firebase Console öffnen:
+   https://console.firebase.google.com/project/alamida---monitoring/settings/serviceaccounts/adminsdk
+
+2. „Neuen privaten Schlüssel generieren“ → JSON speichern
+
+3. Datei umbenennen in: serviceAccount.json
+
+4. Entweder:
+   - neben install-wizard.bat ablegen, ODER
+   - im Wizard Schritt „Firebase-Zugang“ auswählen
+
+Die Datei wird nach kopiert:
+   %AppData%\AlamidaMonitoring\serviceAccount.json
+
+Ohne diese Datei läuft der Agent zwar, synchronisiert aber NICHT
+(meldet „Firestore nicht verbunden“ im Tray).

@@ -2,12 +2,10 @@
 
 ## Schnellstart (empfohlen)
 
-1. Ordner `dist/agent-release/installer` vom Release oder Repo `scripts\` auf den PC kopieren (z. B. USB oder Desktop).
-2. **`install-wizard.bat`** doppelklicken.
-3. Im Wizard:
-   - Zielordner bestätigen (Standard: `C:\AlamidaMonitoring`)
-   - ZIP von GitHub laden **oder** lokale `AlamidaMonitoringAgent-win-x64.zip` wählen
-   - Fertigstellen
+1. **`serviceAccount.json`** aus Firebase Console exportieren (siehe `FIREBASE-SETUP.txt` im Installer-Ordner).
+2. Installer-Ordner vom [Release](https://github.com/philipppollak855/Alamida-Monitoring/releases/latest) auf USB/PC kopieren.
+3. **`serviceAccount.json`** in denselben Ordner wie `install-wizard.bat` legen.
+4. **`install-wizard.bat`** doppelklicken und alle Schritte durchlaufen (inkl. Firebase).
 
 Der Wizard:
 
