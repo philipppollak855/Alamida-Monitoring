@@ -1,4 +1,4 @@
-# Gemeinsame Hilfen für Wizard, Setup und Wandmonitor-Launcher
+# Gemeinsame Hilfen fuer Wizard, Setup und Wandmonitor-Launcher
 $script:AlamidaWallUrl = 'https://alamida---monitoring.web.app/wall'
 $script:AlamidaGitHubOwner = 'philipppollak855'
 $script:AlamidaGitHubRepo = 'Alamida-Monitoring'
@@ -73,7 +73,7 @@ function Save-AlamidaAgentZip {
         [scriptblock] $OnProgress = $null
     )
     $asset = Get-AlamidaLatestReleaseAsset
-    if ($OnProgress) { & $OnProgress "Lade $($asset.name) …" }
+    if ($OnProgress) { & $OnProgress "Lade $($asset.name) ..." }
     Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $DestinationPath -UseBasicParsing
     return $asset
 }
@@ -112,7 +112,7 @@ function Test-AlamidaServiceAccountFile {
 function Install-AlamidaServiceAccount {
     param([string] $SourcePath)
     if (-not (Test-AlamidaServiceAccountFile $SourcePath)) {
-        throw "Ungültige serviceAccount.json: $SourcePath"
+        throw "Ungueltige serviceAccount.json: $SourcePath"
     }
     $dest = Join-Path (Get-AlamidaAppDataDir) 'serviceAccount.json'
     Copy-Item $SourcePath $dest -Force
@@ -218,7 +218,7 @@ function Start-AlamidaAgentVerified {
     if (-not $p) {
         $log = Join-Path (Get-AlamidaAppDataDir) 'agent-crash.log'
         $hint = if (Test-Path $log) { "`nSiehe: $log" } else { '' }
-        throw "Agent-Prozess startet nicht (Windows blockiert evtl. die EXE).$hint`nRechtsklick EXE → Eigenschaften → Zulassen."
+        throw "Agent-Prozess startet nicht (Windows blockiert evtl. die EXE).$hint`nRechtsklick EXE -> Eigenschaften -> Zulassen."
     }
 }
 
@@ -226,7 +226,7 @@ function Register-AlamidaAgentAutostart {
     param([string] $InstallDir)
     $exe = Join-Path $InstallDir 'AlamidaMonitoringAgent.exe'
     if (-not (Test-Path $exe)) {
-        throw "Autostart nicht möglich — EXE fehlt: $exe"
+        throw "Autostart nicht moeglich - EXE fehlt: $exe"
     }
 
     $startup = [Environment]::GetFolderPath('Startup')
@@ -235,7 +235,7 @@ function Register-AlamidaAgentAutostart {
         -Description 'Alamida Monitoring Watcher' -IconLocation "$exe,0"
 
     if (-not (Test-Path $lnk)) {
-        throw "Autostart-Verknüpfung konnte nicht erstellt werden: $lnk"
+        throw "Autostart-Verknuepfung konnte nicht erstellt werden: $lnk"
     }
 
     # Fallback: geplante Aufgabe beim Anmelden (falls Startup-Ordner blockiert ist)
@@ -347,7 +347,7 @@ function Invoke-AlamidaWallMonitorLaunch {
     $dir = Resolve-AlamidaInstallDir -Hint $InstallDir
     if (-not $dir) {
         [System.Windows.Forms.MessageBox]::Show(
-            "Alamida Monitoring ist nicht installiert.`n`nBitte zuerst install-wizard ausführen.",
+            "Alamida Monitoring ist nicht installiert.`n`nBitte zuerst install-wizard ausfuehren.",
             'Wandmonitor',
             'OK',
             'Warning') | Out-Null
@@ -356,8 +356,8 @@ function Invoke-AlamidaWallMonitorLaunch {
 
     if (-not (Test-AlamidaFirebaseReady)) {
         [System.Windows.Forms.MessageBox]::Show(
-            "Firebase-Zugang fehlt — der Agent kann nicht synchronisieren.`n`n" +
-            "serviceAccount.json nach`n$((Get-AlamidaAppDataDir))`nkopieren und Wizard erneut ausführen.",
+            "Firebase-Zugang fehlt - der Agent kann nicht synchronisieren.`n`n" +
+            "serviceAccount.json nach`n$((Get-AlamidaAppDataDir))`nkopieren und Wizard erneut ausfuehren.",
             'Wandmonitor',
             'OK',
             'Warning') | Out-Null

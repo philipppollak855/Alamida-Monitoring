@@ -1,4 +1,4 @@
-# Einmal-Setup nach Entpacken (ohne Wizard) — Autostart + Wandmonitor-Verknüpfung
+# Einmal-Setup nach Entpacken (ohne Wizard) - Autostart + Wandmonitor-Verknuepfung
 param(
     [string] $InstallDir = "",
     [string] $ServiceAccountPath = ""
@@ -20,7 +20,7 @@ $setup = Initialize-AlamidaAgentSetup -InstallDir $resolved -ServiceAccountSourc
 Register-AlamidaWallDesktopShortcut -InstallDir $resolved
 Start-AlamidaAgentVerified -InstallDir $resolved
 
-Write-Host "Autostart und Desktop-Verknüpfung erstellt." -ForegroundColor Green
+Write-Host "Autostart und Desktop-Verknuepfung erstellt." -ForegroundColor Green
 Write-Host "Ordner: $resolved" -ForegroundColor Cyan
 if (-not $setup.HasFirebase) {
     Write-Warning "Firebase: serviceAccount.json nach $($setup.CredPath) legen"

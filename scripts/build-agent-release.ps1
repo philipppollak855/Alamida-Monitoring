@@ -8,6 +8,13 @@ $ErrorActionPreference = "Stop"
 $Root = Split-Path $PSScriptRoot -Parent
 $AgentProj = Join-Path $Root "agent\Alamida.Monitoring.Agent\Alamida.Monitoring.Agent.csproj"
 
+function Write-InstallerPs1Utf8Bom {
+    param([string] $SourcePath, [string] $DestPath)
+    $text = Get-Content -Path $SourcePath -Raw -Encoding UTF8
+    $utf8Bom = New-Object System.Text.UTF8Encoding $true
+    [System.IO.File]::WriteAllText($DestPath, $text, $utf8Bom)
+}
+
 if (-not $Version) {
     try {
         $hash = (git -C $Root rev-parse --short HEAD 2>$null).Trim()
@@ -73,7 +80,7 @@ $scriptFiles = @(
     "launch-wall-monitor.ps1"
 )
 foreach ($sf in $scriptFiles) {
-    Copy-Item (Join-Path $Root "scripts\$sf") (Join-Path $publishDir $sf) -Force
+    Write-InstallerPs1Utf8Bom (Join-Path $Root "scripts\$sf") (Join-Path $publishDir $sf)
 }
 
 $installerDir = Join-Path $OutputDir "installer"
@@ -87,13 +94,19 @@ $installerFiles = @(
     "FIREBASE-SETUP.txt"
 )
 foreach ($inf in $installerFiles) {
-    Copy-Item (Join-Path $Root "scripts\$inf") (Join-Path $installerDir $inf) -Force
+    $src = Join-Path $Root "scripts\$inf"
+    $dst = Join-Path $installerDir $inf
+    if ($inf.EndsWith('.ps1')) {
+        Write-InstallerPs1Utf8Bom $src $dst
+    } else {
+        Copy-Item $src $dst -Force
+    }
 }
 Copy-Item (Join-Path $Root "scripts\START-HIER.bat") (Join-Path $installerDir "START-HIER.bat") -Force
 Copy-Item (Join-Path $Root "scripts\START-HIER.txt") (Join-Path $installerDir "START-HIER.txt") -Force
 
 $readmeInstaller = @"
-Alamida Monitoring — Installation (Windows)
+Alamida Monitoring - Installation (Windows)
 
 >>> START-HIER.bat doppelklicken <<<
 

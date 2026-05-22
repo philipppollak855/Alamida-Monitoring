@@ -1,4 +1,4 @@
-# Installations-Wizard: ZIP entpacken, Setup, Autostart, Wandmonitor-Verknüpfung
+# Installations-Wizard: ZIP entpacken, Setup, Autostart, Wandmonitor-Verknuepfung
 #Requires -Version 5.1
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms
@@ -27,7 +27,7 @@ function Find-NearbyAgentZip {
 
 function Show-WizardForm {
     $form = New-Object System.Windows.Forms.Form
-    $form.Text = 'Alamida Monitoring — Installation'
+    $form.Text = 'Alamida Monitoring - Installation'
     $form.Size = New-Object System.Drawing.Size(560, 440)
     $form.StartPosition = 'CenterScreen'
     $form.FormBorderStyle = 'FixedDialog'
@@ -54,7 +54,7 @@ function Show-WizardForm {
     $btnBrowseDir = New-Object System.Windows.Forms.Button
     $btnBrowseDir.Location = New-Object System.Drawing.Point(410, 198)
     $btnBrowseDir.Size = New-Object System.Drawing.Size(100, 28)
-    $btnBrowseDir.Text = 'Ordner…'
+    $btnBrowseDir.Text = 'Ordner...'
     $btnBrowseDir.Visible = $false
 
     $rbDownload = New-Object System.Windows.Forms.RadioButton
@@ -73,7 +73,7 @@ function Show-WizardForm {
     $btnBrowseZip = New-Object System.Windows.Forms.Button
     $btnBrowseZip.Location = New-Object System.Drawing.Point(24, 176)
     $btnBrowseZip.Size = New-Object System.Drawing.Size(120, 28)
-    $btnBrowseZip.Text = 'ZIP wählen…'
+    $btnBrowseZip.Text = 'ZIP waehlen...'
     $btnBrowseZip.Visible = $false
 
     $lblZipPath = New-Object System.Windows.Forms.Label
@@ -85,7 +85,7 @@ function Show-WizardForm {
     $btnBrowseCred = New-Object System.Windows.Forms.Button
     $btnBrowseCred.Location = New-Object System.Drawing.Point(24, 200)
     $btnBrowseCred.Size = New-Object System.Drawing.Size(160, 28)
-    $btnBrowseCred.Text = 'serviceAccount wählen…'
+    $btnBrowseCred.Text = 'serviceAccount waehlen...'
     $btnBrowseCred.Visible = $false
 
     $lblCredPath = New-Object System.Windows.Forms.Label
@@ -110,7 +110,7 @@ function Show-WizardForm {
     $btnBack = New-Object System.Windows.Forms.Button
     $btnBack.Location = New-Object System.Drawing.Point(24, 350)
     $btnBack.Size = New-Object System.Drawing.Size(100, 32)
-    $btnBack.Text = 'Zurück'
+    $btnBack.Text = 'Zurueck'
     $btnBack.Enabled = $false
 
     $btnNext = New-Object System.Windows.Forms.Button
@@ -168,12 +168,12 @@ function Show-WizardForm {
                 $lblBody.Text = @"
 Richtet auf diesem PC ein:
 
-• Agent (ZIP) nach $script:AlamidaDefaultInstallDir
-• Firebase-Zugang (serviceAccount.json)
-• Autostart + Desktop „Alamida Wandmonitor“
+- Agent (ZIP) nach $script:AlamidaDefaultInstallDir
+- Firebase-Zugang (serviceAccount.json)
+- Autostart + Desktop "Alamida Wandmonitor"
 
 Wichtig: Legen Sie serviceAccount.json aus der Firebase Console
-neben diesen Wizard (USB) oder wählen Sie die Datei im nächsten Schritt.
+neben diesen Wizard (USB) oder waehlen Sie die Datei im naechsten Schritt.
 "@
             }
             1 {
@@ -182,7 +182,7 @@ neben diesen Wizard (USB) oder wählen Sie die Datei im nächsten Schritt.
             }
             2 {
                 $lblTitle.Text = 'Agent-Paket'
-                $lblBody.Text = 'Wählen Sie, wie das Installations-ZIP bezogen werden soll.'
+                $lblBody.Text = 'Waehlen Sie, wie das Installations-ZIP bezogen werden soll.'
                 if ($script:WizardZipPath) {
                     $lblZipPath.Text = (Split-Path $script:WizardZipPath -Leaf)
                 }
@@ -193,15 +193,15 @@ neben diesen Wizard (USB) oder wählen Sie die Datei im nächsten Schritt.
                 $lblBody.Text = @"
 Ohne serviceAccount.json synchronisiert der Agent nicht mit der Cloud.
 
-Datei aus Firebase Console (Projekt alamida---monitoring →
-Dienstkonten → Schlüssel JSON) hier wählen oder neben den Wizard legen.
+Datei aus Firebase Console (Projekt alamida---monitoring ->
+Dienstkonten -> Schluessel JSON) hier waehlen oder neben den Wizard legen.
 "@
                 if ($script:WizardServiceAccountPath) {
                     $lblCredPath.Text = $script:WizardServiceAccountPath
                 }
             }
             4 {
-                $lblTitle.Text = 'Installation läuft…'
+                $lblTitle.Text = 'Installation laeuft...'
                 $lblBody.Text = ''
                 $btnNext.Enabled = $false
                 $btnBack.Enabled = $false
@@ -210,7 +210,7 @@ Dienstkonten → Schlüssel JSON) hier wählen oder neben den Wizard legen.
             5 {
                 $lblTitle.Text = 'Fertig'
                 $progress.Visible = $false
-                $btnNext.Text = 'Schließen'
+                $btnNext.Text = 'Schliessen'
                 $btnNext.Enabled = $true
                 $btnCancel.Visible = $false
             }
@@ -219,7 +219,7 @@ Dienstkonten → Schlüssel JSON) hier wählen oder neben den Wizard legen.
 
     $btnBrowseDir.Add_Click({
         $dlg = New-Object System.Windows.Forms.FolderBrowserDialog
-        $dlg.Description = 'Installationsordner wählen'
+        $dlg.Description = 'Installationsordner waehlen'
         $dlg.SelectedPath = $txtInstallDir.Text
         if ($dlg.ShowDialog() -eq 'OK') { $txtInstallDir.Text = $dlg.SelectedPath }
     })
@@ -243,8 +243,8 @@ Dienstkonten → Schlüssel JSON) hier wählen oder neben den Wizard legen.
         if ($ofd.ShowDialog() -eq 'OK') {
             if (-not (Test-AlamidaServiceAccountFile $ofd.FileName)) {
                 [System.Windows.Forms.MessageBox]::Show(
-                    'Die Datei enthält kein gültiges Firebase-Dienstkonto (private_key / client_email).',
-                    'Ungültige Datei', 'OK', 'Warning') | Out-Null
+                    'Die Datei enthaelt kein gueltiges Firebase-Dienstkonto (private_key / client_email).',
+                    'Ungueltige Datei', 'OK', 'Warning') | Out-Null
                 return
             }
             $script:WizardServiceAccountPath = $ofd.FileName
@@ -267,7 +267,7 @@ Dienstkonten → Schlüssel JSON) hier wählen oder neben den Wizard legen.
         if ($script:WizardStep -eq 2) {
             if ($rbLocal.Checked) {
                 if (-not $script:WizardZipPath -or -not (Test-Path $script:WizardZipPath)) {
-                    [System.Windows.Forms.MessageBox]::Show('Bitte eine ZIP-Datei wählen.', 'Hinweis') | Out-Null
+                    [System.Windows.Forms.MessageBox]::Show('Bitte eine ZIP-Datei waehlen.', 'Hinweis') | Out-Null
                     return
                 }
                 $script:WizardUseLocalZip = $true
@@ -283,7 +283,7 @@ Dienstkonten → Schlüssel JSON) hier wählen oder neben den Wizard legen.
             if (-not (Test-AlamidaServiceAccountFile $script:WizardServiceAccountPath)) {
                 [System.Windows.Forms.MessageBox]::Show(
                     @"
-Bitte serviceAccount.json wählen.
+Bitte serviceAccount.json waehlen.
 
 Diese Datei einmalig aus der Firebase Console exportieren und
 auf jeden PC kopieren (oder neben install-wizard.bat ablegen).
@@ -317,43 +317,43 @@ auf jeden PC kopieren (oder neben install-wizard.bat ablegen).
         $installDir = $script:WizardInstallDir
         $tempZip = Join-Path ([System.IO.Path]::GetTempPath()) $script:AlamidaAssetFileName
 
-        $lblStatus.Text = 'Bitte warten…'
+        $lblStatus.Text = 'Bitte warten...'
         $form.Refresh()
 
         if ($script:WizardUseLocalZip) {
-            $lblStatus.Text = 'Entpacke lokales ZIP…'
+            $lblStatus.Text = 'Entpacke lokales ZIP...'
             $form.Refresh()
             Expand-AlamidaAgentZip -ZipPath $script:WizardZipPath -InstallDir $installDir
         } else {
-            $lblStatus.Text = 'Lade Release von GitHub…'
+            $lblStatus.Text = 'Lade Release von GitHub...'
             $form.Refresh()
             Save-AlamidaAgentZip -DestinationPath $tempZip -OnProgress {
                 param($m)
                 $lblStatus.Text = $m
                 $form.Refresh()
             }
-            $lblStatus.Text = 'Entpacke…'
+            $lblStatus.Text = 'Entpacke...'
             $form.Refresh()
             Expand-AlamidaAgentZip -ZipPath $tempZip -InstallDir $installDir
         }
 
-        $lblStatus.Text = 'Richte Agent ein (Firebase, Autostart)…'
+        $lblStatus.Text = 'Richte Agent ein (Firebase, Autostart)...'
         $form.Refresh()
         $setup = Initialize-AlamidaAgentSetup -InstallDir $installDir -ServiceAccountSource $script:WizardServiceAccountPath
 
-        $lblStatus.Text = 'Erstelle Desktop-Verknüpfung…'
+        $lblStatus.Text = 'Erstelle Desktop-Verknuepfung...'
         $form.Refresh()
         Register-AlamidaWallDesktopShortcut -InstallDir $installDir
         Register-AlamidaAgentDesktopShortcut -InstallDir $installDir
 
-        $lblStatus.Text = 'Starte Agent…'
+        $lblStatus.Text = 'Starte Agent...'
         $form.Refresh()
         Start-AlamidaAgentVerified -InstallDir $installDir
 
         $fbHint = if ($setup.HasFirebase) {
             'Firebase: eingerichtet'
         } else {
-            "Firebase: FEHLER — siehe $($setup.CredPath)"
+            ('Firebase: FEHLER - siehe ' + $setup.CredPath)
         }
 
         $exePath = Join-Path $installDir 'AlamidaMonitoringAgent.exe'
@@ -364,10 +364,10 @@ Agent-Programm:
 $exePath
 
 Autostart: Windows-Startup + Aufgabenplanung
-Desktop: „Alamida Monitoring Agent“ und „Alamida Wandmonitor“
+Desktop: "Alamida Monitoring Agent" und "Alamida Wandmonitor"
 $fbHint
 
-Nur der Ordner aus dem ZIP entpacken reicht nicht —
+Nur der Ordner aus dem ZIP entpacken reicht nicht -
 die EXE liegt immer unter C:\AlamidaMonitoring\
 
 Wandmonitor-URL:
