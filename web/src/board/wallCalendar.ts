@@ -111,19 +111,36 @@ function collectAtomics(s: Sterbefall): AtomicTermin[] {
   const seen = new Set<string>();
   const name = fallName(s);
 
+  const ueberfuehrungKey = (
+    datum?: string,
+    schrittTyp?: string,
+    von?: string,
+    nach?: string,
+    ort?: string
+  ): string | null => {
+    const dayKey = dayKeyFromDeDatum(datum);
+    if (!dayKey) return null;
+    const route = `${(von ?? ort ?? '').trim().toLowerCase()}→${(nach ?? '').trim().toLowerCase()}`;
+    const typ = (schrittTyp ?? 'ueberfuehrung').trim().toLowerCase();
+    return `ueb:${dayKey}|${typ}|${route}`;
+  };
+
   const add = (
     art: CalendarTerminArt,
     label: string,
     datum?: string,
     zeit?: string,
     ort?: string,
-    route?: string
+    route?: string,
+    dedupeKey?: string
   ) => {
     const dayKey = dayKeyFromDeDatum(datum);
     if (!dayKey) return;
-    const dedupeKey = `${art}:${dayKey}:${zeit ?? ''}:${route ?? ''}:${ort ?? ''}`;
-    if (seen.has(dedupeKey)) return;
-    seen.add(dedupeKey);
+    const key =
+      dedupeKey ??
+      `${art}:${dayKey}:${zeit ?? ''}:${route ?? ''}:${ort ?? ''}`;
+    if (seen.has(key)) return;
+    seen.add(key);
     pushAtomic(atoms, s, art, label, datum, zeit, ort, route);
   };
   const ortTf = s.endziel?.trim();
@@ -152,7 +169,16 @@ function collectAtomics(s: Sterbefall): AtomicTermin[] {
     if (!datum?.trim()) continue;
     const von = a.vonOrt ?? '—';
     const nach = a.nachOrt ?? '—';
-    add('ueberfuehrung', schrittTypLabel(a.schrittTyp), datum, undefined, undefined, `${von} → ${nach}`);
+    const key = ueberfuehrungKey(datum, a.schrittTyp, von, nach);
+    add(
+      'ueberfuehrung',
+      schrittTypLabel(a.schrittTyp),
+      datum,
+      undefined,
+      undefined,
+      `${von} → ${nach}`,
+      key ?? undefined
+    );
   }
 
   for (const v of s.verlauf ?? []) {
@@ -160,7 +186,17 @@ function collectAtomics(s: Sterbefall): AtomicTermin[] {
     if (!datum?.trim()) continue;
     const von = v.vonOrt ?? v.ort ?? '—';
     const nach = v.nachOrt ?? '—';
-    add('ueberfuehrung', schrittTypLabel(v.typ), datum, undefined, v.ort, `${von} → ${nach}`);
+    const key = ueberfuehrungKey(datum, v.typ, von, nach, v.ort);
+    if (!key || seen.has(key)) continue;
+    add(
+      'ueberfuehrung',
+      schrittTypLabel(v.typ),
+      datum,
+      undefined,
+      v.ort,
+      `${von} → ${nach}`,
+      key
+    );
   }
 
   void name;

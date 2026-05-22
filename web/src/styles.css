@@ -1388,6 +1388,18 @@ code {
   gap: 0.5rem;
   padding: 0.55rem 1rem;
   border-bottom: 1px solid var(--border);
+  border-left: 3px solid transparent;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.wall-extern-person.is-nicht-frei {
+  background: rgba(248, 113, 113, 0.14);
+  border-left-color: var(--danger);
+}
+
+.wall-extern-person.is-frei-erfasst {
+  background: rgba(34, 197, 94, 0.1);
+  border-left-color: rgba(34, 197, 94, 0.75);
 }
 
 .wall-extern-person:last-child {
@@ -1438,6 +1450,48 @@ code {
 .wall-freigabe-btn:disabled {
   opacity: 0.55;
   cursor: wait;
+}
+
+.wall-freigabe-edit {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.wall-freigabe-date {
+  font-size: 0.72rem;
+  padding: 0.22rem 0.35rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-solid);
+  color: var(--text);
+  max-width: 8.5rem;
+  min-height: 32px;
+}
+
+.wall-freigabe-ok,
+.wall-freigabe-cancel {
+  font-size: 0.68rem;
+  font-weight: 700;
+  min-height: 32px;
+  padding: 0.2rem 0.45rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.wall-freigabe-ok {
+  border-color: rgba(34, 197, 94, 0.55);
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.15);
+}
+
+.wall-freigabe-cancel {
+  padding: 0.2rem 0.5rem;
+  line-height: 1;
 }
 
 .wall-retour-btn {

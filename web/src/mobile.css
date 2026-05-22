@@ -60,6 +60,44 @@
     display: grid;
     grid-template-rows: auto auto minmax(0, 1fr) auto;
     gap: 0;
+    background: var(--bg);
+  }
+
+  /* Dekorative Kreise der Wand-Hintergrundfläche nicht über UI legen */
+  .wall-bg {
+    opacity: 0.25;
+    background: var(--bg);
+  }
+
+  .wall-topbar,
+  .wall-view-tabs,
+  .wall-footer {
+    position: relative;
+    z-index: 3;
+    background: var(--bg);
+  }
+
+  .wall-view-tab.auto.active {
+    box-shadow: none;
+  }
+
+  .wall-topbar-end .live-indicator {
+    font-size: 0.65rem;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .wall-topbar-end .live-dot {
+    box-shadow: none;
+    flex-shrink: 0;
+  }
+
+  .wall-topbar .brand-mark {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
   }
 
   .wall-topbar {
@@ -563,6 +601,24 @@
 
   .wall-extern-person {
     padding: 0.35rem 0.65rem;
+    flex-wrap: wrap;
+  }
+
+  .wall-extern-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .wall-freigabe-edit {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .wall-freigabe-date {
+    font-size: 16px;
+    flex: 1;
+    min-width: 0;
+    max-width: none;
   }
 
   .wall-extern-name {

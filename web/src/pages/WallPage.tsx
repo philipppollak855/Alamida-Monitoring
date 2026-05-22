@@ -29,6 +29,7 @@ import {
 import { SchrittBadge } from '../ui/SchrittBadge';
 import { RouteFlow } from '../ui/RouteFlow';
 import { WallCalendarPanel, wallCalendarTabCount } from '../components/WallCalendarPanel';
+import { WallFreigabeControl } from '../components/WallFreigabeControl';
 import { useNarrowViewport } from '../hooks/useNarrowViewport';
 import type { Sterbefall } from '../types';
 
@@ -154,16 +155,23 @@ export function WallPage() {
     }
   }
 
-  async function handleFreigabe(docId: string, bereitsFrei: boolean) {
+  async function saveFreigabe(docId: string, datumDe: string) {
     setExternActionError(null);
     setFreigabePending(docId);
     try {
-      if (bereitsFrei) {
-        await clearSterbefallFreigabe(docId);
-      } else {
-        const datum = now.toLocaleDateString('de-AT');
-        await setSterbefallFreigabe(docId, datum);
-      }
+      await setSterbefallFreigabe(docId, datumDe);
+    } catch (e) {
+      setExternActionError(e instanceof Error ? e.message : 'Freigabe fehlgeschlagen');
+    } finally {
+      setFreigabePending(null);
+    }
+  }
+
+  async function clearFreigabe(docId: string) {
+    setExternActionError(null);
+    setFreigabePending(docId);
+    try {
+      await clearSterbefallFreigabe(docId);
     } catch (e) {
       setExternActionError(e instanceof Error ? e.message : 'Freigabe fehlgeschlagen');
     } finally {
@@ -321,32 +329,32 @@ export function WallPage() {
                     </header>
                     <ul className="wall-extern-list">
                       {g.faelle.map((f) => (
-                        <li key={f.docId} className="wall-extern-person">
+                        <li
+                          key={f.docId}
+                          className={`wall-extern-person ${f.freigabeFrei ? 'is-frei-erfasst' : 'is-nicht-frei'}`}
+                        >
                           <div className="wall-extern-person-main">
                             <span className="wall-extern-name">{f.name}</span>
                             <span className="wall-extern-meta">
                               {f.hinweis}
                               {f.terminAm ? ` · ${f.terminAm}` : ''}
+                              {f.freigabeFrei && f.freigabeDatum
+                                ? ` · Freigabe ${f.freigabeDatum}`
+                                : ''}
                             </span>
                           </div>
                           <div className="wall-extern-actions">
-                            <button
-                              type="button"
-                              className={`wall-freigabe-btn ${f.freigabeFrei ? 'is-frei' : ''}`}
-                              disabled={freigabePending === f.docId || urnenPending === f.docId}
-                              title={
-                                f.freigabeFrei
-                                  ? `Freigabe ${f.freigabeDatum ?? ''} — erneut tippen zum Zurücksetzen`
-                                  : 'Freigabe mit heutigem Datum erfassen'
+                            <WallFreigabeControl
+                              docId={f.docId}
+                              freigabeFrei={f.freigabeFrei}
+                              freigabeDatum={f.freigabeDatum}
+                              defaultDate={now}
+                              disabled={
+                                freigabePending === f.docId || urnenPending === f.docId
                               }
-                              onClick={() => void handleFreigabe(f.docId, !!f.freigabeFrei)}
-                            >
-                              {freigabePending === f.docId
-                                ? '…'
-                                : f.freigabeFrei
-                                  ? f.freigabeDatum ?? 'Frei'
-                                  : 'Freigabe'}
-                            </button>
+                              onSave={saveFreigabe}
+                              onClear={clearFreigabe}
+                            />
                             {g.typ === 'kremation' && (
                               <button
                                 type="button"
