@@ -136,3 +136,4 @@ Write-Host "Ordner:   $publishDir" -ForegroundColor Green
 Write-Host "ZIP:      $zipPath" -ForegroundColor Green
 Write-Host "Wizard:   $installerDir\install-wizard.bat" -ForegroundColor Green
 Write-Host "Bundle:   $installerZip" -ForegroundColor Green
+# Release tag on GitHub: agent-v{run} via .github/workflows/agent-release.yml
