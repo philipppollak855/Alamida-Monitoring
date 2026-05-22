@@ -13,7 +13,11 @@ export function ortLabel(ort: string): string {
   return ort.trim().replace(/\s+/g, ' ');
 }
 
-export { krankenhausOrtKey, preferKrankenhausAnzeigeLabel } from './krankenhausOrt';
+export {
+  canonicalKrankenhausAnzeigeLabel,
+  krankenhausOrtKey,
+  preferKrankenhausAnzeigeLabel,
+} from './krankenhausOrt';
 export { parseUeberfuehrungRoute } from '../board/routeParse';
 
 export function istKrematorium(ort?: string, settings?: DispositionSettings): boolean {

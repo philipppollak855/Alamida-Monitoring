@@ -3,13 +3,35 @@ import { getDispositionSettings } from './dispositionSettingsStore';
 
 const FALLBACK_PREFIXE = ['uk ', 'uk-', 'uk.', 'kh ', 'kh-', 'kh.'];
 
-/** Gruppierungsschlüssel — gleiche Klinik trotz UK/KH/Schreibweise. */
+/** UK/KH/Krankenhaus… am Anfang (inkl. „UK - “). */
+const LEADING_MARKER = /^(uk|kh|uk\.|kh\.)[\s.\-_]+/i;
+const LEADING_KH_WORD =
+  /^(krankenhaus|spital|klinik|landesklinik|universitätsklinik|universitaetsklinik|klinikum)[\s.\-_]+/i;
+
+function stripLeadingMarkers(s: string): string {
+  let prev = '';
+  let cur = s;
+  while (cur !== prev) {
+    prev = cur;
+    cur = cur
+      .replace(LEADING_MARKER, '')
+      .replace(LEADING_KH_WORD, '')
+      .trim();
+  }
+  return cur;
+}
+
+/**
+ * Gruppierungsschlüssel — gleiche Klinik trotz UK/KH/Krankenhaus/Schreibweise.
+ * z. B. UK Neunkirchen, KH-Neunkirchen, Krankenhaus Neunkirchen → „neunkirchen“
+ */
 export function krankenhausOrtKey(ort: string, settings?: DispositionSettings): string {
   let s = ort.trim().toLowerCase();
+  s = stripLeadingMarkers(s);
+
+  const cfg = settings ?? getDispositionSettings();
   const prefixe = [
-    ...(settings ?? getDispositionSettings()).krankenhausPrefixe.map((p) =>
-      p.trim().toLowerCase()
-    ),
+    ...cfg.krankenhausPrefixe.map((p) => p.trim().toLowerCase()),
     ...FALLBACK_PREFIXE,
   ]
     .filter(Boolean)
@@ -22,22 +44,56 @@ export function krankenhausOrtKey(ort: string, settings?: DispositionSettings): 
     }
   }
 
+  s = stripLeadingMarkers(s);
+
+  for (const kw of cfg.krankenhausKeywords) {
+    const k = kw.trim().toLowerCase();
+    if (!k) continue;
+    if (s.startsWith(k)) {
+      s = s.slice(k.length).replace(/^[\s.\-_]+/, '');
+    }
+    if (s.endsWith(k)) {
+      s = s.slice(0, -k.length).replace(/[\s.\-_]+$/, '');
+    }
+  }
+
+  s = stripLeadingMarkers(s);
   s = s.replace(/^[\s.\-_]+/, '').replace(/[\s.\-_]+/g, '');
-  return s || ort.trim().toLowerCase();
+
+  return s || ort.trim().toLowerCase().replace(/[\s.\-_]+/g, '');
 }
 
-/** Anzeigename bei mehreren Schreibweisen (z. B. UK Neunkirchen bevorzugen). */
+function titleCaseOrt(key: string): string {
+  if (!key) return key;
+  return key
+    .split(/[\s.\-_]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+/** Einheitliche Kartenüberschrift für Extern, z. B. „UK - Neunkirchen“. */
+export function canonicalKrankenhausAnzeigeLabel(
+  ort: string,
+  settings?: DispositionSettings
+): string {
+  const key = krankenhausOrtKey(ort, settings);
+  const city = titleCaseOrt(key);
+  if (!city) return ort.trim();
+  return `UK - ${city}`;
+}
+
+/** @deprecated Nutze canonicalKrankenhausAnzeigeLabel für Gruppenköpfe. */
 export function preferKrankenhausAnzeigeLabel(a: string, b: string): string {
-  const rank = (x: string) => {
-    const t = x.trim();
-    if (/^uk\s/i.test(t)) return 4;
-    if (/^uk-/i.test(t)) return 3;
-    if (/^kh\s/i.test(t)) return 2;
-    if (/^kh-/i.test(t)) return 1;
-    return 0;
-  };
-  const ra = rank(a);
-  const rb = rank(b);
-  if (rb !== ra) return rb > ra ? b.trim() : a.trim();
-  return a.trim().length >= b.trim().length ? a.trim() : b.trim();
+  return canonicalKrankenhausAnzeigeLabel(
+    rankRaw(a) >= rankRaw(b) ? a : b
+  );
+}
+
+function rankRaw(x: string): number {
+  const t = x.trim().toLowerCase();
+  if (/^uk[\s.\-_]/.test(t)) return 4;
+  if (/^kh[\s.\-_]/.test(t)) return 2;
+  if (/^krankenhaus[\s.\-_]/.test(t)) return 1;
+  return 0;
 }
