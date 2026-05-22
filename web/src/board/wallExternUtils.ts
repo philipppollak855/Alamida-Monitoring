@@ -2,7 +2,10 @@ import type { Sterbefall } from '../types';
 import { istInHistory } from './historieLogic';
 import {
   canonicalKrankenhausAnzeigeLabel,
+  collectKrankenhausKandidaten,
+  isGenericKrankenhausKey,
   krankenhausOrtKey,
+  resolveBestKrankenhausOrt,
 } from '../settings/krankenhausOrt';
 import { istKrankenhaus, istKrematorium, ortLabel } from './ortKeywords';
 import { isAusstehendHeute, isAusstehendHeuteOrGeplant } from './ausstehendStatus';
@@ -73,23 +76,16 @@ function kremationOrtLabel(s: Sterbefall): string | null {
   return null;
 }
 
-function resolveKrankenhausStandort(
-  s: Sterbefall
-): { typ: 'krankenhaus'; ort: string } | null {
-  if (isImEigenenKuehlraum(s) || istAktuellImKrematorium(s)) return null;
+function istExternKrankenhausFall(s: Sterbefall): boolean {
+  if (isImEigenenKuehlraum(s) || istAktuellImKrematorium(s)) return false;
 
   const pos = s.aktuellePosition?.trim();
-  if (pos && istKrankenhaus(pos)) {
-    return { typ: 'krankenhaus', ort: ortLabel(pos) };
-  }
+  if (pos && istKrankenhaus(pos)) return true;
 
   if (s.aktuellePositionTyp === 'sterbeort' || hatAusstehendeUeberfuehrungInsEigeneKr(s)) {
     const khOrt = s.sterbeort || s.abholort;
-    if (khOrt && istKrankenhaus(khOrt)) {
-      return { typ: 'krankenhaus', ort: ortLabel(khOrt) };
-    }
-    const vonKh = (s.ausstehend ?? []).find((a) => a.vonOrt && istKrankenhaus(a.vonOrt))?.vonOrt;
-    if (vonKh) return { typ: 'krankenhaus', ort: ortLabel(vonKh) };
+    if (khOrt && istKrankenhaus(khOrt)) return true;
+    if ((s.ausstehend ?? []).some((a) => a.vonOrt && istKrankenhaus(a.vonOrt))) return true;
   }
 
   if (
@@ -97,17 +93,13 @@ function resolveKrankenhausStandort(
     s.sterbeort &&
     istKrankenhaus(s.sterbeort)
   ) {
-    return { typ: 'krankenhaus', ort: ortLabel(s.sterbeort) };
+    return true;
   }
 
   if (hatOffeneAbholungVomSterbeort(s)) {
     const ort = s.sterbeort || s.abholort;
-    if (ort && istKrankenhaus(ort)) {
-      return { typ: 'krankenhaus', ort: ortLabel(ort) };
-    }
-    if (s.abholortIstKrankenhaus && s.abholort) {
-      return { typ: 'krankenhaus', ort: ortLabel(s.abholort) };
-    }
+    if (ort && istKrankenhaus(ort)) return true;
+    if (s.abholortIstKrankenhaus && s.abholort) return true;
   }
 
   const naechster = naechsterSchritt(s);
@@ -116,20 +108,52 @@ function resolveKrankenhausStandort(
     naechster.vonOrt &&
     istKrankenhaus(naechster.vonOrt)
   ) {
-    return { typ: 'krankenhaus', ort: ortLabel(naechster.vonOrt) };
+    return true;
   }
 
   if (isAmKrankenhausOderSterbeort(s)) {
     const fallback = s.sterbeort || s.abholort;
-    if (fallback && istKrankenhaus(fallback)) {
-      return { typ: 'krankenhaus', ort: ortLabel(fallback) };
-    }
-    if (s.abholortIstKrankenhaus && s.abholort) {
-      return { typ: 'krankenhaus', ort: ortLabel(s.abholort) };
-    }
+    if (fallback && istKrankenhaus(fallback)) return true;
+    if (s.abholortIstKrankenhaus && s.abholort) return true;
   }
 
-  return null;
+  return false;
+}
+
+function resolveKrankenhausStandort(
+  s: Sterbefall
+): { typ: 'krankenhaus'; ort: string } | null {
+  if (!istExternKrankenhausFall(s)) return null;
+
+  const ort = resolveBestKrankenhausOrt(collectKrankenhausKandidaten(s));
+  if (!ort?.trim()) return null;
+
+  return { typ: 'krankenhaus', ort: ort.trim() };
+}
+
+/** Fälle mit nur „UK“/„KH“ in die einzige benannte KH-Karte legen (z. B. UK - Neunkirchen). */
+function mergeOrphanGenericKhGruppen(gruppen: ExternOrtGruppe[]): ExternOrtGruppe[] {
+  const kh = gruppen.filter((g) => g.typ === 'krankenhaus');
+  const named = kh.filter((g) => {
+    const slug = g.key.replace(/^krankenhaus:/, '');
+    return !isGenericKrankenhausKey(slug);
+  });
+  const generic = kh.filter((g) => {
+    const slug = g.key.replace(/^krankenhaus:/, '');
+    return isGenericKrankenhausKey(slug);
+  });
+
+  if (named.length !== 1 || generic.length === 0) return gruppen;
+
+  const [target] = named;
+  for (const g of generic) {
+    target.faelle.push(...g.faelle);
+    target.ort = canonicalKrankenhausAnzeigeLabel(target.ort);
+  }
+  target.faelle.sort((a, b) => a.name.localeCompare(b.name, 'de'));
+
+  const genericKeys = new Set(generic.map((g) => g.key));
+  return gruppen.filter((g) => !genericKeys.has(g.key));
 }
 
 function resolveKremationStandort(
@@ -212,10 +236,12 @@ export function buildExternGruppen(sterbefaelle: Sterbefall[]): ExternOrtGruppe[
     });
   }
 
-  const gruppen = [...map.values()];
+  let gruppen = [...map.values()];
   for (const g of gruppen) {
     g.faelle.sort((a, b) => a.name.localeCompare(b.name, 'de'));
   }
+
+  gruppen = mergeOrphanGenericKhGruppen(gruppen);
 
   return gruppen.sort((a, b) => {
     if (a.typ !== b.typ) return a.typ === 'krankenhaus' ? -1 : 1;

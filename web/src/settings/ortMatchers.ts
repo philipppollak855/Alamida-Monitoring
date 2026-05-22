@@ -15,8 +15,11 @@ export function ortLabel(ort: string): string {
 
 export {
   canonicalKrankenhausAnzeigeLabel,
+  collectKrankenhausKandidaten,
+  isGenericKrankenhausKey,
   krankenhausOrtKey,
   preferKrankenhausAnzeigeLabel,
+  resolveBestKrankenhausOrt,
 } from './krankenhausOrt';
 export { parseUeberfuehrungRoute } from '../board/routeParse';
 
