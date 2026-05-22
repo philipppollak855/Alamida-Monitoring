@@ -261,13 +261,10 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
           {showPeriodOverview && (
 
             <WallCalendarPeriodOverview
-
               days={days}
-
               columns={overviewColumns}
-
-              compact={range !== 'month'}
-
+              compact
+              denseMonth={range === 'month'}
             />
 
           )}

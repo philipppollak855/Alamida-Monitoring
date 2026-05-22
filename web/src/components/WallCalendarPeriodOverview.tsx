@@ -5,13 +5,20 @@ interface Props {
   /** Spalten im Raster (7 für Woche / Monat) */
   columns?: number;
   compact?: boolean;
+  /** Mobil-Monat: sehr flaches Raster */
+  denseMonth?: boolean;
 }
 
 /** Kompakte Tagesübersicht mit Terminanzahl (Monat, 7/14 Tage). */
-export function WallCalendarPeriodOverview({ days, columns = 7, compact }: Props) {
+export function WallCalendarPeriodOverview({
+  days,
+  columns = 7,
+  compact,
+  denseMonth,
+}: Props) {
   return (
     <div
-      className={`wall-cal-period-overview ${compact ? 'wall-cal-period-overview--compact' : ''} wall-cal-period-overview--even`}
+      className={`wall-cal-period-overview ${compact ? 'wall-cal-period-overview--compact' : ''} ${denseMonth ? 'wall-cal-period-overview--dense-month' : ''} wall-cal-period-overview--even`}
       style={{ '--cal-overview-cols': columns } as React.CSSProperties}
       aria-label="Zeitraumübersicht"
     >
