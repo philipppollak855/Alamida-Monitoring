@@ -1786,6 +1786,112 @@ code {
   color: var(--accent);
 }
 
+.wall-cal-art-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.wall-cal-art-all {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.3rem 0.55rem;
+  border-radius: 999px;
+  border: 1px dashed var(--border-strong);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.wall-cal-art-chip {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.32rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.wall-cal-art-chip.active {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  color: var(--text);
+}
+
+.wall-cal-desktop-body,
+.wall-cal-mobile-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow: hidden;
+}
+
+.wall-cal-period-overview {
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--cal-overview-cols, 7), minmax(0, 1fr));
+  gap: 0.35rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.wall-cal-period-overview--compact .wall-cal-period-wd {
+  display: none;
+}
+
+.wall-cal-period-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.5rem;
+  padding: 0.25rem 0.15rem;
+  border-radius: 8px;
+  background: var(--surface-solid);
+  border: 1px solid var(--border);
+  text-align: center;
+}
+
+.wall-cal-period-cell.is-today {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  box-shadow: 0 0 0 1px rgba(77, 159, 255, 0.2);
+}
+
+.wall-cal-period-cell.has-events .wall-cal-period-num {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.wall-cal-period-wd {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  line-height: 1.1;
+}
+
+.wall-cal-period-num {
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.wall-cal-period-badge {
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin-top: 0.1rem;
+}
+
 .wall-cal-strip {
   flex: 1;
   display: grid;
@@ -1899,8 +2005,9 @@ code {
 .wall-cal-card {
   padding: 0.45rem 0.5rem;
   border-radius: 6px;
-  background: var(--bg);
-  border: 1px solid var(--border);
+  background: var(--surface-solid);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
 }
 
 .wall-cal-card.is-grouped,

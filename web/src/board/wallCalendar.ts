@@ -20,6 +20,40 @@ export type CalendarTerminArt =
   | 'ueberfuehrung'
   | 'trauerblock';
 
+export const ALL_CALENDAR_TERMIN_ARTEN: CalendarTerminArt[] = [
+  'rosenkranz',
+  'verabschiedung',
+  'trauerfeier',
+  'trauerfeier2',
+  'beisetzung',
+  'ueberfuehrung',
+  'trauerblock',
+];
+
+export const CALENDAR_TERMIN_ART_LABELS: Record<CalendarTerminArt, string> = {
+  rosenkranz: 'Rosenkranz',
+  verabschiedung: 'Verabschiedung',
+  trauerfeier: 'Trauerfeier',
+  trauerfeier2: 'Trauerfeier 2',
+  beisetzung: 'Beisetzung',
+  ueberfuehrung: 'Überführung',
+  trauerblock: 'Trauerblock',
+};
+
+export function isCalendarTerminArt(v: unknown): v is CalendarTerminArt {
+  return typeof v === 'string' && ALL_CALENDAR_TERMIN_ARTEN.includes(v as CalendarTerminArt);
+}
+
+/** Mehrfachfilter: Eintrag sichtbar, wenn mindestens eine seiner Arten aktiv ist. */
+export function filterEntriesByArts(
+  entries: WallCalendarEntry[],
+  activeArts: ReadonlySet<CalendarTerminArt>
+): WallCalendarEntry[] {
+  if (activeArts.size === 0) return [];
+  if (activeArts.size >= ALL_CALENDAR_TERMIN_ARTEN.length) return entries;
+  return entries.filter((e) => e.arts.some((a) => activeArts.has(a)));
+}
+
 interface AtomicTermin {
   key: string;
   art: CalendarTerminArt;
