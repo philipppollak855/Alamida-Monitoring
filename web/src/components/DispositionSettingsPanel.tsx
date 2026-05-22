@@ -230,6 +230,54 @@ export function DispositionSettingsPanel() {
                 </div>
               )}
 
+              <div className="settings-block">
+                <div className="settings-block-head">
+                  <h4>Wandmonitor — Tabwechsel</h4>
+                  <span className="settings-count">Sekunden pro Ansicht</span>
+                </div>
+                <p className="settings-hint">
+                  Countdown bis zum automatischen Wechsel (5–300 s). Jeder Tab hat eine eigene
+                  Dauer; gilt für alle Übergänge im Rotationsmodus.
+                </p>
+                <div className="settings-wall-tabs-grid">
+                  {(
+                    [
+                      ['kuehlraum', 'Kühlraum'],
+                      ['extern', 'Extern'],
+                      ['abholungen', 'Heute'],
+                      ['offen', 'Offen'],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <label key={key} className="settings-wall-tab-field">
+                      {label}
+                      <input
+                        type="number"
+                        min={5}
+                        max={300}
+                        step={1}
+                        value={draft.wallTabWechselSekunden?.[key] ?? 18}
+                        onChange={(e) => {
+                          const v = parseInt(e.target.value, 10);
+                          setDraft((d) => {
+                            const base = d.wallTabWechselSekunden ?? {
+                              kuehlraum: 18,
+                              extern: 18,
+                              abholungen: 18,
+                              offen: 18,
+                            };
+                            return {
+                              ...d,
+                              wallTabWechselSekunden: { ...base, [key]: v },
+                            };
+                          });
+                        }}
+                      />
+                      <span className="settings-wall-tab-unit">s</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
               <KeywordSection
                 title="Kremation / Krematorium"
                 hint="Enthält-Match mit Wortgrenzen bei kurzen Keywords (min. 2 Zeichen)"

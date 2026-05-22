@@ -17,19 +17,31 @@ public static class AlamidaFieldParser
     }
 
     /// <summary>
+    /// Trennzeichen: „nach“, „über“, „/“, „ - “ (mit Leerzeichen, nicht UK-Neunkirchen).
+    /// z.B. „UK Neunkirchen / Kühlr. Grafenbach“, „A nach B“, „A - B“, „A über B“.
+    /// </summary>
+    private static readonly Regex UeberfuehrungRouteSeparator = new(
+        @"\s+(?:nach|über|ueber)\s+|\s+/\s+|\s+-\s+",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
+    /// <summary>
     /// z.B. "UK Neunkirchen / Kühlr. Grafenbach" oder "Kühlr. Grafenbach / St. Johann"
     /// </summary>
     public static (string? Von, string? Nach, string? Kuehlraum) ParseUeberfuehrungText(string? text)
     {
         if (string.IsNullOrWhiteSpace(text)) return (null, null, null);
 
-        var normalized = text.Replace(" nach ", "/", StringComparison.OrdinalIgnoreCase);
-        var parts = normalized.Split('/', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length < 2)
-            return (text.Trim(), null, ExtractKuehlraum(text));
+        var trimmed = text.Trim();
+        var parts = UeberfuehrungRouteSeparator.Split(trimmed)
+            .Select(p => p.Trim())
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .ToArray();
 
-        var von = parts[0].Trim();
-        var nach = parts[1].Trim();
+        if (parts.Length < 2)
+            return (trimmed, null, ExtractKuehlraum(trimmed));
+
+        var von = parts[0];
+        var nach = parts[1];
         // Kühlraum = Ziel (nach), wie in Alamida „von / nach“
         var kr = ExtractKuehlraum(nach);
         return (von, nach, kr);

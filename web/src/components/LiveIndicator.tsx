@@ -13,11 +13,14 @@ export function LiveIndicator({
   lastSyncAt,
   loading,
   label = 'Live',
+  hideSyncAge = false,
 }: {
   isLive: boolean;
   lastSyncAt: Date | null;
   loading?: boolean;
   label?: string;
+  /** Kein Sekunden-Zähler seit letztem Sync (z. B. Wandmonitor). */
+  hideSyncAge?: boolean;
 }) {
   const [, tick] = useState(0);
   useEffect(() => {
@@ -34,12 +37,13 @@ export function LiveIndicator({
   }
 
   const sekunden = Math.floor((Date.now() - lastSyncAt.getTime()) / 1000);
+  const showAge = !hideSyncAge && sekunden > 3;
 
   return (
     <span className="live-indicator live-on" title="Firestore Echtzeit-Listener aktiv">
       <span className="live-dot" aria-hidden />
       {label} · {formatZeit(lastSyncAt)}
-      {sekunden > 3 && <span className="live-warn"> ({sekunden}s)</span>}
+      {showAge && <span className="live-warn"> ({sekunden}s)</span>}
     </span>
   );
 }

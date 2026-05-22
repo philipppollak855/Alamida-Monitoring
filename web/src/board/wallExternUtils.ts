@@ -1,5 +1,6 @@
 import type { Sterbefall } from '../types';
 import { istInHistory } from './historieLogic';
+import { krankenhausOrtKey, preferKrankenhausAnzeigeLabel } from '../settings/krankenhausOrt';
 import { istKrankenhaus, istKrematorium, ortLabel } from './ortKeywords';
 import { isAusstehendHeute, isAusstehendHeuteOrGeplant } from './ausstehendStatus';
 import {
@@ -175,18 +176,24 @@ export function buildExternGruppen(sterbefaelle: Sterbefall[]): ExternOrtGruppe[
     const standort = resolveExternStandort(s);
     if (!standort) continue;
 
-    const key = `${standort.typ}:${standort.ort.toLowerCase()}`;
+    const key =
+      standort.typ === 'krankenhaus'
+        ? `krankenhaus:${krankenhausOrtKey(standort.ort)}`
+        : `${standort.typ}:${ortLabel(standort.ort).toLowerCase()}`;
     const id = s.sterbefallId ?? s.id;
     const name = s.verstorbenerName ?? id;
     const n = naechsterSchritt(s);
 
-    if (!map.has(key)) {
+    const existing = map.get(key);
+    if (!existing) {
       map.set(key, {
         key,
         typ: standort.typ,
         ort: standort.ort,
         faelle: [],
       });
+    } else if (standort.typ === 'krankenhaus') {
+      existing.ort = preferKrankenhausAnzeigeLabel(existing.ort, standort.ort);
     }
 
     map.get(key)!.faelle.push({

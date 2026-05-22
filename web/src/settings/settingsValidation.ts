@@ -20,6 +20,21 @@ export function validateDispositionSettings(s: DispositionSettings): SettingsVal
     errors.push('Mindestens ein eigener Kühlraum ist erforderlich.');
   }
 
+  const w = s.wallTabWechselSekunden;
+  if (w) {
+    const tabs: [string, number][] = [
+      ['Kühlraum', w.kuehlraum],
+      ['Extern', w.extern],
+      ['Heute', w.abholungen],
+      ['Offen', w.offen],
+    ];
+    for (const [label, sec] of tabs) {
+      if (sec < 5 || sec > 300) {
+        errors.push(`Wandmonitor „${label}“: Tabwechsel 5–300 Sekunden.`);
+      }
+    }
+  }
+
   for (const kr of s.eigeneKuehlraeume) {
     if (!kr.label.trim()) errors.push('Kühlraum ohne Bezeichnung.');
     if (kr.plaetze < 1 || kr.plaetze > 99) errors.push(`„${kr.label}“: Plätze müssen 1–99 sein.`);
@@ -45,6 +60,7 @@ function normalizeForCompare(s: DispositionSettings) {
     kremationKeywords: [...s.kremationKeywords].sort(),
     krankenhausPrefixe: [...s.krankenhausPrefixe].sort(),
     krankenhausKeywords: [...s.krankenhausKeywords].sort(),
+    wallTabWechselSekunden: s.wallTabWechselSekunden,
     eigeneKuehlraeume: s.eigeneKuehlraeume.map((k) => ({
       id: k.id,
       label: k.label,

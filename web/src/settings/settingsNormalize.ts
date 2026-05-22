@@ -1,4 +1,9 @@
-import type { DispositionSettings, EigenerKuehlraumConfig } from '../types/dispositionSettings';
+import type {
+  DispositionSettings,
+  EigenerKuehlraumConfig,
+  WallTabWechselSekunden,
+} from '../types/dispositionSettings';
+import { wallDurationsFromSettings } from '../hooks/useWallTabRotation';
 import { DEFAULT_DISPOSITION_SETTINGS } from '../config/defaultDispositionSettings';
 import { dedupeKeywords } from './recognitionEngine';
 
@@ -25,6 +30,15 @@ export function normalizeDispositionSettings(
         })
       : [...DEFAULT_DISPOSITION_SETTINGS.eigeneKuehlraeume];
 
+  const wallRaw = raw.wallTabWechselSekunden;
+  const wallDurations = wallDurationsFromSettings(wallRaw);
+  const wallTabWechselSekunden: WallTabWechselSekunden = {
+    kuehlraum: wallDurations.kuehlraum,
+    extern: wallDurations.extern,
+    abholungen: wallDurations.abholungen,
+    offen: wallDurations.offen,
+  };
+
   return {
     kremationKeywords: dedupeKeywords(
       raw.kremationKeywords?.length
@@ -42,6 +56,7 @@ export function normalizeDispositionSettings(
         : DEFAULT_DISPOSITION_SETTINGS.krankenhausKeywords
     ),
     eigeneKuehlraeume,
+    wallTabWechselSekunden,
     updatedAt: raw.updatedAt,
   };
 }

@@ -1040,6 +1040,14 @@ code {
   color: var(--muted);
 }
 
+.wall-tab-countdown {
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .wall-topbar-end {
   display: flex;
   align-items: center;
@@ -1479,6 +1487,31 @@ code {
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
+}
+
+.settings-wall-tabs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+
+.settings-wall-tab-field {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.settings-wall-tab-field input {
+  width: 4rem;
+  flex: 0 0 auto;
+}
+
+.settings-wall-tab-unit {
+  color: var(--muted);
+  font-size: 0.8rem;
 }
 
 .settings-kr-row {

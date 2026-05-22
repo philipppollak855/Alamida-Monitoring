@@ -10,13 +10,22 @@ import { buildPrimaerKuehlraumSlots, flattenOffene } from '../board/boardUtils';
 import { useDispositionSettings } from '../settings/SettingsProvider';
 import { filterAktiveSterbefaelle } from '../board/historieLogic';
 import { buildExternGruppen, externGesamt } from '../board/wallExternUtils';
+import {
+  useWallTabRotation,
+  wallDurationsFromSettings,
+  WALL_VIEWS,
+  type WallView,
+} from '../hooks/useWallTabRotation';
 import { SchrittBadge } from '../ui/SchrittBadge';
 import { RouteFlow } from '../ui/RouteFlow';
 import type { Sterbefall } from '../types';
 
-type WallView = 'kuehlraum' | 'extern' | 'abholungen' | 'offen';
-
-const ROTATE_MS = 18_000;
+const WALL_TAB_LABELS: Record<WallView, string> = {
+  kuehlraum: 'Kühlraum',
+  extern: 'Extern',
+  abholungen: 'Heute',
+  offen: 'Offen',
+};
 
 function useClock() {
   const [now, setNow] = useState(new Date());
@@ -31,9 +40,15 @@ export function WallPage() {
   const { settings } = useDispositionSettings();
   const { signOut } = useAuth();
   const now = useClock();
-  const [view, setView] = useState<WallView>('kuehlraum');
-  const [slide, setSlide] = useState(0);
   const [rotationPaused, setRotationPaused] = useState(false);
+  const tabDurations = useMemo(
+    () => wallDurationsFromSettings(settings.wallTabWechselSekunden),
+    [settings.wallTabWechselSekunden]
+  );
+  const { slide, view, secondsLeft, goToSlide } = useWallTabRotation(
+    tabDurations,
+    rotationPaused
+  );
 
   const sterbefaelleQuery = useFirestoreCollection<Sterbefall>('sterbefaelle', 'updatedAt');
   const { items: sterbefaelleRaw, lastSyncAt, isLive, loading } = sterbefaelleQuery;
@@ -56,20 +71,6 @@ export function WallPage() {
   const heuteOffen = useMemo(() => offene.filter((o) => o.status === 'heute'), [offene, calendarDay]);
   const belegt = slots.filter(Boolean).length;
   const kuehlraumRows = Math.max(1, Math.ceil(cfg.plaetze / 3));
-
-  const views: WallView[] = ['kuehlraum', 'extern', 'abholungen', 'offen'];
-
-  useEffect(() => {
-    if (rotationPaused) return;
-    const t = setInterval(() => {
-      setSlide((s) => {
-        const next = (s + 1) % views.length;
-        setView(views[next]);
-        return next;
-      });
-    }, ROTATE_MS);
-    return () => clearInterval(t);
-  }, [rotationPaused]);
 
   if (!firebaseConfigured) {
     return (
@@ -107,7 +108,18 @@ export function WallPage() {
         </div>
         <div className="wall-topbar-end">
           <ThemeSwitch />
-          <LiveIndicator isLive={isLive} lastSyncAt={lastSyncAt} loading={loading} label="Live" />
+          <LiveIndicator
+            isLive={isLive}
+            lastSyncAt={lastSyncAt}
+            loading={loading}
+            label="Live"
+            hideSyncAge
+          />
+          {!rotationPaused && (
+            <span className="wall-tab-countdown" title="Zeit bis zum nächsten Tab">
+              Tabwechsel in {secondsLeft}s
+            </span>
+          )}
           <Link to="/" className="wall-link">
             Disposition
           </Link>
@@ -118,15 +130,12 @@ export function WallPage() {
       </header>
 
       <div className="wall-view-tabs">
-        {views.map((v, i) => (
+        {WALL_VIEWS.map((v, i) => (
           <button
             key={v}
             type="button"
             className={`wall-view-tab ${view === v ? 'active' : ''} ${!rotationPaused && slide === i ? 'auto' : ''}`}
-            onClick={() => {
-              setView(v);
-              setSlide(i);
-            }}
+            onClick={() => goToSlide(i)}
           >
             {v === 'kuehlraum'
               ? `Kühlraum (${belegt}/${cfg.plaetze})`
@@ -262,7 +271,7 @@ export function WallPage() {
 
       <footer className="wall-footer">
         <div className="wall-progress">
-          {views.map((_, i) => (
+          {WALL_VIEWS.map((_, i) => (
             <span key={i} className={`wall-progress-dot ${slide === i ? 'on' : ''}`} />
           ))}
         </div>
@@ -278,7 +287,7 @@ export function WallPage() {
           <span className="wall-rotate-hint">
             {rotationPaused
               ? 'Automatischer Wechsel pausiert · Tabs manuell wählbar'
-              : `Wechsel alle ${ROTATE_MS / 1000}s · Pause stoppt den Wechsel`}
+              : `${WALL_TAB_LABELS[view]}: ${tabDurations[view]}s · als Nächstes ${WALL_TAB_LABELS[WALL_VIEWS[(slide + 1) % WALL_VIEWS.length]]}`}
           </span>
         </div>
       </footer>
