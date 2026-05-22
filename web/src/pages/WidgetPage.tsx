@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { useCalendarDay } from '../hooks/useCalendarDay';
 import { useFirestoreCollection } from '../hooks/useFirestoreCollection';
 import { firebaseConfigured } from '../firebase';
 import { useDispositionSettings } from '../settings/SettingsProvider';
@@ -40,7 +41,7 @@ export function WidgetPage() {
     return () => clearInterval(t);
   }, []);
 
-  const snap = useMemo(() => buildWidgetSnapshot(items), [items, tick]);
+  const snap = useMemo(() => buildWidgetSnapshot(items), [items, tick, calendarDay]);
 
   if (!firebaseConfigured) {
     return (

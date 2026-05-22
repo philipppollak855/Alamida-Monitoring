@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { LiveIndicator } from '../components/LiveIndicator';
 import { ThemeSwitch } from '../components/ThemeSwitch';
+import { useCalendarDay } from '../hooks/useCalendarDay';
 import { useFirestoreCollection } from '../hooks/useFirestoreCollection';
 import { firebaseConfigured } from '../firebase';
 import { buildPrimaerKuehlraumSlots, flattenOffene } from '../board/boardUtils';
@@ -36,6 +37,7 @@ export function WallPage() {
 
   const sterbefaelleQuery = useFirestoreCollection<Sterbefall>('sterbefaelle', 'updatedAt');
   const { items: sterbefaelleRaw, lastSyncAt, isLive, loading } = sterbefaelleQuery;
+  const calendarDay = useCalendarDay();
   const sterbefaelle = useMemo(
     () => filterAktiveSterbefaelle(sterbefaelleRaw),
     [sterbefaelleRaw]
@@ -50,8 +52,8 @@ export function WallPage() {
     [sterbefaelle, settings]
   );
   const externTotal = useMemo(() => externGesamt(externGruppen), [externGruppen]);
-  const offene = useMemo(() => flattenOffene(sterbefaelle), [sterbefaelle]);
-  const heuteOffen = useMemo(() => offene.filter((o) => o.status === 'heute'), [offene]);
+  const offene = useMemo(() => flattenOffene(sterbefaelle), [sterbefaelle, calendarDay]);
+  const heuteOffen = useMemo(() => offene.filter((o) => o.status === 'heute'), [offene, calendarDay]);
   const belegt = slots.filter(Boolean).length;
   const kuehlraumRows = Math.max(1, Math.ceil(cfg.plaetze / 3));
 

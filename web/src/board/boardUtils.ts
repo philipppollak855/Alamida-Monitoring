@@ -2,6 +2,7 @@ import type { Sterbefall, OffeneUeberfuehrungRow } from '../types';
 import type { EigenerKuehlraumConfig } from '../types/dispositionSettings';
 import { getPrimaererKuehlraum } from '../settings/dispositionSettingsStore';
 import { matchEigenerKuehlraum } from '../settings/ortMatchers';
+import { resolveAusstehendStatus } from './ausstehendStatus';
 import { parseDatumDe } from './dateUtils';
 import { isImEigenenKuehlraum } from './kuehlraumLogic';
 
@@ -13,14 +14,18 @@ export function flattenOffene(sterbefaelle: Sterbefall[]): OffeneUeberfuehrungRo
     const id = s.sterbefallId ?? s.id;
     const name = s.verstorbenerName ?? id;
     for (const a of s.ausstehend ?? []) {
+      const terminAm = a.terminAm ?? a.abholungAm ?? 'ohne Datum';
+      const status = resolveAusstehendStatus(terminAm, a.status ?? 'geplant');
+      if (status === 'vergangen') continue;
+
       rows.push({
         sterbefallId: id,
         name,
         schrittTyp: a.schrittTyp ?? 'ueberfuehrung',
         vonOrt: a.vonOrt ?? '—',
         nachOrt: a.nachOrt ?? '—',
-        terminAm: a.terminAm ?? a.abholungAm ?? 'ohne Datum',
-        status: a.status ?? 'geplant',
+        terminAm,
+        status,
         endziel: s.endziel,
         endzielTyp: s.endzielTyp,
         istAbholungVomSterbeort: a.istAbholungVomSterbeort,

@@ -1,4 +1,5 @@
 import type { Sterbefall } from '../types';
+import { isAusstehendHeuteOrGeplant } from './ausstehendStatus';
 import { matchEigenerKuehlraum } from '../settings/ortMatchers';
 import { parseDatumDe } from './dateUtils';
 import { istKrankenhaus, istKrematorium } from './ortKeywords';
@@ -104,7 +105,7 @@ export function isAmKrankenhausOderSterbeort(s: Sterbefall): boolean {
       a.istAbholungVomSterbeort ||
       a.status === 'abholung_noetig' ||
       (a.schrittTyp === 'abholung' &&
-        (a.status === 'heute' || a.status === 'geplant') &&
+        isAusstehendHeuteOrGeplant(a) &&
         a.vonOrt &&
         istKrankenhaus(a.vonOrt))
   );

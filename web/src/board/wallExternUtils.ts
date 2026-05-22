@@ -1,6 +1,7 @@
 import type { Sterbefall } from '../types';
 import { istInHistory } from './historieLogic';
 import { istKrankenhaus, istKrematorium, ortLabel } from './ortKeywords';
+import { isAusstehendHeute, isAusstehendHeuteOrGeplant } from './ausstehendStatus';
 import {
   hatAusstehendeUeberfuehrungInsEigeneKr,
   isAmKrankenhausOderSterbeort,
@@ -32,24 +33,20 @@ function hatOffeneAbholungVomSterbeort(s: Sterbefall): boolean {
     (a) =>
       a.istAbholungVomSterbeort ||
       a.status === 'abholung_noetig' ||
-      (a.schrittTyp === 'abholung' &&
-        (a.status === 'heute' || a.status === 'geplant'))
+      (a.schrittTyp === 'abholung' && isAusstehendHeuteOrGeplant(a))
   );
 }
 
 function naechsterSchritt(s: Sterbefall) {
   const offen = (s.ausstehend ?? []).filter(
-    (a) =>
-      a.status === 'heute' ||
-      a.status === 'geplant' ||
-      a.status === 'abholung_noetig'
+    (a) => a.status === 'abholung_noetig' || isAusstehendHeuteOrGeplant(a)
   );
   return offen[0];
 }
 
 function hinweisFuerFall(s: Sterbefall, typ: 'krankenhaus' | 'kremation'): string {
   const n = naechsterSchritt(s);
-  if (n?.status === 'heute') return 'Termin heute';
+  if (n && isAusstehendHeute(n)) return 'Termin heute';
   if (n?.status === 'abholung_noetig') return 'Abholung ausstehend';
   if (hatAusstehendeUeberfuehrungInsEigeneKr(s)) return 'Überführung ohne Datum';
   if (typ === 'kremation' && istAktuellImKrematorium(s)) return 'Im Krematorium';

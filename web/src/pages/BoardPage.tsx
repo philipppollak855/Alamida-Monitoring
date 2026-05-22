@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { LiveDataBar } from '../components/LiveDataBar';
+import { useCalendarDay } from '../hooks/useCalendarDay';
 import { useFirestoreCollection } from '../hooks/useFirestoreCollection';
 import { firebaseConfigured } from '../firebase';
 import {
@@ -17,6 +18,7 @@ import { matchEigenerKuehlraum } from '../settings/ortMatchers';
 import type { Sterbefall, MonitoringEvent } from '../types';
 
 export function BoardPage() {
+  const calendarDay = useCalendarDay();
   const { settings } = useDispositionSettings();
   const { items: sterbefaelleRaw, loading, error } =
     useFirestoreCollection<Sterbefall>('sterbefaelle', 'updatedAt');
@@ -32,8 +34,8 @@ export function BoardPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'alle' | 'heute' | 'abholung'>('alle');
 
-  const offene = useMemo(() => flattenOffene(sterbefaelle), [sterbefaelle]);
-  const stats = useMemo(() => boardStats(sterbefaelle, offene), [sterbefaelle, offene]);
+  const offene = useMemo(() => flattenOffene(sterbefaelle), [sterbefaelle, calendarDay]);
+  const stats = useMemo(() => boardStats(sterbefaelle, offene), [sterbefaelle, offene, calendarDay]);
   const { cfg: grafenbachCfg, slots: grafenbachSlots } = useMemo(
     () => buildPrimaerKuehlraumSlots(sterbefaelle),
     [sterbefaelle, settings]
