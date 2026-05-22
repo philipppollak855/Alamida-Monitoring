@@ -199,6 +199,7 @@ function Initialize-AlamidaAgentSetup {
     }
 
     Register-AlamidaAgentAutostart -InstallDir $InstallDir
+    Register-AlamidaAgentDesktopShortcut -InstallDir $InstallDir
     Copy-AlamidaInstallScripts -InstallDir $InstallDir
     Write-AlamidaInstallConfig -InstallDir $InstallDir
 
@@ -224,14 +225,34 @@ function Start-AlamidaAgentVerified {
 function Register-AlamidaAgentAutostart {
     param([string] $InstallDir)
     $exe = Join-Path $InstallDir 'AlamidaMonitoringAgent.exe'
+    if (-not (Test-Path $exe)) {
+        throw "Autostart nicht möglich — EXE fehlt: $exe"
+    }
+
     $startup = [Environment]::GetFolderPath('Startup')
     $lnk = Join-Path $startup 'Alamida Monitoring Agent.lnk'
-    $wsh = New-Object -ComObject WScript.Shell
-    $sc = $wsh.CreateShortcut($lnk)
-    $sc.TargetPath = $exe
-    $sc.WorkingDirectory = $InstallDir
-    $sc.Description = 'Alamida Monitoring Watcher'
-    $sc.Save()
+    New-AlamidaShortcut -ShortcutPath $lnk -TargetPath $exe -WorkingDirectory $InstallDir `
+        -Description 'Alamida Monitoring Watcher' -IconLocation "$exe,0"
+
+    if (-not (Test-Path $lnk)) {
+        throw "Autostart-Verknüpfung konnte nicht erstellt werden: $lnk"
+    }
+
+    # Fallback: geplante Aufgabe beim Anmelden (falls Startup-Ordner blockiert ist)
+    $taskName = 'AlamidaMonitoringAgent'
+    schtasks.exe /Delete /TN $taskName /F 2>$null | Out-Null
+    $tr = "`"$exe`""
+    schtasks.exe /Create /TN $taskName /TR $tr /SC ONLOGON /RL LIMITED /F 2>&1 | Out-Null
+}
+
+function Register-AlamidaAgentDesktopShortcut {
+    param([string] $InstallDir)
+    $exe = Join-Path $InstallDir 'AlamidaMonitoringAgent.exe'
+    if (-not (Test-Path $exe)) { return }
+    $desktop = [Environment]::GetFolderPath('Desktop')
+    $lnk = Join-Path $desktop 'Alamida Monitoring Agent.lnk'
+    New-AlamidaShortcut -ShortcutPath $lnk -TargetPath $exe -WorkingDirectory $InstallDir `
+        -Description 'Alamida Monitoring Watcher' -IconLocation "$exe,0"
 }
 
 function New-AlamidaShortcut {

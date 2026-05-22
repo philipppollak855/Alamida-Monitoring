@@ -37,8 +37,8 @@ Nach Alamida-Start: Überführungs-Detailmaske öffnen → Agent erkennt Kühlra
 
 ### Agent auf Arbeitsplätzen (Wizard, ohne Git)
 
-1. `scripts\install-wizard.bat` starten (oder Release-Ordner `installer\install-wizard.bat`)
-2. Wizard lädt ZIP, entpackt nach `C:\AlamidaMonitoring`, richtet Autostart + Desktop-Verknüpfung **„Alamida Wandmonitor“** ein
+1. Release **`AlamidaMonitoring-Installer.zip`** entpacken → **`START-HIER.bat`** starten (enthält **keine** EXE zum direkten Start!)
+2. Wizard entpackt nach **`C:\AlamidaMonitoring\`**, richtet Autostart + Desktop-Verknüpfungen ein
 3. Einmalig Firebase-Credential in `%AppData%\AlamidaMonitoring\` falls der Wizard keins gefunden hat
 
 Die Wandmonitor-Verknüpfung prüft bei jedem Öffnen Agent-Updates und öffnet dann `/wall`.

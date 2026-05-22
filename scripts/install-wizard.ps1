@@ -140,6 +140,8 @@ function Show-WizardForm {
     if ($nearbyZip) {
         $script:WizardZipPath = $nearbyZip
         $script:WizardUseLocalZip = $true
+        $rbLocal.Checked = $true
+        $lblZipPath.Text = (Split-Path $nearbyZip -Leaf)
     }
 
     function Set-StepControls {
@@ -342,6 +344,7 @@ auf jeden PC kopieren (oder neben install-wizard.bat ablegen).
         $lblStatus.Text = 'Erstelle Desktop-Verknüpfung…'
         $form.Refresh()
         Register-AlamidaWallDesktopShortcut -InstallDir $installDir
+        Register-AlamidaAgentDesktopShortcut -InstallDir $installDir
 
         $lblStatus.Text = 'Starte Agent…'
         $form.Refresh()
@@ -353,15 +356,21 @@ auf jeden PC kopieren (oder neben install-wizard.bat ablegen).
             "Firebase: FEHLER — siehe $($setup.CredPath)"
         }
 
+        $exePath = Join-Path $installDir 'AlamidaMonitoringAgent.exe'
         $script:WizardResultText = @"
 Installation abgeschlossen.
 
-Ordner: $installDir
-Autostart: Agent registriert
-Desktop: „Alamida Wandmonitor“
+Agent-Programm:
+$exePath
+
+Autostart: Windows-Startup + Aufgabenplanung
+Desktop: „Alamida Monitoring Agent“ und „Alamida Wandmonitor“
 $fbHint
 
-Die Wandmonitor-Verknüpfung prüft bei jedem Start auf Agent-Updates und öffnet dann:
+Nur der Ordner aus dem ZIP entpacken reicht nicht —
+die EXE liegt immer unter C:\AlamidaMonitoring\
+
+Wandmonitor-URL:
 $script:AlamidaWallUrl
 "@
         $lblStatus.Text = 'Fertig.'

@@ -89,24 +89,34 @@ $installerFiles = @(
 foreach ($inf in $installerFiles) {
     Copy-Item (Join-Path $Root "scripts\$inf") (Join-Path $installerDir $inf) -Force
 }
+Copy-Item (Join-Path $Root "scripts\START-HIER.bat") (Join-Path $installerDir "START-HIER.bat") -Force
+Copy-Item (Join-Path $Root "scripts\START-HIER.txt") (Join-Path $installerDir "START-HIER.txt") -Force
 
 $readmeInstaller = @"
 Alamida Monitoring — Installation (Windows)
 
-1. install-wizard.bat doppelklicken
-2. ZIP von GitHub laden lassen (oder lokale Agent-ZIP waehlen)
-3. Fertig — Autostart + Desktop „Alamida Wandmonitor“
+>>> START-HIER.bat doppelklicken <<<
+
+Dieses Paket enthaelt KEINE fertige EXE im Ordner!
+Der Wizard installiert nach C:\AlamidaMonitoring\
+
+1. START-HIER.bat oder install-wizard.bat
+2. Agent-ZIP: AlamidaMonitoringAgent-win-x64.zip (liegt in diesem Ordner)
+3. serviceAccount.json waehlen (FIREBASE-SETUP.txt)
 
 Version: $versionLine
 "@
 Set-Content -Path (Join-Path $installerDir "README.txt") -Value $readmeInstaller -Encoding UTF8
 
+if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
+Compress-Archive -Path (Join-Path $publishDir "*") -DestinationPath $zipPath -Force
+
+# Agent-ZIP mit in den Installer legen (Offline-Installation ohne erneuten Download)
+Copy-Item $zipPath (Join-Path $installerDir $zipName) -Force
+
 $installerZip = Join-Path $OutputDir "AlamidaMonitoring-Installer.zip"
 if (Test-Path $installerZip) { Remove-Item $installerZip -Force }
 Compress-Archive -Path (Join-Path $installerDir "*") -DestinationPath $installerZip -Force
-
-if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
-Compress-Archive -Path (Join-Path $publishDir "*") -DestinationPath $zipPath -Force
 
 Write-Host "Version:  $versionLine" -ForegroundColor Green
 Write-Host "Ordner:   $publishDir" -ForegroundColor Green

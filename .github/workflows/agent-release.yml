@@ -9,6 +9,7 @@ on:
       - 'scripts/build-agent-release.ps1'
       - 'scripts/apply-agent-release.ps1'
       - 'scripts/install-wizard.ps1'
+      - 'scripts/START-HIER.bat'
       - 'scripts/agent-install-common.ps1'
   workflow_dispatch:
 
@@ -39,8 +40,8 @@ jobs:
           body: |
             ## Installation (empfohlen)
             1. **AlamidaMonitoring-Installer.zip** entpacken
-            2. **install-wizard.bat** starten
-            3. Im Wizard „von GitHub laden“ wählen — fertig
+            2. **START-HIER.bat** starten (nicht nur entpacken — keine EXE im ZIP!)
+            3. Agent-ZIP liegt im Paket; serviceAccount.json nebenlegen
 
             ## Enthalten
             - Agent (self-contained, Auto-Update)
@@ -51,7 +52,10 @@ jobs:
           files: |
             dist/agent-release/AlamidaMonitoring-Installer.zip
             dist/agent-release/AlamidaMonitoringAgent-win-x64.zip
+            dist/agent-release/installer/START-HIER.bat
+            dist/agent-release/installer/START-HIER.txt
             dist/agent-release/installer/install-wizard.bat
+            dist/agent-release/installer/AlamidaMonitoringAgent-win-x64.zip
             dist/agent-release/installer/install-wizard.ps1
             dist/agent-release/installer/agent-install-common.ps1
             dist/agent-release/installer/launch-wall-monitor.ps1
