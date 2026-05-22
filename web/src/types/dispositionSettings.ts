@@ -12,6 +12,7 @@ export interface EigenerKuehlraumConfig {
 export interface WallTabWechselSekunden {
   kuehlraum: number;
   extern: number;
+  kalender: number;
   abholungen: number;
   offen: number;
 }

@@ -16,6 +16,7 @@ export const DEFAULT_DISPOSITION_SETTINGS: DispositionSettings = {
   wallTabWechselSekunden: {
     kuehlraum: 18,
     extern: 18,
+    kalender: 24,
     abholungen: 18,
     offen: 18,
   },

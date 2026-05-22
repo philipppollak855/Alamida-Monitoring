@@ -56,6 +56,7 @@ public sealed class FirestoreSyncService : IAsyncDisposable
             return new SyncResult
             {
                 Kind = SyncResultKind.Heartbeat,
+                HeartbeatReason = HeartbeatReason.LastSeenOnly,
                 SterbefallId = sterbefallId,
                 SterbefallWechsel = sterbefallWechsel,
             };
@@ -85,6 +86,7 @@ public sealed class FirestoreSyncService : IAsyncDisposable
             return new SyncResult
             {
                 Kind = SyncResultKind.Heartbeat,
+                HeartbeatReason = HeartbeatReason.ContentUnchanged,
                 SterbefallId = sterbefallId,
                 SterbefallWechsel = sterbefallWechsel,
             };
@@ -128,6 +130,11 @@ public sealed class FirestoreSyncService : IAsyncDisposable
             ["beisetzungszeit"] = snapshot.BeisetzungsZeit ?? "",
             ["trauerfeierdatum"] = snapshot.TrauerfeierDatum ?? "",
             ["trauerfeierzeit"] = snapshot.TrauerfeierZeit ?? "",
+            ["trauerfeier2datum"] = snapshot.Trauerfeier2Datum ?? "",
+            ["trauerfeier2zeit"] = snapshot.Trauerfeier2Zeit ?? "",
+            ["rosenkranzdatum"] = snapshot.RosenkranzDatum ?? "",
+            ["rosenkranzzeit"] = snapshot.RosenkranzZeit ?? "",
+            ["rosenkranzort"] = snapshot.RosenkranzOrt ?? "",
             ["imAnschluss"] = snapshot.ImAnschluss,
             ["inHistory"] = inHistory,
             ["aktivInDisposition"] = !inHistory,

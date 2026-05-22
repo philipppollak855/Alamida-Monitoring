@@ -31,6 +31,22 @@ service cloud.firestore {
         .hasOnly(['urnenBereich', 'urnenSeit', 'retourVon']);
     }
 
+    function sterbefallFreigabeUpdateOnly() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['freigabeFrei', 'freigabeDatum', 'freigabeAm']);
+    }
+
+    function sterbefallFreigabeSet() {
+      return request.resource.data.freigabeFrei == true
+        && request.resource.data.freigabeDatum is string
+        && request.resource.data.freigabeDatum.size() > 0;
+    }
+
+    function sterbefallFreigabeClear() {
+      return resource.data.freigabeFrei == true
+        && request.resource.data.freigabeFrei == false;
+    }
+
     function sterbefallUrnenSet() {
       return request.resource.data.urnenBereich == true;
     }
@@ -63,6 +79,7 @@ service cloud.firestore {
       allow update: if isActivatedUser()
         && (
           (sterbefallUrnenUpdateOnly() && (sterbefallUrnenSet() || sterbefallUrnenClear()))
+          || (sterbefallFreigabeUpdateOnly() && (sterbefallFreigabeSet() || sterbefallFreigabeClear()))
           || (sterbefallDispositionRemoveOnly() && sterbefallDispositionRemoveValid())
         );
       allow create, delete: if false;

@@ -37,6 +37,11 @@ public static class NeuerSterbefallSnapshotBuilder
             fields.GetValueOrDefault("beisetzungszeit"),
             fields.GetValueOrDefault("trauerfeierdatum"),
             fields.GetValueOrDefault("trauerfeierzeit"),
+            fields.GetValueOrDefault("trauerfeier2datum"),
+            fields.GetValueOrDefault("trauerfeier2zeit"),
+            fields.GetValueOrDefault("rosenkranzdatum"),
+            fields.GetValueOrDefault("rosenkranzzeit"),
+            fields.GetValueOrDefault("rosenkranzort"),
             fields.GetValueOrDefault("imAnschluss"),
             rohdaten);
 

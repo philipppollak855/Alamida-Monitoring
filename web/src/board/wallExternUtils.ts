@@ -27,6 +27,8 @@ export interface ExternFallEintrag {
   terminAm?: string;
   /** Nur bei typ kremation — Retour → Urnen */
   kremationOrt?: string;
+  freigabeFrei?: boolean;
+  freigabeDatum?: string;
 }
 
 export interface ExternOrtGruppe {
@@ -365,6 +367,8 @@ export function buildExternGruppen(sterbefaelle: Sterbefall[]): ExternOrtGruppe[
       hinweis: hinweisFuerFall(s, standort.typ),
       terminAm: n?.terminAm ?? n?.abholungAm ?? s.naechsterSchrittAm,
       kremationOrt: standort.typ === 'kremation' ? displayOrt : undefined,
+      freigabeFrei: s.freigabeFrei === true,
+      freigabeDatum: s.freigabeDatum?.trim() || undefined,
     });
   }
 

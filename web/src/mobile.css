@@ -130,8 +130,8 @@
     margin-bottom: 0;
     padding: 0.35rem 0.65rem 0;
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.3rem;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.28rem;
     flex-shrink: 0;
   }
 
@@ -139,7 +139,7 @@
     flex: unset;
     font-size: 0.68rem;
     padding: 0.4rem 0.3rem;
-    min-height: 38px;
+    min-height: 44px;
     line-height: 1.15;
     border-radius: 8px;
   }
@@ -163,12 +163,289 @@
 
   .wall-kuehlraum-stage,
   .wall-extern-stage,
-  .wall-list-stage {
+  .wall-list-stage,
+  .wall-cal-stage {
     height: 100%;
     min-height: 0;
     overflow: hidden;
     display: flex;
     flex-direction: column;
+  }
+
+  /* Kalender mobil: vertikale Agenda / Monatsraster, kein horizontaler Scroll */
+  .wall-cal-stage .wall-stage-title {
+    display: none;
+  }
+
+  .wall-cal--narrow {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .wall-cal--narrow .wall-cal-toolbar {
+    flex-shrink: 0;
+    gap: 0.35rem;
+    margin-bottom: 0;
+  }
+
+  .wall-cal--narrow .wall-cal-toolbar-left {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .wall-cal--narrow .wall-cal-title {
+    display: none;
+  }
+
+  .wall-cal--narrow .wall-cal-count {
+    font-size: 0.72rem;
+    padding: 0.15rem 0.45rem;
+  }
+
+  .wall-cal--narrow .wall-cal-toolbar-right {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.3rem;
+  }
+
+  .wall-cal--narrow .wall-cal-search {
+    min-width: 0;
+    max-width: none;
+  }
+
+  .wall-cal--narrow .wall-cal-search-input {
+    font-size: 16px;
+    padding: 0.45rem 0.6rem;
+    min-height: 40px;
+  }
+
+  .wall-cal--narrow .wall-cal-range {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.25rem;
+  }
+
+  .wall-cal--narrow .wall-cal-range-btn {
+    min-height: 40px;
+    padding: 0.4rem 0.25rem;
+    font-size: 0.8rem;
+  }
+
+  .wall-cal-mobile-agenda,
+  .wall-cal-mobile-month {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .wall-cal-mobile-month-grid {
+    flex-shrink: 0;
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 0.2rem;
+    padding-bottom: 0.25rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .wall-cal-mobile-month-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.1rem;
+    padding: 0.15rem 0.1rem;
+    border-radius: 6px;
+    background: var(--surface);
+    font-size: 0.68rem;
+    line-height: 1.1;
+  }
+
+  .wall-cal-mobile-month-cell.is-today {
+    outline: 1px solid var(--accent);
+    background: var(--accent-dim);
+  }
+
+  .wall-cal-mobile-month-cell.has-events .wall-cal-mobile-month-num {
+    font-weight: 700;
+  }
+
+  .wall-cal-mobile-month-badge {
+    font-size: 0.55rem;
+    font-weight: 700;
+    color: var(--accent);
+    margin-top: 0.05rem;
+  }
+
+  .wall-cal-agenda-day {
+    flex-shrink: 0;
+  }
+
+  .wall-cal-agenda-day-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 0.4rem;
+    padding: 0.2rem 0 0.15rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 0.2rem;
+  }
+
+  .wall-cal-agenda-wd {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--muted);
+    min-width: 2rem;
+  }
+
+  .wall-cal-agenda-date {
+    font-size: 0.78rem;
+    font-weight: 700;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .wall-cal-agenda-count {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 0.08rem 0.35rem;
+    border-radius: 999px;
+    background: var(--accent-dim);
+    color: var(--accent);
+  }
+
+  .wall-cal-today-pill {
+    display: inline-block;
+    font-size: 0.58rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.08rem 0.3rem;
+    border-radius: 4px;
+    background: var(--accent-dim);
+    color: var(--accent);
+  }
+
+  .wall-cal-agenda-none {
+    margin: 0 0 0.35rem;
+    font-size: 0.68rem;
+    color: var(--muted);
+  }
+
+  .wall-cal-agenda-list {
+    list-style: none;
+    margin: 0 0 0.4rem;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .wall-cal-agenda-day.is-empty .wall-cal-agenda-day-head {
+    opacity: 0.65;
+  }
+
+  .wall-cal-card--mobile {
+    display: grid;
+    grid-template-columns: 3.1rem minmax(0, 1fr);
+    gap: 0.45rem;
+    align-items: start;
+    padding: 0.4rem 0.5rem;
+    border-radius: 8px;
+  }
+
+  .wall-cal-card--mobile .wall-cal-time {
+    font-size: 0.72rem;
+    line-height: 1.25;
+    margin-top: 0.1rem;
+  }
+
+  .wall-cal-mobile-body {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+  }
+
+  .wall-cal-card--mobile .wall-cal-name {
+    font-size: 0.82rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .wall-cal-mobile-line {
+    display: flex;
+    flex-direction: column;
+    gap: 0.05rem;
+    min-width: 0;
+  }
+
+  .wall-cal-mobile-types {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--muted);
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .wall-cal-card--mobile .wall-cal-meta {
+    font-size: 0.68rem;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .wall-cal-card--mobile.is-grouped {
+    border-color: rgba(77, 159, 255, 0.5);
+    background: rgba(77, 159, 255, 0.1);
+  }
+
+  .wall-cal--narrow .wall-cal-month {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--muted);
+  }
+
+  .wall-cal--narrow .wall-cal-empty {
+    flex: 1;
+    padding: 1rem 0.5rem;
+    font-size: 0.95rem;
+  }
+
+  /* Desktop-Strip/Monatsgrid auf Mobil ausblenden */
+  .wall-cal--narrow .wall-cal-strip,
+  .wall-cal--narrow .wall-cal-month-grid {
+    display: none !important;
+  }
+
+  .wall-extern-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.25rem;
+  }
+
+  .wall-freigabe-btn,
+  .wall-retour-btn {
+    width: 100%;
+    max-width: none;
+    min-height: 36px;
   }
 
   /* Kühlraum: 3×3 gleichmäßig im verfügbaren Bereich */
@@ -370,6 +647,10 @@
     width: 6px;
     height: 6px;
   }
+
+  .wall-tab-countdown--desktop {
+    display: none;
+  }
 }
 
 @media (max-width: 480px) {
@@ -498,5 +779,32 @@
 
   .wall-cool-tile {
     padding: 0.2rem 0.3rem;
+  }
+
+  .wall-cal--narrow .wall-cal-toolbar {
+    gap: 0.2rem;
+  }
+
+  .wall-cal--narrow .wall-cal-toolbar-right {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .wall-cal--narrow .wall-cal-search {
+    flex: 1 1 55%;
+    min-width: 8rem;
+  }
+
+  .wall-cal--narrow .wall-cal-range {
+    flex: 1 1 40%;
+    min-width: 9rem;
+  }
+
+  .wall-cal-card--mobile {
+    padding: 0.3rem 0.4rem;
+  }
+
+  .wall-cal-mobile-month-cell {
+    min-height: 1.75rem;
   }
 }

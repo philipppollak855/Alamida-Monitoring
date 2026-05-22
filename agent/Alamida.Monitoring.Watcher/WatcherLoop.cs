@@ -96,9 +96,8 @@ public sealed class WatcherLoop
 
             var result = await _firestore.SyncSnapshotAsync(snapshot, sterbefallWechsel: false, ct);
             var id = result.SterbefallId ?? SterbefallTracker.Schluessel(snapshot) ?? "?";
-            SetStatus(result.Kind == SyncResultKind.Updated
-                ? $"Manuell aktualisiert — {id}"
-                : $"Manuell (Live) — {id}");
+            var maske = snapshot.QuelleMaske == "neuer_sterbefall" ? "Neuer Sterbefall" : "Detail";
+            SetStatus("Manuell: " + result.FormatTrayStatus(id, maske));
             return true;
         }
         catch (Exception ex)
@@ -162,17 +161,11 @@ public sealed class WatcherLoop
                                 ? "Neuer Sterbefall"
                                 : "Detail";
 
-                            SetStatus(result.Kind switch
-                            {
-                                SyncResultKind.Updated when snapshot.IstNeuerFall =>
-                                    $"Neu erfasst ({maskeLabel}) — {id}",
-                                SyncResultKind.Updated when fallWechsel =>
-                                    $"Neuer Fall ({maskeLabel}) — {id}",
-                                SyncResultKind.Updated => $"Aktualisiert ({maskeLabel}) — {id}",
-                                SyncResultKind.Heartbeat when fallWechsel =>
-                                    $"Neuer Fall ({maskeLabel}) — {id}",
-                                _ => $"Live ({maskeLabel}) — {id}",
-                            });
+                            SetStatus(result.FormatTrayStatus(
+                                id,
+                                maskeLabel,
+                                fallWechsel,
+                                snapshot.IstNeuerFall));
                         }
                         catch (Exception syncEx)
                         {

@@ -64,6 +64,42 @@
           ],
           "controlTypes": ["Edit", "Text"]
         },
+        "trauerfeier2datum": {
+          "automationIdContains": [
+            "Termin_Trauerfeier2_Datum",
+            "Trauerfeier2_Datum",
+            "Trauerfeier_2_Datum"
+          ],
+          "controlTypes": ["Calendar", "Edit"]
+        },
+        "trauerfeier2zeit": {
+          "automationIdContains": [
+            "Termin_Trauerfeier2_Zeit",
+            "Trauerfeier2_Zeit",
+            "Trauerfeier_2_Zeit"
+          ],
+          "controlTypes": ["Edit", "Text"]
+        },
+        "rosenkranzdatum": {
+          "automationIdContains": [
+            "Termin_Rosenkranz_Datum",
+            "Rosenkranz_Datum",
+            "Rosenkranz_Termin"
+          ],
+          "controlTypes": ["Calendar", "Edit"]
+        },
+        "rosenkranzzeit": {
+          "automationIdContains": [
+            "Termin_Rosenkranz_Zeit",
+            "Rosenkranz_Zeit",
+            "Rosenkranz_Uhrzeit"
+          ],
+          "controlTypes": ["Edit", "Text"]
+        },
+        "rosenkranzort": {
+          "automationIdContains": ["Termin_Rosenkranz_Ort", "Rosenkranz_Ort"],
+          "controlTypes": ["ComboBox", "Edit"]
+        },
         "imAnschluss": {
           "automationIdContains": [
             "Im_Anschluss",
@@ -207,6 +243,26 @@
       "trauerfeierzeit": {
         "automationIdContains": ["Termin_Trauerfeier_Zeit", "Trauerfeier_Uhrzeit"],
         "controlTypes": ["Edit", "Text"]
+      },
+      "trauerfeier2datum": {
+        "automationIdContains": ["Termin_Trauerfeier2_Datum", "Trauerfeier2_Datum", "Trauerfeier_2_Datum"],
+        "controlTypes": ["Calendar", "Edit"]
+      },
+      "trauerfeier2zeit": {
+        "automationIdContains": ["Termin_Trauerfeier2_Zeit", "Trauerfeier2_Zeit"],
+        "controlTypes": ["Edit", "Text"]
+      },
+      "rosenkranzdatum": {
+        "automationIdContains": ["Termin_Rosenkranz_Datum", "Rosenkranz_Datum"],
+        "controlTypes": ["Calendar", "Edit"]
+      },
+      "rosenkranzzeit": {
+        "automationIdContains": ["Termin_Rosenkranz_Zeit", "Rosenkranz_Zeit"],
+        "controlTypes": ["Edit", "Text"]
+      },
+      "rosenkranzort": {
+        "automationIdContains": ["Termin_Rosenkranz_Ort", "Rosenkranz_Ort"],
+        "controlTypes": ["ComboBox", "Edit"]
       },
       "imAnschluss": {
         "automationIdContains": ["Im_Anschluss", "Bestattung_Im_Anschluss"],

@@ -244,6 +244,7 @@ export function DispositionSettingsPanel() {
                     [
                       ['kuehlraum', 'Kühlraum'],
                       ['extern', 'Extern'],
+                      ['kalender', 'Kalender'],
                       ['abholungen', 'Heute'],
                       ['offen', 'Offen'],
                     ] as const
@@ -262,6 +263,7 @@ export function DispositionSettingsPanel() {
                             const base = d.wallTabWechselSekunden ?? {
                               kuehlraum: 18,
                               extern: 18,
+                              kalender: 24,
                               abholungen: 18,
                               offen: 18,
                             };

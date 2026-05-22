@@ -17,6 +17,11 @@ public sealed record DetailSnapshot
     public string? BeisetzungsZeit { get; init; }
     public string? TrauerfeierDatum { get; init; }
     public string? TrauerfeierZeit { get; init; }
+    public string? Trauerfeier2Datum { get; init; }
+    public string? Trauerfeier2Zeit { get; init; }
+    public string? RosenkranzDatum { get; init; }
+    public string? RosenkranzZeit { get; init; }
+    public string? RosenkranzOrt { get; init; }
     public bool ImAnschluss { get; init; }
     public bool InHistory { get; init; }
     public DateTime? SichtbarBis { get; init; }
@@ -73,6 +78,11 @@ public sealed record DetailSnapshot
             BeisetzungsZeit ?? "",
             TrauerfeierDatum ?? "",
             TrauerfeierZeit ?? "",
+            Trauerfeier2Datum ?? "",
+            Trauerfeier2Zeit ?? "",
+            RosenkranzDatum ?? "",
+            RosenkranzZeit ?? "",
+            RosenkranzOrt ?? "",
             ImAnschluss ? "1" : "",
             InHistory ? "hist" : "",
             Kuehlraum ?? "",

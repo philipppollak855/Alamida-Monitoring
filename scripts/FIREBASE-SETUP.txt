@@ -21,4 +21,13 @@ Die Datei wird nach kopiert:
 Ohne diese Datei laeuft der Agent zwar, synchronisiert aber NICHT
 (meldet "Firestore nicht verbunden" im Tray).
 
+Tray-Status (mehrere PCs):
+- "Aktualisiert" / "Neu erfasst" = volle Daten fuer Wand/Disposition
+- "Nur Lebenszeichen" = Firebase erreichbar, aber Alamida-Detail/Termine
+  nicht offen — Wand zeigt ggf. alte Daten oder nichts Neues
+- "Live unveraendert" = Fall unveraendert, Verbindung OK
+
+Wand leer trotz Sync? In Firebase Console sterbefaelle pruefen:
+inHistory, aktivInDisposition, historieGrund (manuell_entfernt).
+
 Release-Build: scripts\build-agent-release.ps1

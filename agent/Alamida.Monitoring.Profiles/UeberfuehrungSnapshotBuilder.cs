@@ -38,6 +38,16 @@ public static class UeberfuehrungSnapshotBuilder
 
         string? trauerfeierZeit,
 
+        string? trauerfeier2Datum,
+
+        string? trauerfeier2Zeit,
+
+        string? rosenkranzDatum,
+
+        string? rosenkranzZeit,
+
+        string? rosenkranzOrt,
+
         string? imAnschlussRaw,
 
         IReadOnlyList<(string? RouteText, string? Datum)> rohdaten)
@@ -184,6 +194,16 @@ public static class UeberfuehrungSnapshotBuilder
             TrauerfeierDatum = trauerfeierDatum,
 
             TrauerfeierZeit = trauerfeierZeit,
+
+            Trauerfeier2Datum = trauerfeier2Datum,
+
+            Trauerfeier2Zeit = trauerfeier2Zeit,
+
+            RosenkranzDatum = rosenkranzDatum,
+
+            RosenkranzZeit = rosenkranzZeit,
+
+            RosenkranzOrt = rosenkranzOrt,
 
             ImAnschluss = SterbefallHistorieResolver.IstImAnschluss(imAnschlussRaw),
 

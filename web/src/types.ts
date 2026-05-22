@@ -41,6 +41,12 @@ export interface Sterbefall {
   beisetzungszeit?: string;
   trauerfeierdatum?: string;
   trauerfeierzeit?: string;
+  trauerfeier2datum?: string;
+  trauerfeier2zeit?: string;
+  trauerfeier2ort?: string;
+  rosenkranzdatum?: string;
+  rosenkranzzeit?: string;
+  rosenkranzort?: string;
   imAnschluss?: boolean;
   inHistory?: boolean;
   aktivInDisposition?: boolean;
@@ -67,6 +73,10 @@ export interface Sterbefall {
   urnenBereich?: boolean;
   urnenSeit?: { seconds: number };
   retourVon?: string;
+  /** Wandmonitor Extern: Freigabe erfasst */
+  freigabeFrei?: boolean;
+  freigabeDatum?: string;
+  freigabeAm?: { seconds: number };
   lastSeenAt?: { seconds: number };
   updatedAt?: { seconds: number };
 }

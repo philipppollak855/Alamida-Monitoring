@@ -6,10 +6,19 @@ namespace Alamida.Monitoring.Core.Firestore;
 
 public static class FirestoreClientFactory
 {
-    // Öffentliche Firebase-CLI OAuth-Credentials (firebase-tools, nicht geheim)
-    private const string ClientId =
-        "563584335869-fgrhgmd47bqnekij5i8b5pr03ho849e6.apps.googleusercontent.com";
-    private const string FirebaseCliClientSecret = "j9iVZfS8kkCEFUPaAeJV0sAi";
+    private static readonly string[] FirestoreScopes =
+    [
+        "https://www.googleapis.com/auth/datastore",
+        "https://www.googleapis.com/auth/cloud-platform",
+    ];
+
+    public static string GetAppDataDir() =>
+        Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "AlamidaMonitoring");
+
+    public static string GetErrorLogPath() =>
+        Path.Combine(GetAppDataDir(), "firestore-last-error.txt");
 
     public static FirestoreSyncService? TryCreate(string projectId, string workstationId) =>
         TryCreate(projectId, workstationId, null, out _);
@@ -27,122 +36,136 @@ public static class FirestoreClientFactory
         out string? error)
     {
         error = null;
-        var appData = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "AlamidaMonitoring");
+        var appData = GetAppDataDir();
+        var serviceAccountPath = ResolveServiceAccountPath(serviceAccountPathHint);
 
-        var serviceAccount = ResolveServiceAccountPath(appData, serviceAccountPathHint);
-        if (IsValidServiceAccount(serviceAccount))
+        if (!IsValidServiceAccount(serviceAccountPath))
         {
-            try
-            {
-                return new FirestoreSyncService(projectId, serviceAccount, workstationId);
-            }
-            catch (Exception ex)
-            {
-                error = $"Service Account: {ex.Message}";
-                WriteError(appData, error);
-                return null;
-            }
-        }
-
-        var oauthPath = Path.Combine(appData, "firebase-oauth.json");
-        if (!File.Exists(oauthPath))
-        {
-            error =
-                "Firebase-Zugang fehlt. serviceAccount.json nach " +
-                $"{appData} kopieren (Firebase Console → Dienstkonto) " +
-                "oder Installation mit install-wizard.ps1 erneut ausführen.";
-            WriteError(appData, error);
+            error = BuildMissingServiceAccountMessage(serviceAccountPath);
+            WriteError(error);
             return null;
         }
 
-        var (db, oauthError) = CreateDbFromOAuth(projectId, oauthPath);
-        if (db == null)
+        try
         {
-            error = oauthError ?? "OAuth-Verbindung fehlgeschlagen.";
-            WriteError(appData, error);
+            var db = CreateDbFromServiceAccount(projectId, serviceAccountPath);
+            return new FirestoreSyncService(db, workstationId);
+        }
+        catch (Exception ex)
+        {
+            error = $"Firebase-Verbindung fehlgeschlagen: {ex.Message}";
+            WriteError($"{error}\nPfad: {serviceAccountPath}");
             return null;
         }
-
-        return new FirestoreSyncService(db, workstationId);
     }
 
-    private static void WriteError(string appData, string message)
+    /// <summary>Schreibtest (Dienstkonto). Mehrere PCs duerfen dieselbe JSON nutzen — je PC eigener Pfad unter %AppData%.</summary>
+    public static async Task<(bool Ok, string? Error)> VerifyWriteAccessAsync(
+        string projectId,
+        string serviceAccountPath,
+        string workstationId,
+        CancellationToken ct = default)
     {
         try
         {
+            var db = CreateDbFromServiceAccount(projectId, serviceAccountPath);
+            var docId = $"probe_{SanitizeDocId(workstationId)}";
+            var healthRef = db.Collection("_agent_health").Document(docId);
+            await healthRef.SetAsync(new Dictionary<string, object>
+            {
+                ["workstationId"] = workstationId,
+                ["machine"] = Environment.MachineName,
+                ["user"] = Environment.UserName,
+                ["probeAt"] = Timestamp.FromDateTime(DateTime.UtcNow),
+            }, cancellationToken: ct);
+            return (true, null);
+        }
+        catch (Exception ex)
+        {
+            var msg =
+                $"{ex.Message}\n\nPruefen: Dienstkonto-Rolle „Cloud Datastore User“ oder „Firebase Admin SDK Administrator Service Agent“ im Projekt {projectId}.";
+            WriteError($"Schreibtest: {msg}\nPfad: {serviceAccountPath}");
+            return (false, msg);
+        }
+    }
+
+    public static void WriteError(string message)
+    {
+        try
+        {
+            var appData = GetAppDataDir();
             Directory.CreateDirectory(appData);
-            File.WriteAllText(Path.Combine(appData, "firestore-last-error.txt"),
-                message + Environment.NewLine + DateTime.Now);
+            File.WriteAllText(
+                GetErrorLogPath(),
+                $"[{DateTime.Now:O}] {message}{Environment.NewLine}{Environment.NewLine}");
         }
         catch { /* ignore */ }
     }
 
-    private static string ResolveServiceAccountPath(string appData, string? hint)
+    public static string ResolveServiceAccountPath(string? hint)
     {
+        var appData = GetAppDataDir();
         if (!string.IsNullOrWhiteSpace(hint))
         {
-            var expanded = hint.Replace("%AppData%", appData, StringComparison.OrdinalIgnoreCase);
+            var expanded = ExpandAppDataPath(hint.Trim());
             if (IsValidServiceAccount(expanded))
-                return expanded;
+                return Path.GetFullPath(expanded);
         }
 
         return Path.Combine(appData, "serviceAccount.json");
     }
 
+    private static string ExpandAppDataPath(string path)
+    {
+        var roaming = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        return path.Replace("%AppData%", roaming, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string BuildMissingServiceAccountMessage(string checkedPath) =>
+        "Firebase-Dienstkonto fehlt oder ist ungueltig.\n\n" +
+        $"Erwartet: {Path.Combine(GetAppDataDir(), "serviceAccount.json")}\n" +
+        (checkedPath != Path.Combine(GetAppDataDir(), "serviceAccount.json")
+            ? $"Geprueft: {checkedPath}\n"
+            : "") +
+        "\nLoesung: install-wizard ausfuehren und Firebase-JSON waehlen (FIREBASE-SETUP.txt).\n" +
+        "Hinweis: Jeder Windows-Benutzer/PC braucht die Datei in SEINEM Profil (%AppData%).\n" +
+        "firebase-oauth.json reicht NICHT — nur serviceAccount.json vom Dienstkonto.";
+
+    private static FirestoreDb CreateDbFromServiceAccount(string projectId, string serviceAccountPath)
+    {
+        var credential = GoogleCredential.FromFile(serviceAccountPath)
+            .CreateScoped(FirestoreScopes);
+        return new FirestoreDbBuilder
+        {
+            ProjectId = projectId,
+            Credential = credential,
+        }.Build();
+    }
+
     private static bool IsValidServiceAccount(string path)
     {
         if (!File.Exists(path)) return false;
-        var text = File.ReadAllText(path);
-        return text.Contains("private_key", StringComparison.Ordinal) &&
-               text.Contains("client_email", StringComparison.Ordinal);
-    }
-
-    private static (FirestoreDb? Db, string? Error) CreateDbFromOAuth(string projectId, string oauthPath)
-    {
         try
         {
-            using var doc = JsonDocument.Parse(File.ReadAllText(oauthPath));
-            var refresh = doc.RootElement.GetProperty("refreshToken").GetString();
-            if (string.IsNullOrEmpty(refresh))
-                return (null, "refreshToken in firebase-oauth.json ist leer.");
-
-            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-            var clientSecret = doc.RootElement.TryGetProperty("clientSecret", out var secEl) &&
-                               !string.IsNullOrWhiteSpace(secEl.GetString())
-                ? secEl.GetString()!
-                : FirebaseCliClientSecret;
-
-            var content = new FormUrlEncodedContent(new Dictionary<string, string>
-            {
-                ["client_id"] = ClientId,
-                ["client_secret"] = clientSecret,
-                ["grant_type"] = "refresh_token",
-                ["refresh_token"] = refresh,
-            });
-            var resp = http.PostAsync("https://oauth2.googleapis.com/token", content)
-                .GetAwaiter().GetResult();
-            var body = resp.Content.ReadAsStringAsync().GetAwaiter().GetResult();
-            if (!resp.IsSuccessStatusCode)
-                return (null, $"OAuth Token ({(int)resp.StatusCode}): {body}");
-
-            using var tokenDoc = JsonDocument.Parse(body);
-            var accessToken = tokenDoc.RootElement.GetProperty("access_token").GetString();
-            if (string.IsNullOrEmpty(accessToken))
-                return (null, "Kein access_token in OAuth-Antwort.");
-
-            var credential = GoogleCredential.FromAccessToken(accessToken);
-            var db = new FirestoreDbBuilder
-            {
-                ProjectId = projectId,
-                Credential = credential,
-            }.Build();
-            return (db, null);
+            using var doc = JsonDocument.Parse(File.ReadAllText(path));
+            var root = doc.RootElement;
+            return root.TryGetProperty("private_key", out _)
+                   && root.TryGetProperty("client_email", out _)
+                   && root.TryGetProperty("type", out var t)
+                   && t.GetString() == "service_account";
         }
-        catch (Exception ex)
+        catch
         {
-            return (null, $"OAuth/Firestore: {ex.Message}");
+            return false;
         }
+    }
+
+    private static string SanitizeDocId(string id)
+    {
+        var s = id.Trim();
+        if (string.IsNullOrEmpty(s)) return "unknown";
+        foreach (var c in Path.GetInvalidFileNameChars())
+            s = s.Replace(c, '_');
+        return s.Length > 80 ? s[..80] : s;
     }
 }

@@ -212,10 +212,13 @@ internal static class Program
 
             try
             {
-                var written = firestore.SyncSnapshotAsync(snap).GetAwaiter().GetResult();
+                var syncResult = firestore
+                    .SyncSnapshotAsync(snap, sterbefallWechsel: false, CancellationToken.None)
+                    .GetAwaiter()
+                    .GetResult();
+                var id = syncResult.SterbefallId ?? snap.SterbefallId ?? "?";
                 WriteSyncLog(
-                    (written ? "Firestore Sync OK" : "Unveraendert (kein Duplikat)") +
-                    $" — {snap.SterbefallId} ({snap.Schritte.Count} Schritte)\n" +
+                    syncResult.FormatSyncLogLine(id, snap.Schritte.Count) + "\n" +
                     System.Text.Json.JsonSerializer.Serialize(snap, MonitoringJson.Options));
             }
             catch (Exception ex)

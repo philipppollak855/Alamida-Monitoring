@@ -35,6 +35,7 @@ export function normalizeDispositionSettings(
   const wallTabWechselSekunden: WallTabWechselSekunden = {
     kuehlraum: wallDurations.kuehlraum,
     extern: wallDurations.extern,
+    kalender: wallDurations.kalender,
     abholungen: wallDurations.abholungen,
     offen: wallDurations.offen,
   };

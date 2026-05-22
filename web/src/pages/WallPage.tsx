@@ -17,6 +17,10 @@ import {
   markSterbefallUrnenRetour,
 } from '../services/urnenRetour';
 import {
+  clearSterbefallFreigabe,
+  setSterbefallFreigabe,
+} from '../services/sterbefallFreigabe';
+import {
   useWallTabRotation,
   wallDurationsFromSettings,
   WALL_VIEWS,
@@ -24,11 +28,14 @@ import {
 } from '../hooks/useWallTabRotation';
 import { SchrittBadge } from '../ui/SchrittBadge';
 import { RouteFlow } from '../ui/RouteFlow';
+import { WallCalendarPanel, wallCalendarTabCount } from '../components/WallCalendarPanel';
+import { useNarrowViewport } from '../hooks/useNarrowViewport';
 import type { Sterbefall } from '../types';
 
 const WALL_TAB_LABELS: Record<WallView, string> = {
   kuehlraum: 'Kühlraum',
   extern: 'Extern',
+  kalender: 'Kalender',
   abholungen: 'Heute',
   offen: 'Offen',
 };
@@ -42,13 +49,51 @@ function useClock() {
   return now;
 }
 
+function formatWallTabLabel(
+  v: WallView,
+  narrow: boolean,
+  counts: {
+    belegt: number;
+    plaetze: number;
+    urnen: number;
+    extern: number;
+    kalender: number;
+    heute: number;
+    offen: number;
+  }
+): string {
+  if (!narrow) {
+    if (v === 'kuehlraum') {
+      return `Kühlraum (${counts.belegt}/${counts.plaetze}${counts.urnen > 0 ? ` · ${counts.urnen} Urnen` : ''})`;
+    }
+    if (v === 'extern') return `Extern (${counts.extern})`;
+    if (v === 'kalender') return `Kalender (${counts.kalender})`;
+    if (v === 'abholungen') return `Heute (${counts.heute})`;
+    return `Offen (${counts.offen})`;
+  }
+  switch (v) {
+    case 'kuehlraum':
+      return `KR ${counts.belegt}/${counts.plaetze}`;
+    case 'extern':
+      return `Ext ${counts.extern}`;
+    case 'kalender':
+      return `Kal ${counts.kalender}`;
+    case 'abholungen':
+      return `Heute ${counts.heute}`;
+    default:
+      return `Offen ${counts.offen}`;
+  }
+}
+
 export function WallPage() {
   const { settings } = useDispositionSettings();
   const { signOut } = useAuth();
+  const isNarrow = useNarrowViewport();
   const now = useClock();
   const [rotationPaused, setRotationPaused] = useState(false);
   const [urnenPending, setUrnenPending] = useState<string | null>(null);
-  const [urnenError, setUrnenError] = useState<string | null>(null);
+  const [freigabePending, setFreigabePending] = useState<string | null>(null);
+  const [externActionError, setExternActionError] = useState<string | null>(null);
   const tabDurations = useMemo(
     () => wallDurationsFromSettings(settings.wallTabWechselSekunden),
     [settings.wallTabWechselSekunden]
@@ -64,6 +109,10 @@ export function WallPage() {
   const sterbefaelle = useMemo(
     () => filterAktiveSterbefaelle(sterbefaelleRaw),
     [sterbefaelleRaw]
+  );
+  const kalenderTermine7d = useMemo(
+    () => wallCalendarTabCount(sterbefaelleRaw, now),
+    [sterbefaelleRaw, now]
   );
 
   const { cfg, slots } = useMemo(
@@ -82,26 +131,43 @@ export function WallPage() {
   const urnenListe = useMemo(() => buildUrnenListe(sterbefaelle), [sterbefaelle]);
 
   async function handleRetour(docId: string, retourVon?: string) {
-    setUrnenError(null);
+    setExternActionError(null);
     setUrnenPending(docId);
     try {
       await markSterbefallUrnenRetour(docId, retourVon);
     } catch (e) {
-      setUrnenError(e instanceof Error ? e.message : 'Retour fehlgeschlagen');
+      setExternActionError(e instanceof Error ? e.message : 'Retour fehlgeschlagen');
     } finally {
       setUrnenPending(null);
     }
   }
 
   async function handleUrnenUndo(docId: string) {
-    setUrnenError(null);
+    setExternActionError(null);
     setUrnenPending(docId);
     try {
       await clearSterbefallUrnenRetour(docId);
     } catch (e) {
-      setUrnenError(e instanceof Error ? e.message : 'Rückgängig fehlgeschlagen');
+      setExternActionError(e instanceof Error ? e.message : 'Rückgängig fehlgeschlagen');
     } finally {
       setUrnenPending(null);
+    }
+  }
+
+  async function handleFreigabe(docId: string, bereitsFrei: boolean) {
+    setExternActionError(null);
+    setFreigabePending(docId);
+    try {
+      if (bereitsFrei) {
+        await clearSterbefallFreigabe(docId);
+      } else {
+        const datum = now.toLocaleDateString('de-AT');
+        await setSterbefallFreigabe(docId, datum);
+      }
+    } catch (e) {
+      setExternActionError(e instanceof Error ? e.message : 'Freigabe fehlgeschlagen');
+    } finally {
+      setFreigabePending(null);
     }
   }
 
@@ -149,7 +215,7 @@ export function WallPage() {
             hideSyncAge
           />
           {!rotationPaused && (
-            <span className="wall-tab-countdown" title="Zeit bis zum nächsten Tab">
+            <span className="wall-tab-countdown wall-tab-countdown--desktop" title="Zeit bis zum nächsten Tab">
               Tabwechsel in {secondsLeft}s
             </span>
           )}
@@ -170,13 +236,15 @@ export function WallPage() {
             className={`wall-view-tab ${view === v ? 'active' : ''} ${!rotationPaused && slide === i ? 'auto' : ''}`}
             onClick={() => goToSlide(i)}
           >
-            {v === 'kuehlraum'
-              ? `Kühlraum (${belegt}/${cfg.plaetze}${urnenListe.length > 0 ? ` · ${urnenListe.length} Urnen` : ''})`
-              : v === 'extern'
-                ? `Extern (${externTotal})`
-                : v === 'abholungen'
-                  ? `Heute (${heuteOffen.length})`
-                  : `Offen (${offene.length})`}
+            {formatWallTabLabel(v, isNarrow, {
+              belegt,
+              plaetze: cfg.plaetze,
+              urnen: urnenListe.length,
+              extern: externTotal,
+              kalender: kalenderTermine7d,
+              heute: heuteOffen.length,
+              offen: offene.length,
+            })}
           </button>
         ))}
       </div>
@@ -230,9 +298,9 @@ export function WallPage() {
               Verstorbene außerhalb des Firmenkühlraums, noch am Sterbeort oder im
               Krematorium
             </p>
-            {urnenError && (
+            {externActionError && (
               <p className="wall-retour-error" role="alert">
-                {urnenError}
+                {externActionError}
               </p>
             )}
             {externGruppen.length === 0 ? (
@@ -261,17 +329,36 @@ export function WallPage() {
                               {f.terminAm ? ` · ${f.terminAm}` : ''}
                             </span>
                           </div>
-                          {g.typ === 'kremation' && (
+                          <div className="wall-extern-actions">
                             <button
                               type="button"
-                              className="wall-retour-btn"
-                              disabled={urnenPending === f.docId}
-                              title="In Bereich Urnen unter Kühlraum übernehmen"
-                              onClick={() => void handleRetour(f.docId, f.kremationOrt)}
+                              className={`wall-freigabe-btn ${f.freigabeFrei ? 'is-frei' : ''}`}
+                              disabled={freigabePending === f.docId || urnenPending === f.docId}
+                              title={
+                                f.freigabeFrei
+                                  ? `Freigabe ${f.freigabeDatum ?? ''} — erneut tippen zum Zurücksetzen`
+                                  : 'Freigabe mit heutigem Datum erfassen'
+                              }
+                              onClick={() => void handleFreigabe(f.docId, !!f.freigabeFrei)}
                             >
-                              {urnenPending === f.docId ? '…' : 'Retour'}
+                              {freigabePending === f.docId
+                                ? '…'
+                                : f.freigabeFrei
+                                  ? f.freigabeDatum ?? 'Frei'
+                                  : 'Freigabe'}
                             </button>
-                          )}
+                            {g.typ === 'kremation' && (
+                              <button
+                                type="button"
+                                className="wall-retour-btn"
+                                disabled={urnenPending === f.docId || freigabePending === f.docId}
+                                title="In Bereich Urnen unter Kühlraum übernehmen"
+                                onClick={() => void handleRetour(f.docId, f.kremationOrt)}
+                              >
+                                {urnenPending === f.docId ? '…' : 'Retour'}
+                              </button>
+                            )}
+                          </div>
                         </li>
                       ))}
                     </ul>
@@ -279,6 +366,12 @@ export function WallPage() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {view === 'kalender' && (
+          <div className="wall-cal-stage">
+            <WallCalendarPanel sterbefaelle={sterbefaelleRaw} now={now} />
           </div>
         )}
 

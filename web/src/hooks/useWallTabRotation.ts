@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { WallTabWechselSekunden } from '../types/dispositionSettings';
 
-export type WallView = 'kuehlraum' | 'extern' | 'abholungen' | 'offen';
+export type WallView = 'kuehlraum' | 'extern' | 'kalender' | 'abholungen' | 'offen';
 
-export const WALL_VIEWS: WallView[] = ['kuehlraum', 'extern', 'abholungen', 'offen'];
+export const WALL_VIEWS: WallView[] = ['kuehlraum', 'extern', 'kalender', 'abholungen', 'offen'];
 
 const DEFAULT_SEC = 18;
 const MIN_SEC = 5;
@@ -21,6 +21,7 @@ export function wallDurationsFromSettings(
   return {
     kuehlraum: clampSec(raw?.kuehlraum ?? DEFAULT_SEC),
     extern: clampSec(raw?.extern ?? DEFAULT_SEC),
+    kalender: clampSec(raw?.kalender ?? DEFAULT_SEC),
     abholungen: clampSec(raw?.abholungen ?? DEFAULT_SEC),
     offen: clampSec(raw?.offen ?? DEFAULT_SEC),
   };
