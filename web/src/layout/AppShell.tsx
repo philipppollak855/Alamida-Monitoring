@@ -21,7 +21,10 @@ export function AppShell() {
           </div>
         </div>
         <nav className="topbar-nav" aria-label="Hauptnavigation">
-          <NavLink to="/" end className={({ isActive }) => (isActive ? 'nav-pill active' : 'nav-pill')}>
+          <NavLink
+            to="/disposition"
+            className={({ isActive }) => (isActive ? 'nav-pill active' : 'nav-pill')}
+          >
             Disposition
           </NavLink>
           <NavLink to="/wall" className={({ isActive }) => (isActive ? 'nav-pill active' : 'nav-pill')}>

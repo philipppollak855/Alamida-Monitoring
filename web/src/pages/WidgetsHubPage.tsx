@@ -37,7 +37,7 @@ export function WidgetsHubPage() {
           Kompakte Live-Ansichten für Windows Desktop und Android — ideal für Widget-Board,
           Startbildschirm-Shortcuts oder kleines App-Fenster.
         </p>
-        <Link to="/" className="btn-ghost">
+        <Link to="/disposition" className="btn-ghost">
           ← Disposition
         </Link>
       </header>

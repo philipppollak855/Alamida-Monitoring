@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { LiveDataBar } from '../components/LiveDataBar';
+import { useNarrowViewport } from '../hooks/useNarrowViewport';
 import { useCalendarDay } from '../hooks/useCalendarDay';
 import { useFirestoreCollection } from '../hooks/useFirestoreCollection';
 import { firebaseConfigured } from '../firebase';
@@ -22,6 +24,7 @@ import { matchEigenerKuehlraum } from '../settings/ortMatchers';
 import type { Sterbefall, MonitoringEvent } from '../types';
 
 export function BoardPage() {
+  const isNarrow = useNarrowViewport();
   const calendarDay = useCalendarDay();
   const { settings } = useDispositionSettings();
   const { items: sterbefaelleRaw, loading, error } =
@@ -113,13 +116,22 @@ export function BoardPage() {
   }
 
   return (
-    <div className="board">
+    <div className={`board ${isNarrow ? 'board--narrow' : ''}`}>
       <header className="board-hero">
         <div className="board-hero-text">
           <h1>Disposition</h1>
-          <p>Überführungen, Kühlraum und Verlauf — Echtzeit aus Alamida</p>
+          {!isNarrow && (
+            <p>Überführungen, Kühlraum und Verlauf — Echtzeit aus Alamida</p>
+          )}
         </div>
-        <LiveDataBar />
+        <div className="board-hero-actions">
+          <LiveDataBar compact={isNarrow} />
+          {isNarrow && (
+            <Link to="/wall" className="board-wall-link">
+              Wand
+            </Link>
+          )}
+        </div>
       </header>
 
       {error && <div className="alert alert-danger">{error}</div>}
@@ -155,7 +167,9 @@ export function BoardPage() {
           <div className="panel-head">
             <div>
               <h2>Offene Überführungen</h2>
-              <p>Abholung · Überführung · Kremation nach Überführungsorten</p>
+              {!isNarrow && (
+                <p>Abholung · Überführung · Kremation nach Überführungsorten</p>
+              )}
             </div>
             <div className="filter-tabs" role="tablist">
               {(['alle', 'heute', 'abholung'] as const).map((f) => (
@@ -280,7 +294,7 @@ export function BoardPage() {
             </section>
           )}
 
-          <section className="panel panel-feed">
+          <section className="panel panel-feed board-aside-feed">
             <div className="panel-head compact">
               <h2>Aktivität</h2>
             </div>
@@ -304,7 +318,9 @@ export function BoardPage() {
         <div className="panel-head">
           <div>
             <h2>Alle Fälle</h2>
-            <p>Verlauf und Endziel — Erde: Beisetzung · Urne: Krematorium</p>
+            {!isNarrow && (
+              <p>Verlauf und Endziel — Erde: Beisetzung · Urne: Krematorium</p>
+            )}
           </div>
           <span className="panel-badge">{sterbefaelle.length} Fälle</span>
         </div>

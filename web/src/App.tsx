@@ -1,4 +1,4 @@
-import { Outlet, Route, Routes } from 'react-router-dom';
+import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthProvider';
 import { SettingsProvider } from './settings/SettingsProvider';
 import { ThemeProvider } from './theme/ThemeProvider';
@@ -35,7 +35,8 @@ export function App() {
               </SettingsProvider>
             }
           >
-            <Route path="/" element={<BoardPage />} />
+            <Route path="/" element={<Navigate to="/wall" replace />} />
+            <Route path="/disposition" element={<BoardPage />} />
             <Route path="/wall" element={<WallPage />} />
             <Route path="/widgets" element={<WidgetsHubPage />} />
           </Route>

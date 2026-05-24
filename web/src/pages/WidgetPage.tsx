@@ -17,7 +17,7 @@ const TITLES: Record<WidgetKind, string> = {
 };
 
 const LINKS: Record<WidgetKind, string> = {
-  summary: '/',
+  summary: '/wall',
   kuehlraum: '/wall',
   extern: '/wall',
   heute: '/wall',

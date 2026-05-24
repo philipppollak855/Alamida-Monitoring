@@ -9,7 +9,7 @@ export function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
-  const from = (location.state as { from?: string } | null)?.from ?? '/';
+  const from = (location.state as { from?: string } | null)?.from ?? '/wall';
 
   if (status === 'activated') {
     return <Navigate to={from} replace />;

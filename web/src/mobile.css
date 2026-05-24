@@ -16,14 +16,174 @@
   }
 
   /* Disposition */
-  .board-hero {
-    flex-direction: column;
-    align-items: stretch;
+  .topbar {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      'brand theme'
+      'nav nav'
+      'user user';
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.5rem 0.65rem;
+  }
+
+  .topbar-brand {
+    grid-area: brand;
+    min-width: 0;
+  }
+
+  .topbar .theme-switch {
+    grid-area: theme;
+    justify-self: end;
+    margin-left: 0;
+  }
+
+  .topbar-nav {
+    grid-area: nav;
+    order: unset;
+    width: 100%;
+    margin-left: 0;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.3rem;
+  }
+
+  .topbar-nav .nav-pill {
+    padding: 0.4rem 0.35rem;
+    font-size: 0.72rem;
+    min-height: 40px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .user-menu {
+    grid-area: user;
+    order: unset;
+    width: 100%;
+    margin-left: 0;
+    padding-top: 0.35rem;
+    border-top: 1px solid var(--border);
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .user-menu-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .board--narrow {
     gap: 0.65rem;
   }
 
-  .board-hero-text p {
-    font-size: 0.85rem;
+  .board--narrow .board-hero {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.45rem;
+  }
+
+  .board--narrow .board-hero-text h1 {
+    font-size: 1.2rem;
+  }
+
+  .board-hero-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    margin-left: auto;
+  }
+
+  .board-wall-link {
+    flex-shrink: 0;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.38rem 0.55rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--accent);
+    background: var(--accent-dim);
+    color: var(--accent);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .board-wall-link:hover {
+    background: var(--accent);
+    color: var(--surface-solid, #fff);
+    text-decoration: none;
+  }
+
+  .board--narrow .settings-toggle-meta {
+    display: none;
+  }
+
+  .board--narrow .settings-toggle {
+    padding: 0.55rem 0.75rem;
+  }
+
+  .board--narrow .kpi-grid {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 0.4rem;
+    padding-bottom: 0.15rem;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+  }
+
+  .board--narrow .kpi-grid .stat-card {
+    flex: 0 0 min(30vw, 6.5rem);
+    scroll-snap-align: start;
+    padding: 0.55rem 0.6rem;
+  }
+
+  .board--narrow .stat-value {
+    font-size: 1.35rem;
+  }
+
+  .board--narrow .stat-hint {
+    display: none;
+  }
+
+  .board--narrow .stat-label {
+    font-size: 0.62rem;
+  }
+
+  .board--narrow .panel-head p {
+    display: none;
+  }
+
+  .board--narrow .panel-head {
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .board--narrow .board-aside {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+
+  .board--narrow .board-aside-feed {
+    display: none;
+  }
+
+  .board--narrow .board-grid {
+    gap: 0.65rem;
+  }
+
+  .board--narrow .panel {
+    padding: 0.85rem 0.75rem;
+  }
+
+  .board--narrow .transfer-card {
+    padding: 0.65rem 0.7rem;
   }
 
   .board-grid {
@@ -179,8 +339,31 @@
     padding: 0.32rem 0.38rem;
   }
 
-  .wall-link {
+  .wall-link:not(.wall-link--dispo) {
     display: none;
+  }
+
+  .wall-link--dispo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 0.35rem 0.5rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--accent);
+    background: var(--accent-dim);
+    color: var(--accent);
+    text-decoration: none;
+    white-space: nowrap;
+    min-height: 32px;
+  }
+
+  .wall-link--dispo:hover {
+    background: var(--accent);
+    color: var(--surface-solid, #fff);
+    text-decoration: none;
   }
 
   .wall-topbar-end .btn-small {
@@ -1033,7 +1216,7 @@
   }
 
   .topbar-nav {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .theme-switch-btn {

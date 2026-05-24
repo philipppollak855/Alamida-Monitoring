@@ -20,7 +20,7 @@ export default defineConfig({
         display: 'standalone',
         orientation: 'any',
         scope: '/',
-        start_url: '/',
+        start_url: '/wall',
         categories: ['business', 'medical', 'productivity'],
         shortcuts: [
           {
@@ -55,7 +55,7 @@ export default defineConfig({
             name: 'Disposition',
             short_name: 'Board',
             description: 'Disposition öffnen',
-            url: '/',
+            url: '/disposition',
             icons: [{ src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' }],
           },
         ],

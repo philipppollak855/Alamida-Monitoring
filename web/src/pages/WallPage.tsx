@@ -232,8 +232,11 @@ export function WallPage() {
               Tabwechsel in {secondsLeft}s
             </span>
           )}
-          <Link to="/" className="wall-link">
-            Disposition
+          <Link
+            to="/disposition"
+            className={`wall-link ${isNarrow ? 'wall-link--dispo' : ''}`}
+          >
+            {isNarrow ? 'Dispo' : 'Disposition'}
           </Link>
           <button type="button" className="btn-ghost btn-small" onClick={() => signOut()}>
             Abmelden
