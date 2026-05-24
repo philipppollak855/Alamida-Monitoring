@@ -521,6 +521,17 @@
   border-color: var(--border-strong);
 }
 
+[data-theme='alamida'] .board-section-nav {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: var(--border);
+}
+
+[data-theme='alamida'] .board-section-tab.active {
+  background: rgba(61, 122, 140, 0.12);
+  border-color: rgba(61, 122, 140, 0.35);
+  color: var(--accent);
+}
+
 @media (max-width: 768px) {
   [data-theme='alamida'] .wall-topbar {
     border-radius: 0;

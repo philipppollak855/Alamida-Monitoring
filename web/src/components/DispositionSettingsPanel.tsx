@@ -76,9 +76,9 @@ function emptyKuehlraum(): EigenerKuehlraumConfig {
   };
 }
 
-export function DispositionSettingsPanel() {
+export function DispositionSettingsPanel({ defaultOpen = false }: { defaultOpen?: boolean }) {
   const { settings, loading, saving, error, saveSettings } = useDispositionSettings();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [draft, setDraft] = useState<DispositionSettings>(() =>
     normalizeDispositionSettings(settings)
   );

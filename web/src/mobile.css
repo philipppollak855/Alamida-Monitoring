@@ -186,6 +186,56 @@
     padding: 0.65rem 0.7rem;
   }
 
+  .board--narrow.board-workspace {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'hero'
+      'nav'
+      'body';
+    gap: 0.65rem;
+  }
+
+  .board--narrow .board-section-nav {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    flex-direction: row;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    padding: 0.35rem;
+    gap: 0.3rem;
+  }
+
+  .board--narrow .board-section-tab {
+    flex: 0 0 auto;
+    width: auto;
+    scroll-snap-align: start;
+    padding: 0.5rem 0.7rem;
+    font-size: 0.72rem;
+    white-space: nowrap;
+  }
+
+  .board--narrow .board-overview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .board--narrow .board-overview-kpis.kpi-grid {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    grid-template-columns: unset;
+  }
+
+  .board--narrow .board-lager-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .board--narrow .board-wall-link--visible {
+    font-size: 0.72rem;
+    padding: 0.38rem 0.55rem;
+  }
+
   .app-shell {
     width: 100%;
     max-width: 100vw;
