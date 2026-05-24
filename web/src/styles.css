@@ -625,8 +625,9 @@ code {
 
 .transfer-date {
   font-family: var(--font-display);
-  font-weight: 600;
+  font-weight: 700;
   font-size: 0.95rem;
+  color: var(--text);
 }
 
 .transfer-person {
@@ -1433,13 +1434,13 @@ code {
   flex-shrink: 0;
   padding: 0.28rem 0.5rem;
   font-size: 0.65rem;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.03em;
   border-radius: 6px;
-  border: 1px solid rgba(134, 239, 172, 0.45);
-  background: rgba(34, 197, 94, 0.08);
-  color: #86efac;
+  border: 1px solid #15803d;
+  background: rgba(34, 197, 94, 0.22);
+  color: #bbf7d0;
   cursor: pointer;
   max-width: 5.5rem;
   white-space: nowrap;
@@ -1448,14 +1449,15 @@ code {
 }
 
 .wall-freigabe-btn:hover:not(:disabled) {
-  background: rgba(34, 197, 94, 0.18);
+  background: rgba(34, 197, 94, 0.35);
+  color: #ecfdf5;
 }
 
 .wall-freigabe-btn.is-frei {
-  border-color: rgba(34, 197, 94, 0.75);
-  background: rgba(34, 197, 94, 0.28);
-  color: #bbf7d0;
-  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.25);
+  border-color: #16a34a;
+  background: rgba(34, 197, 94, 0.45);
+  color: #ecfdf5;
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.35);
 }
 
 .wall-freigabe-btn:disabled {
@@ -1495,9 +1497,10 @@ code {
 }
 
 .wall-freigabe-ok {
-  border-color: rgba(34, 197, 94, 0.55);
-  color: #86efac;
-  background: rgba(34, 197, 94, 0.15);
+  border-color: #15803d;
+  color: #ecfdf5;
+  background: rgba(34, 197, 94, 0.4);
+  font-weight: 700;
 }
 
 .wall-freigabe-cancel {
@@ -1509,18 +1512,19 @@ code {
   flex-shrink: 0;
   padding: 0.28rem 0.55rem;
   font-size: 0.68rem;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   border-radius: 6px;
-  border: 1px solid rgba(251, 191, 36, 0.55);
-  background: rgba(251, 191, 36, 0.15);
-  color: #fbbf24;
+  border: 1px solid #d97706;
+  background: rgba(251, 191, 36, 0.28);
+  color: #fde68a;
   cursor: pointer;
 }
 
 .wall-retour-btn:hover:not(:disabled) {
-  background: rgba(251, 191, 36, 0.28);
+  background: rgba(251, 191, 36, 0.42);
+  color: #fffbeb;
 }
 
 .wall-retour-btn:disabled {
@@ -1609,17 +1613,17 @@ code {
   flex-shrink: 0;
   padding: 0.28rem 0.5rem;
   font-size: 0.68rem;
-  font-weight: 600;
+  font-weight: 700;
   border-radius: 6px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--muted);
+  border: 1px solid var(--border-strong);
+  background: var(--surface-solid);
+  color: var(--text);
   cursor: pointer;
 }
 
 .urnen-undo-btn:hover:not(:disabled) {
-  border-color: rgba(77, 159, 255, 0.45);
-  color: var(--text);
+  border-color: rgba(77, 159, 255, 0.55);
+  background: var(--surface-hover);
 }
 
 .urnen-undo-btn:disabled {

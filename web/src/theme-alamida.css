@@ -466,9 +466,70 @@
   box-shadow: 0 8px 32px rgba(42, 72, 78, 0.12);
 }
 
+[data-theme='alamida'] .transfer-date {
+  color: #1a3340;
+}
+
+[data-theme='alamida'] .wall-freigabe-btn {
+  color: #14532d;
+  background: #dcfce7;
+  border-color: #16a34a;
+}
+
+[data-theme='alamida'] .wall-freigabe-btn:hover:not(:disabled) {
+  background: #bbf7d0;
+  color: #052e16;
+}
+
+[data-theme='alamida'] .wall-freigabe-btn.is-frei {
+  color: #fff;
+  background: #16a34a;
+  border-color: #15803d;
+}
+
+[data-theme='alamida'] .wall-freigabe-date {
+  color: var(--text);
+  background: #fff;
+  border-color: var(--border-strong);
+}
+
+[data-theme='alamida'] .wall-freigabe-ok {
+  color: #fff;
+  background: #16a34a;
+  border-color: #15803d;
+}
+
+[data-theme='alamida'] .wall-freigabe-cancel {
+  color: var(--text);
+  background: #fff;
+}
+
+[data-theme='alamida'] .wall-retour-btn {
+  color: #78350f;
+  background: #fde68a;
+  border-color: #d97706;
+}
+
+[data-theme='alamida'] .wall-retour-btn:hover:not(:disabled) {
+  background: #fcd34d;
+  color: #451a03;
+}
+
+[data-theme='alamida'] .urnen-undo-btn {
+  color: #2a4048;
+  background: #fff;
+  border-color: var(--border-strong);
+}
+
 @media (max-width: 768px) {
   [data-theme='alamida'] .wall-topbar {
     border-radius: 0;
     margin-bottom: 0;
+  }
+
+  [data-theme='alamida'] .main-content {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
   }
 }
