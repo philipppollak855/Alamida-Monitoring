@@ -99,10 +99,12 @@ public sealed class WatcherLoop
             }
             var flush = await _offlineQueue.FlushAsync(_firestore, ct);
             if (flush.Failed > 0 && flush.LastError != null)
-                LogSyncError(flush.LastError, "Flush vor manuellem Sync");
+                LogSyncError(flush.LastError, "Queue-Flush");
             _tracker.Register(snapshot);
 
-            var result = await _firestore.SyncSnapshotAsync(snapshot, sterbefallWechsel: false, ct);
+            var result = await FirestoreRetry.ExecuteAsync(
+                () => _firestore.SyncSnapshotAsync(snapshot, sterbefallWechsel: false, ct),
+                ct);
             var id = result.SterbefallId ?? SterbefallTracker.Schluessel(snapshot) ?? "?";
             var maske = snapshot.QuelleMaske == "neuer_sterbefall" ? "Neuer Sterbefall" : "Detail";
             SetStatus("Manuell: " + result.FormatTrayStatus(id, maske));
@@ -195,7 +197,9 @@ public sealed class WatcherLoop
                             if (flush.Failed > 0 && flush.LastError != null)
                                 LogSyncError(flush.LastError, "Queue-Flush");
 
-                            var result = await _firestore.SyncSnapshotAsync(snapshot, fallWechsel, ct);
+                            var result = await FirestoreRetry.ExecuteAsync(
+                                () => _firestore.SyncSnapshotAsync(snapshot, fallWechsel, ct),
+                                ct);
                             var id = result.SterbefallId
                                 ?? SterbefallTracker.Schluessel(snapshot)
                                 ?? "?";
@@ -215,10 +219,11 @@ public sealed class WatcherLoop
                             LogSyncError(syncEx, $"Sync {SterbefallTracker.Schluessel(snapshot)}");
                             ErrorOccurred?.Invoke(syncEx);
                             var pending = _offlineQueue.PendingCount;
-                            SetStatus(
-                                pending > 1
-                                    ? $"{FormatSyncErrorStatus(syncEx)} ({pending} in Queue)"
-                                    : FormatSyncErrorStatus(syncEx));
+                            var queueHint = pending > 0 ? $" ({pending} in Queue)" : "";
+                            var retryHint = FirestoreRetry.IsTransient(syncEx)
+                                ? " — Firestore-Limit, wird verzögert nachversucht"
+                                : "";
+                            SetStatus($"{FormatSyncErrorStatus(syncEx)}{queueHint}{retryHint}");
                         }
                     }
                     else

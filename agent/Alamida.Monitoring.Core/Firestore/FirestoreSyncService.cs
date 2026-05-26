@@ -44,7 +44,9 @@ public sealed class FirestoreSyncService : IAsyncDisposable
         DocumentSnapshot existing;
         try
         {
-            existing = await sterbefallRef.GetSnapshotAsync(ct);
+            existing = await FirestoreRetry.ExecuteAsync(
+                () => sterbefallRef.GetSnapshotAsync(ct),
+                ct);
         }
         catch (Exception ex)
         {
