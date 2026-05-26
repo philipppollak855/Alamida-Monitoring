@@ -30,6 +30,43 @@ function linesToText(items: string[]): string {
   return items.join('\n');
 }
 
+function keywordsEqual(a: string[], b: string[]): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+/** Textarea für Keywords — Enter erlaubt neue Zeile (kein sofortiges Zurücksetzen leerer Zeilen). */
+function KeywordsTextarea({
+  value,
+  onChange,
+  rows = 4,
+}: {
+  value: string[];
+  onChange: (v: string[]) => void;
+  rows?: number;
+}) {
+  const [text, setText] = useState(() => linesToText(value));
+
+  useEffect(() => {
+    if (!keywordsEqual(parseLines(text), value)) {
+      setText(linesToText(value));
+    }
+  }, [value, text]);
+
+  return (
+    <textarea
+      className="settings-textarea"
+      rows={rows}
+      value={text}
+      onChange={(e) => {
+        const next = e.target.value;
+        setText(next);
+        onChange(parseLines(next));
+      }}
+      spellCheck={false}
+    />
+  );
+}
+
 function KeywordSection({
   title,
   hint,
@@ -43,9 +80,6 @@ function KeywordSection({
   value: string[];
   onChange: (v: string[]) => void;
 }) {
-  const [text, setText] = useState(linesToText(value));
-  useEffect(() => setText(linesToText(value)), [value]);
-
   return (
     <div className="settings-block">
       <div className="settings-block-head">
@@ -53,16 +87,7 @@ function KeywordSection({
         <span className="settings-count">{count} Einträge</span>
       </div>
       <p className="settings-hint">{hint}</p>
-      <textarea
-        className="settings-textarea"
-        rows={4}
-        value={text}
-        onChange={(e) => {
-          setText(e.target.value);
-          onChange(parseLines(e.target.value));
-        }}
-        spellCheck={false}
-      />
+      <KeywordsTextarea value={value} onChange={onChange} rows={4} />
     </div>
   );
 }
@@ -296,35 +321,35 @@ export function DispositionSettingsPanel({ defaultOpen = false }: { defaultOpen?
 
               <KeywordSection
                 title="Kremation / Krematorium"
-                hint="Enthält-Match mit Wortgrenzen bei kurzen Keywords (min. 2 Zeichen)"
+                hint="Ein Keyword pro Zeile (Enter). Enthält-Match, min. 2 Zeichen."
                 count={normalizedDraft.kremationKeywords.length}
                 value={draft.kremationKeywords}
                 onChange={(kremationKeywords) => setDraft((d) => ({ ...d, kremationKeywords }))}
               />
               <KeywordSection
                 title="Krankenhaus — Präfixe"
-                hint="Ortsname beginnt mit … (Groß/Kleinschreibung egal)"
+                hint="Ein Präfix pro Zeile (Enter). Ortsname beginnt mit …"
                 count={normalizedDraft.krankenhausPrefixe.length}
                 value={draft.krankenhausPrefixe}
                 onChange={(krankenhausPrefixe) => setDraft((d) => ({ ...d, krankenhausPrefixe }))}
               />
               <KeywordSection
                 title="Krankenhaus — Keywords"
-                hint="Enthält im Ortsnamen"
+                hint="Ein Keyword pro Zeile (Enter). Enthält im Ortsnamen."
                 count={normalizedDraft.krankenhausKeywords.length}
                 value={draft.krankenhausKeywords}
                 onChange={(krankenhausKeywords) => setDraft((d) => ({ ...d, krankenhausKeywords }))}
               />
               <KeywordSection
                 title="Pflegeheim — Keywords (Extern-Wand)"
-                hint="Badge „Pflegeheim“ auf Extern-Karten (z. B. Senecura)"
+                hint="Ein Keyword pro Zeile (Enter). Badge „Pflegeheim“ (z. B. Senecura)."
                 count={normalizedDraft.pflegeheimKeywords.length}
                 value={draft.pflegeheimKeywords}
                 onChange={(pflegeheimKeywords) => setDraft((d) => ({ ...d, pflegeheimKeywords }))}
               />
               <KeywordSection
                 title="Bestattung — Keywords (Extern-Wand)"
-                hint="Badge „Bestattung“ auf Extern-Karten"
+                hint="Ein Keyword pro Zeile (Enter). Badge „Bestattung“ auf Extern-Karten."
                 count={normalizedDraft.bestattungKeywords.length}
                 value={draft.bestattungKeywords}
                 onChange={(bestattungKeywords) => setDraft((d) => ({ ...d, bestattungKeywords }))}
@@ -379,14 +404,11 @@ export function DispositionSettingsPanel({ defaultOpen = false }: { defaultOpen?
                       />
                     </label>
                     <label>
-                      Erkennungs-Keywords (je Zeile oder Komma)
-                      <textarea
-                        className="settings-textarea"
+                      Erkennungs-Keywords (Enter = neue Zeile, auch Komma)
+                      <KeywordsTextarea
+                        value={kr.matchKeywords}
+                        onChange={(matchKeywords) => updateKuehlraum(index, { matchKeywords })}
                         rows={3}
-                        value={linesToText(kr.matchKeywords)}
-                        onChange={(e) =>
-                          updateKuehlraum(index, { matchKeywords: parseLines(e.target.value) })
-                        }
                       />
                     </label>
                     {draft.eigeneKuehlraeume.length > 1 && (
