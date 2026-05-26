@@ -1,11 +1,26 @@
-import type { OffeneUeberfuehrungRow } from '../../board/boardUtils';
+import type { OffeneUeberfuehrungRow } from '../../types';
 import { EndzielChip, SchrittBadge, StatusChip } from '../../ui/SchrittBadge';
 import { RouteFlow } from '../../ui/RouteFlow';
+import { WallUeberfuehrungErledigtBtn } from '../WallUeberfuehrungErledigtBtn';
 
-export function TransferCardItem({ row }: { row: OffeneUeberfuehrungRow }) {
+type Props = {
+  row: OffeneUeberfuehrungRow;
+  showErledigt?: boolean;
+  erledigtDisabled?: boolean;
+  onToggleErledigt?: () => void;
+};
+
+export function TransferCardItem({
+  row,
+  showErledigt,
+  erledigtDisabled,
+  onToggleErledigt,
+}: Props) {
   return (
     <article
-      className={`transfer-card transfer-${row.schrittTyp} status-${row.status}`}
+      className={`transfer-card transfer-${row.schrittTyp} status-${row.status}${
+        row.erledigt ? ' is-erledigt' : ''
+      }`}
     >
       <div className="transfer-card-top">
         <time className="transfer-date">{row.terminAm}</time>
@@ -26,6 +41,13 @@ export function TransferCardItem({ row }: { row: OffeneUeberfuehrungRow }) {
           row.abholortIstKrankenhaus && (
             <span className="chip chip-muted">Krankenhaus</span>
           )}
+        {showErledigt && onToggleErledigt && (
+          <WallUeberfuehrungErledigtBtn
+            erledigt={row.erledigt}
+            disabled={erledigtDisabled}
+            onClick={onToggleErledigt}
+          />
+        )}
       </div>
     </article>
   );

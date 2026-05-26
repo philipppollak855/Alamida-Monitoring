@@ -74,6 +74,11 @@ service cloud.firestore {
         && request.resource.data.historieGrund == 'manuell_entfernt';
     }
 
+    function sterbefallErledigtUpdateOnly() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['erledigteUeberfuehrungenZeilen']);
+    }
+
     match /sterbefaelle/{id} {
       allow read: if isActivatedUser();
       allow update: if isActivatedUser()
@@ -81,6 +86,7 @@ service cloud.firestore {
           (sterbefallUrnenUpdateOnly() && (sterbefallUrnenSet() || sterbefallUrnenClear()))
           || (sterbefallFreigabeUpdateOnly() && (sterbefallFreigabeSet() || sterbefallFreigabeClear()))
           || (sterbefallDispositionRemoveOnly() && sterbefallDispositionRemoveValid())
+          || sterbefallErledigtUpdateOnly()
         );
       allow create, delete: if false;
     }

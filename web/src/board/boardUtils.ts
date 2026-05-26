@@ -3,6 +3,7 @@ import type { EigenerKuehlraumConfig } from '../types/dispositionSettings';
 import { getPrimaererKuehlraum } from '../settings/dispositionSettingsStore';
 import { matchEigenerKuehlraum } from '../settings/ortMatchers';
 import { resolveAusstehendStatus } from './ausstehendStatus';
+import { isUeberfuehrungZeileErledigt } from './ueberfuehrungErledigt';
 import { parseDatumDe } from './dateUtils';
 import { isImEigenenKuehlraum } from './kuehlraumLogic';
 
@@ -13,12 +14,18 @@ export function flattenOffene(sterbefaelle: Sterbefall[]): OffeneUeberfuehrungRo
   for (const s of sterbefaelle) {
     const id = s.sterbefallId ?? s.id;
     const name = s.verstorbenerName ?? id;
+    let zeilenFallback = 0;
     for (const a of s.ausstehend ?? []) {
+      zeilenFallback += 1;
+      const zeile = a.zeile ?? zeilenFallback;
       const terminAm = a.terminAm ?? a.abholungAm ?? 'ohne Datum';
       const status = resolveAusstehendStatus(terminAm, a.status ?? 'geplant');
       if (status === 'vergangen') continue;
 
       rows.push({
+        docId: s.id,
+        zeile,
+        erledigt: isUeberfuehrungZeileErledigt(s, zeile),
         sterbefallId: id,
         name,
         schrittTyp: a.schrittTyp ?? 'ueberfuehrung',

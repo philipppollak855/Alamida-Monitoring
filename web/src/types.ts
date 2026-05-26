@@ -77,6 +77,8 @@ export interface Sterbefall {
   freigabeFrei?: boolean;
   freigabeDatum?: string;
   freigabeAm?: { seconds: number };
+  /** Wand/Disposition: erledigte Zeilen aus ausstehend (Zeilennummer). */
+  erledigteUeberfuehrungenZeilen?: number[];
   lastSeenAt?: { seconds: number };
   updatedAt?: { seconds: number };
 }
@@ -106,6 +108,9 @@ export interface MonitoringEvent {
 }
 
 export interface OffeneUeberfuehrungRow {
+  docId: string;
+  zeile: number;
+  erledigt?: boolean;
   sterbefallId: string;
   name: string;
   schrittTyp: string;

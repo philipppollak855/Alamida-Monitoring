@@ -1919,6 +1919,57 @@ code {
   padding: 1rem 1.5rem;
 }
 
+.wall-big-row.is-erledigt {
+  background: var(--success-dim);
+  border-color: color-mix(in srgb, var(--success) 55%, var(--border));
+}
+
+.wall-big-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.65rem;
+}
+
+.wall-erledigt-btn {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.45rem 0.85rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-elevated);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.wall-erledigt-btn:hover:not(:disabled) {
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.wall-erledigt-btn.is-erledigt {
+  background: var(--success-dim);
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.wall-erledigt-btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.transfer-card.is-erledigt {
+  background: var(--success-dim);
+  border-color: color-mix(in srgb, var(--success) 50%, var(--border));
+}
+
+.transfer-card.is-erledigt .transfer-card-foot .wall-erledigt-btn {
+  margin-left: auto;
+}
+
 .wall-big-row time {
   font-family: var(--font-display);
   font-weight: 700;

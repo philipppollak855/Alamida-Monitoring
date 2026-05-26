@@ -19,7 +19,9 @@ import {
 import { filterAktiveSterbefaelle } from '../board/historieLogic';
 import { buildUrnenListe, countUrnen } from '../board/urnenLogic';
 import { UrnenBereichPanel } from '../components/UrnenBereichPanel';
+import { getErledigteZeilen } from '../board/ueberfuehrungErledigt';
 import { removeSterbefallFromDisposition } from '../services/dispositionFall';
+import { toggleUeberfuehrungErledigt } from '../services/ueberfuehrungErledigt';
 import { clearSterbefallUrnenRetour } from '../services/urnenRetour';
 import { DispositionSettingsPanel } from '../components/DispositionSettingsPanel';
 import { EndzielChip, SchrittBadge } from '../ui/SchrittBadge';
@@ -77,8 +79,14 @@ export function BoardPage() {
   const [urnenError, setUrnenError] = useState<string | null>(null);
   const [removePending, setRemovePending] = useState<string | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
+  const [erledigtPending, setErledigtPending] = useState<string | null>(null);
+  const [erledigtError, setErledigtError] = useState<string | null>(null);
 
   const offene = useMemo(() => flattenOffene(sterbefaelle), [sterbefaelle, calendarDay]);
+  const sterbefallByDocId = useMemo(
+    () => new Map(sterbefaelle.map((s) => [s.id, s])),
+    [sterbefaelle]
+  );
   const stats = useMemo(() => boardStats(sterbefaelle, offene), [sterbefaelle, offene, calendarDay]);
   const { cfg: grafenbachCfg, slots: grafenbachSlots } = useMemo(
     () => buildPrimaerKuehlraumSlots(sterbefaelle),
@@ -171,6 +179,27 @@ export function BoardPage() {
       setUrnenError(e instanceof Error ? e.message : 'Rückgängig fehlgeschlagen');
     } finally {
       setUrnenPending(null);
+    }
+  }
+
+  async function toggleErledigt(
+    docId: string,
+    zeile: number,
+    currentlyErledigt: boolean
+  ) {
+    const key = `${docId}:${zeile}`;
+    setErledigtError(null);
+    setErledigtPending(key);
+    try {
+      const s = sterbefallByDocId.get(docId);
+      const zeilen = s ? getErledigteZeilen(s) : [];
+      await toggleUeberfuehrungErledigt(docId, zeile, zeilen, currentlyErledigt);
+    } catch (e) {
+      setErledigtError(
+        e instanceof Error ? e.message : 'Erledigt-Markierung fehlgeschlagen'
+      );
+    } finally {
+      setErledigtPending(null);
     }
   }
 
@@ -283,9 +312,20 @@ export function BoardPage() {
                   <p className="board-overview-empty">Keine Termine heute.</p>
                 ) : (
                   <div className="board-overview-preview">
-                    {heuteOffene.slice(0, 3).map((r, i) => (
-                      <TransferCardItem key={`heute-${r.sterbefallId}-${i}`} row={r} />
-                    ))}
+                    {heuteOffene.slice(0, 3).map((r) => {
+                      const pendingKey = `${r.docId}:${r.zeile}`;
+                      return (
+                        <TransferCardItem
+                          key={`heute-${pendingKey}`}
+                          row={r}
+                          showErledigt
+                          erledigtDisabled={erledigtPending === pendingKey}
+                          onToggleErledigt={() =>
+                            void toggleErledigt(r.docId, r.zeile, !!r.erledigt)
+                          }
+                        />
+                      );
+                    })}
                   </div>
                 )}
               </section>
@@ -404,15 +444,38 @@ export function BoardPage() {
               </div>
             </div>
 
+            {erledigtError && (
+              <p className="board-inline-error" role="alert">
+                {erledigtError}
+              </p>
+            )}
             {loading && sterbefaelle.length === 0 ? (
               <div className="empty-state">Lade Fälle…</div>
             ) : filteredOffene.length === 0 ? (
               <div className="empty-state">Keine offenen Schritte in dieser Ansicht.</div>
             ) : (
               <div className="transfer-list">
-                {filteredOffene.map((r, i) => (
-                  <TransferCardItem key={`${r.sterbefallId}-${r.terminAm}-${i}`} row={r} />
-                ))}
+                {filteredOffene.map((r) => {
+                  const pendingKey = `${r.docId}:${r.zeile}`;
+                  return (
+                    <TransferCardItem
+                      key={pendingKey}
+                      row={r}
+                      showErledigt={filter === 'heute'}
+                      erledigtDisabled={erledigtPending === pendingKey}
+                      onToggleErledigt={
+                        filter === 'heute'
+                          ? () =>
+                              void toggleErledigt(
+                                r.docId,
+                                r.zeile,
+                                !!r.erledigt
+                              )
+                          : undefined
+                      }
+                    />
+                  );
+                })}
               </div>
             )}
           </section>

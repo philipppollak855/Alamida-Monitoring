@@ -30,6 +30,9 @@ import { SchrittBadge } from '../ui/SchrittBadge';
 import { RouteFlow } from '../ui/RouteFlow';
 import { WallCalendarPanel, wallCalendarTabCount } from '../components/WallCalendarPanel';
 import { WallFreigabeControl } from '../components/WallFreigabeControl';
+import { WallUeberfuehrungErledigtBtn } from '../components/WallUeberfuehrungErledigtBtn';
+import { getErledigteZeilen } from '../board/ueberfuehrungErledigt';
+import { toggleUeberfuehrungErledigt } from '../services/ueberfuehrungErledigt';
 import { useNarrowViewport } from '../hooks/useNarrowViewport';
 import { useWallEdgeSwipe } from '../hooks/useWallEdgeSwipe';
 import type { Sterbefall } from '../types';
@@ -95,6 +98,7 @@ export function WallPage() {
   const [rotationPaused, setRotationPaused] = useState(false);
   const [urnenPending, setUrnenPending] = useState<string | null>(null);
   const [freigabePending, setFreigabePending] = useState<string | null>(null);
+  const [erledigtPending, setErledigtPending] = useState<string | null>(null);
   const [externActionError, setExternActionError] = useState<string | null>(null);
   const tabDurations = useMemo(
     () => wallDurationsFromSettings(settings.wallTabWechselSekunden),
@@ -130,6 +134,10 @@ export function WallPage() {
   const externTotal = useMemo(() => externGesamt(externGruppen), [externGruppen]);
   const offene = useMemo(() => flattenOffene(sterbefaelle), [sterbefaelle, calendarDay]);
   const heuteOffen = useMemo(() => offene.filter((o) => o.status === 'heute'), [offene, calendarDay]);
+  const sterbefallByDocId = useMemo(
+    () => new Map(sterbefaelle.map((s) => [s.id, s])),
+    [sterbefaelle]
+  );
   const belegt = slots.filter(Boolean).length;
   const kuehlraumRows = Math.max(1, Math.ceil(cfg.plaetze / 3));
   const urnenListe = useMemo(() => buildUrnenListe(sterbefaelle), [sterbefaelle]);
@@ -179,6 +187,27 @@ export function WallPage() {
       setExternActionError(e instanceof Error ? e.message : 'Freigabe fehlgeschlagen');
     } finally {
       setFreigabePending(null);
+    }
+  }
+
+  async function toggleErledigt(
+    docId: string,
+    zeile: number,
+    currentlyErledigt: boolean
+  ) {
+    const key = `${docId}:${zeile}`;
+    setExternActionError(null);
+    setErledigtPending(key);
+    try {
+      const s = sterbefallByDocId.get(docId);
+      const zeilen = s ? getErledigteZeilen(s) : [];
+      await toggleUeberfuehrungErledigt(docId, zeile, zeilen, currentlyErledigt);
+    } catch (e) {
+      setExternActionError(
+        e instanceof Error ? e.message : 'Erledigt-Markierung fehlgeschlagen'
+      );
+    } finally {
+      setErledigtPending(null);
     }
   }
 
@@ -418,21 +447,36 @@ export function WallPage() {
 
         {view === 'abholungen' && (
           <div className="wall-list-stage">
-            <h2 className="wall-stage-title">Abholungen & Termine heute</h2>
+            <h2 className="wall-stage-title">Heutige Überführungen</h2>
             {heuteOffen.length === 0 ? (
               <p className="wall-empty">Keine Termine für heute</p>
             ) : (
               <div className="wall-big-list">
-                {heuteOffen.map((r, i) => (
-                  <article key={i} className="wall-big-row">
-                    <time>{r.terminAm}</time>
-                    <div className="wall-big-main">
-                      <span className="wall-big-name">{r.name}</span>
-                      <RouteFlow von={r.vonOrt} nach={r.nachOrt} />
-                    </div>
-                    <SchrittBadge typ={r.schrittTyp} />
-                  </article>
-                ))}
+                {heuteOffen.map((r) => {
+                  const pendingKey = `${r.docId}:${r.zeile}`;
+                  return (
+                    <article
+                      key={pendingKey}
+                      className={`wall-big-row${r.erledigt ? ' is-erledigt' : ''}`}
+                    >
+                      <time>{r.terminAm}</time>
+                      <div className="wall-big-main">
+                        <span className="wall-big-name">{r.name}</span>
+                        <RouteFlow von={r.vonOrt} nach={r.nachOrt} />
+                      </div>
+                      <div className="wall-big-row-actions">
+                        <SchrittBadge typ={r.schrittTyp} />
+                        <WallUeberfuehrungErledigtBtn
+                          erledigt={r.erledigt}
+                          disabled={erledigtPending === pendingKey}
+                          onClick={() =>
+                            void toggleErledigt(r.docId, r.zeile, !!r.erledigt)
+                          }
+                        />
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             )}
           </div>
