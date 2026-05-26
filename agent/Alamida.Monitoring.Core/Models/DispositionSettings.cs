@@ -33,7 +33,11 @@ public sealed class DispositionSettings
                 Id = "grafenbach",
                 Label = "Firmenkühlraum Grafenbach",
                 AlamidaName = "Kühlr. Grafenbach",
-                MatchKeywords = ["grafenbach", "kühlr. grafenbach", "kuehlr. grafenbach"],
+                MatchKeywords =
+                [
+                    "grafenbach", "kühlr. grafenbach", "kuehlr. grafenbach",
+                    "kühl. grafenbach", "kuehl. grafenbach",
+                ],
                 Plaetze = 9,
             },
         ],

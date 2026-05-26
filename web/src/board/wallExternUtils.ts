@@ -1,4 +1,5 @@
 import type { AusstehendEintrag, Sterbefall } from '../types';
+import { getEffectiveAusstehend, schrittZielIstEigeneKr } from './ausstehendEffective';
 import { istInHistory } from './historieLogic';
 import {
   canonicalKrankenhausAnzeigeLabel,
@@ -62,7 +63,7 @@ function isAktiv(s: Sterbefall): boolean {
 }
 
 function hatOffeneAbholungVomSterbeort(s: Sterbefall): boolean {
-  return (s.ausstehend ?? []).some(
+  return getEffectiveAusstehend(s).some(
     (a) =>
       a.istAbholungVomSterbeort ||
       a.status === 'abholung_noetig' ||
@@ -71,7 +72,7 @@ function hatOffeneAbholungVomSterbeort(s: Sterbefall): boolean {
 }
 
 function naechsterSchritt(s: Sterbefall) {
-  const offen = (s.ausstehend ?? []).filter(
+  const offen = getEffectiveAusstehend(s).filter(
     (a) => a.status === 'abholung_noetig' || isAusstehendHeuteOrGeplant(a)
   );
   return offen[0];
@@ -92,7 +93,7 @@ function istOffenerAusstehendSchritt(a: AusstehendEintrag): boolean {
 }
 
 function findeKremationSchritt(s: Sterbefall): ExternSchrittRef | undefined {
-  const kremAusstehend = (s.ausstehend ?? []).find(
+  const kremAusstehend = getEffectiveAusstehend(s).find(
     (a) => a.schrittTyp === 'kremation' && istOffenerAusstehendSchritt(a)
   );
   if (kremAusstehend) return kremAusstehend;
@@ -115,7 +116,7 @@ function naechsterKremationSchritt(s: Sterbefall): ExternSchrittRef | undefined 
 
 /** Erster offener Schritt, der nicht Kremation ist (für KH/Pflegeheim-Hinweise). */
 function naechsterNichtKremationSchritt(s: Sterbefall): ExternSchrittRef | undefined {
-  return (s.ausstehend ?? []).find(
+  return getEffectiveAusstehend(s).find(
     (a) => a.schrittTyp !== 'kremation' && istOffenerAusstehendSchritt(a)
   );
 }
@@ -142,7 +143,7 @@ function hatKremationExternBezug(s: Sterbefall): boolean {
   if (istAktuellImKrematorium(s)) return true;
   if (s.naechsterSchrittTyp === 'kremation') return true;
   if (s.endzielTyp === 'kremation' || (s.endziel && istKrematorium(s.endziel))) return true;
-  return (s.ausstehend ?? []).some(
+  return getEffectiveAusstehend(s).some(
     (a) =>
       a.schrittTyp === 'kremation' &&
       (a.status === 'abholung_noetig' || isAusstehendHeuteOrGeplant(a))
@@ -217,18 +218,9 @@ function khVonAusUeberfuehrungstext(vonRaw?: string): string | null {
   return istKrankenhaus(candidate) ? candidate : null;
 }
 
-function schrittZielIstEigeneKr(a: {
-  vonOrt?: string;
-  nachOrt?: string;
-}): boolean {
-  if (zielIstEigenerKuehlraum(a.nachOrt)) return true;
-  const route = parseUeberfuehrungRoute(a.vonOrt ?? '');
-  return zielIstEigenerKuehlraum(route.nach ?? undefined);
-}
-
 /** UK/KH → eigenes KR, Termin heute oder geplant (nicht nur „ab morgen“). */
 function hatOffeneKhUeberfuehrungInsEigeneKr(s: Sterbefall): boolean {
-  return (s.ausstehend ?? []).some((a) => {
+  return getEffectiveAusstehend(s).some((a) => {
     if (!schrittZielIstEigeneKr(a)) return false;
     if (!khVonAusUeberfuehrungstext(a.vonOrt)) return false;
     return a.status === 'abholung_noetig' || isAusstehendHeuteOrGeplant(a);
@@ -248,7 +240,7 @@ function istExternKrankenhausFall(s: Sterbefall): boolean {
   if (pos && istKrankenhaus(pos)) return true;
 
   if (
-    (s.ausstehend ?? []).some((a) => {
+    getEffectiveAusstehend(s).some((a) => {
       if (!schrittZielIstEigeneKr(a)) return false;
       return !!khVonAusUeberfuehrungstext(a.vonOrt);
     })
@@ -256,10 +248,25 @@ function istExternKrankenhausFall(s: Sterbefall): boolean {
     return true;
   }
 
+  const naechsterVon = s.naechsterSchrittVon?.trim();
+  if (
+    naechsterVon &&
+    khVonAusUeberfuehrungstext(naechsterVon) &&
+    (s.naechsterSchrittTyp === 'abholung' || s.naechsterSchrittTyp === 'ueberfuehrung') &&
+    (schrittZielIstEigeneKr({
+      vonOrt: naechsterVon,
+      nachOrt: s.naechsterSchrittNach,
+    }) ||
+      hatKhRouteZuEigeneKrInFall(s))
+  ) {
+    return true;
+  }
+
   if (s.aktuellePositionTyp === 'sterbeort' || hatAusstehendeUeberfuehrungInsEigeneKr(s)) {
     const khOrt = s.abholort;
     if (khOrt && istKrankenhaus(khOrt)) return true;
-    if ((s.ausstehend ?? []).some((a) => khVonAusUeberfuehrungstext(a.vonOrt))) return true;
+    if (getEffectiveAusstehend(s).some((a) => khVonAusUeberfuehrungstext(a.vonOrt)))
+      return true;
   }
 
   if (
@@ -297,7 +304,7 @@ function istExternKrankenhausFall(s: Sterbefall): boolean {
 }
 
 function normalizeEigenerKrZiel(s: Sterbefall): string | null {
-  for (const a of s.ausstehend ?? []) {
+  for (const a of getEffectiveAusstehend(s)) {
     if (zielIstEigenerKuehlraum(a.nachOrt)) return (a.nachOrt ?? '').trim().toLowerCase();
   }
   if (zielIstEigenerKuehlraum(s.naechsterSchrittNach)) {

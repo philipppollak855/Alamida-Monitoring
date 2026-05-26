@@ -2,6 +2,9 @@ namespace Alamida.Monitoring.Core.Models;
 
 public sealed record DetailSnapshot
 {
+    /// <summary>Erhöhen erzwingt einmalig volle Firestore-Synchronisation nach Agent-Update.</summary>
+    public const int SyncPayloadVersion = 2;
+
     public string? SterbefallId { get; init; }
     public string? VerstorbenerName { get; init; }
     public string? VerstorbenerVorname { get; init; }
@@ -61,6 +64,7 @@ public sealed record DetailSnapshot
             Ausstehend.Select(a =>
                 $"{a.Zeile}|{a.SchrittTyp}|{a.VonOrt}|{a.NachOrt}|{a.TerminAm}|{a.Status}"));
         return string.Join("|",
+            SyncPayloadVersion.ToString(),
             QuelleMaske ?? "",
             ErfassungsPhase ?? "",
             SterbefallId ?? "",

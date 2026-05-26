@@ -97,8 +97,16 @@ public static class UeberfuehrungSnapshotBuilder
 
 
         // Sterbeort nur aus Abholung (Tab Termine, Zeile 1) — nicht aus „Angabe zum Sterbeort“ (Verstorbener).
-        var abholort = UeberfuehrungTypResolver.AbholortAusErsterZeile(
-            schritte.FirstOrDefault(s => s.SchrittTyp == "abholung")?.VonOrt);
+        var ersteAbholung = schritte.FirstOrDefault(s => s.SchrittTyp == "abholung");
+        var abholort = UeberfuehrungTypResolver.AbholortAusErsterZeile(ersteAbholung?.VonOrt);
+        if (string.IsNullOrWhiteSpace(abholort) && ersteAbholung != null)
+        {
+            var routeText = string.Join(
+                " nach ",
+                new[] { ersteAbholung.VonOrt, ersteAbholung.NachOrt }
+                    .Where(x => !string.IsNullOrWhiteSpace(x)));
+            abholort = UeberfuehrungTypResolver.AbholortAusErsterZeile(routeText);
+        }
         if (string.IsNullOrWhiteSpace(abholort))
             abholort = InferKhAbholortAusSchritten(schritte);
         var abholortIstKh = UeberfuehrungTypResolver.IstKrankenhausAbholort(abholort);

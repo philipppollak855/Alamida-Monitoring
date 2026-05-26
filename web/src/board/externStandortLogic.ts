@@ -1,4 +1,5 @@
 import type { Sterbefall } from '../types';
+import { getEffectiveAusstehend, schrittZielIstEigeneKr } from './ausstehendEffective';
 import { parseUeberfuehrungRoute } from './routeParse';
 import { zielIstEigenerKuehlraum } from './kuehlraumLogic';
 import { canonicalKrankenhausAnzeigeLabel } from '../settings/krankenhausOrt';
@@ -15,8 +16,8 @@ export function istExternerAbholort(ort?: string): boolean {
 }
 
 function ausstehendeKrSchritte(s: Sterbefall) {
-  return (s.ausstehend ?? []).filter(
-    (a) => zielIstEigenerKuehlraum(a.nachOrt) && isAusstehendHeuteOrGeplant(a)
+  return getEffectiveAusstehend(s).filter(
+    (a) => schrittZielIstEigeneKr(a) && isAusstehendHeuteOrGeplant(a)
   );
 }
 

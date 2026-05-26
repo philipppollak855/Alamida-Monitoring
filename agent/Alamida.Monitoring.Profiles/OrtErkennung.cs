@@ -53,7 +53,7 @@ public static class OrtErkennung
             }
         }
 
-        if (Regex.IsMatch(ort, @"kühlr\.?|kuehlr\.?", RegexOptions.IgnoreCase) &&
+        if (Regex.IsMatch(ort, @"kühlr?\.?|kuehlr?\.?", RegexOptions.IgnoreCase) &&
             _cfg.EigeneKuehlraeume.Count > 0)
             return _cfg.EigeneKuehlraeume[0];
 

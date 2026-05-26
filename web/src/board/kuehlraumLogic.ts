@@ -1,4 +1,5 @@
 import type { Sterbefall } from '../types';
+import { getEffectiveAusstehend, schrittZielIstEigeneKr } from './ausstehendEffective';
 import { isAusstehendHeuteOrGeplant } from './ausstehendStatus';
 import { matchEigenerKuehlraum } from '../settings/ortMatchers';
 import { parseDatumDe } from './dateUtils';
@@ -24,8 +25,8 @@ export function zielIstEigenerKuehlraum(nachOrt?: string): boolean {
 export function hatAusstehendeUeberfuehrungInsEigeneKr(s: Sterbefall): boolean {
   if (istAktuellImKrematorium(s)) return false;
 
-  return (s.ausstehend ?? []).some((a) => {
-    if (!zielIstEigenerKuehlraum(a.nachOrt)) return false;
+  return getEffectiveAusstehend(s).some((a) => {
+    if (!schrittZielIstEigeneKr(a)) return false;
     const termin = a.terminAm ?? a.abholungAm;
     if (!termin?.trim()) return true;
     return parseDatumDe(termin) > startOfTodayMs();
@@ -100,7 +101,7 @@ export function isAmKrankenhausOderSterbeort(s: Sterbefall): boolean {
 
   if (hatAusstehendeUeberfuehrungInsEigeneKr(s)) return true;
 
-  const hatOffeneKhAbholung = (s.ausstehend ?? []).some(
+  const hatOffeneKhAbholung = getEffectiveAusstehend(s).some(
     (a) =>
       a.istAbholungVomSterbeort ||
       a.status === 'abholung_noetig' ||

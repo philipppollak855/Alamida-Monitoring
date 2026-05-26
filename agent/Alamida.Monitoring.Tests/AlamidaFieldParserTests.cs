@@ -28,4 +28,14 @@ public sealed class AlamidaFieldParserTests
 
         Assert.Null(id);
     }
+
+    [Fact]
+    public void ParseUeberfuehrungText_uk_nach_kuehlgrafenbach()
+    {
+        var (von, nach, _) = AlamidaFieldParser.ParseUeberfuehrungText(
+            "UK - Wiener Neustadt nach Kühl. Grafenbach");
+
+        Assert.Equal("UK - Wiener Neustadt", von);
+        Assert.Equal("Kühl. Grafenbach", nach);
+    }
 }

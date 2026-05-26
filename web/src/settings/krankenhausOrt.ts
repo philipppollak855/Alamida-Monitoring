@@ -1,5 +1,6 @@
 import type { Sterbefall } from '../types';
 import type { DispositionSettings } from '../types/dispositionSettings';
+import { getAbholungSchrittRef, getEffectiveAusstehend } from '../board/ausstehendEffective';
 import { isAusstehendHeuteOrGeplant } from '../board/ausstehendStatus';
 import { parseUeberfuehrungRoute } from '../board/routeParse';
 import { getDispositionSettings } from './dispositionSettingsStore';
@@ -206,12 +207,19 @@ export function collectAbholungSterbeortKandidaten(s: Sterbefall): string[] {
 
   add(s.abholort, true);
 
-  const abholungSchritt = (s.ausstehend ?? []).find(
-    (a) => a.schrittTyp === 'abholung' || a.zeile === 1
-  );
+  const abholungSchritt = getAbholungSchrittRef(s);
   if (abholungSchritt?.vonOrt) add(abholungSchritt.vonOrt, true);
+  if (abholungSchritt?.nachOrt) add(abholungSchritt.nachOrt, true);
 
-  const textSource = [s.abholort, abholungSchritt?.vonOrt].filter(Boolean).join('\n');
+  const textSource = [
+    s.abholort,
+    abholungSchritt?.vonOrt,
+    abholungSchritt?.nachOrt,
+    s.naechsterSchrittVon,
+    s.naechsterSchrittNach,
+  ]
+    .filter(Boolean)
+    .join('\n');
   for (const ukName of extractUkKlinikFromTexts(textSource)) {
     add(ukName, true);
   }
@@ -267,7 +275,7 @@ function collectFallRouteTexte(s: Sterbefall): string[] {
   push(s.naechsterSchrittNach);
   push(s.naechsteUeberfuehrungVon);
   push(s.naechsteUeberfuehrungNach);
-  for (const a of s.ausstehend ?? []) {
+  for (const a of getEffectiveAusstehend(s)) {
     push(a.vonOrt);
     push(a.nachOrt);
   }
@@ -318,7 +326,7 @@ export function hatKhRouteZuEigeneKrInFall(s: Sterbefall): boolean {
 
 /** Von-UK bei offener Überführung ins eigene KR (heute/geplant). */
 function resolvePendingKhVonForEigeneKr(s: Sterbefall, cfg: DispositionSettings): string | null {
-  for (const a of s.ausstehend ?? []) {
+  for (const a of getEffectiveAusstehend(s)) {
     const vonRaw = a.vonOrt?.trim();
     const nachRaw = a.nachOrt?.trim();
     const route = parseUeberfuehrungRoute(vonRaw ?? '');

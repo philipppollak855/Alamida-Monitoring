@@ -133,7 +133,7 @@ export function matchEigenerKuehlraumOrt(
       if (keywordMatchesText(ort, kw)) return kr;
     }
   }
-  const generic = /kühlr\.?|kuehlr\.?/i;
+  const generic = /kühlr?\.?|kuehlr?\.?/i;
   if (generic.test(ort) && settings.eigeneKuehlraeume.length > 0) {
     return settings.eigeneKuehlraeume[0];
   }
