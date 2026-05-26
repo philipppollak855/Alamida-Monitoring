@@ -42,6 +42,8 @@ export interface ExternFallEintrag {
   terminAm?: string;
   /** Nur bei typ kremation — Retour → Urnen */
   kremationOrt?: string;
+  /** Retour nur wenn physisch im Krematorium (nicht bei „Wartend“ / geplant). */
+  kremationRetourErlaubt?: boolean;
   freigabeFrei?: boolean;
   freigabeDatum?: string;
 }
@@ -477,6 +479,8 @@ export function buildExternGruppen(sterbefaelle: Sterbefall[]): ExternOrtGruppe[
           ? terminFuerSchritt(kremSchritt)
           : terminFuerSchritt(n) ?? s.naechsterSchrittAm,
       kremationOrt: standort.typ === 'kremation' ? displayOrt : undefined,
+      kremationRetourErlaubt:
+        standort.typ === 'kremation' ? istAktuellImKrematorium(s) : undefined,
       freigabeFrei: s.freigabeFrei === true,
       freigabeDatum: s.freigabeDatum?.trim() || undefined,
     });

@@ -421,7 +421,7 @@ export function WallPage() {
                                 onClear={clearFreigabe}
                               />
                             )}
-                            {g.typ === 'kremation' && (
+                            {g.typ === 'kremation' && f.kremationRetourErlaubt && (
                               <button
                                 type="button"
                                 className="wall-retour-btn"
