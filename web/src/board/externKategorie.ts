@@ -48,3 +48,8 @@ export function externKategorieGruppenKey(typ: ExternKartenKategorie, ort: strin
   const basis = ort.trim().toLowerCase().replace(/\s+/g, ' ');
   return `${typ}:${basis}`;
 }
+
+/** Freigabe-Button auf Extern-Karten (KH, Pflegeheim, Bestattung). */
+export function externKategorieHatFreigabe(typ: ExternKartenKategorie): boolean {
+  return typ === 'krankenhaus' || typ === 'pflegeheim' || typ === 'bestattung';
+}

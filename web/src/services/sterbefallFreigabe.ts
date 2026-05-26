@@ -1,7 +1,7 @@
 import { deleteField, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 
-/** Freigabe am Wandmonitor Extern erfassen (Kalendertag heute, de-AT). */
+/** Freigabe am Wandmonitor Extern (Krankenhaus, Pflegeheim, Bestattung). */
 export async function setSterbefallFreigabe(docId: string, datum: string): Promise<void> {
   if (!db) throw new Error('Firebase nicht konfiguriert');
 

@@ -31,7 +31,7 @@ import {
 } from './externKategorie';
 
 export type { ExternKartenKategorie } from './externKategorie';
-export { externKategorieBadgeLabel };
+export { externKategorieBadgeLabel, externKategorieHatFreigabe } from './externKategorie';
 
 export interface ExternFallEintrag {
   docId: string;

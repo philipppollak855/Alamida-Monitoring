@@ -13,6 +13,7 @@ import {
   buildExternGruppen,
   externGesamt,
   externKategorieBadgeLabel,
+  externKategorieHatFreigabe,
 } from '../board/wallExternUtils';
 import { UrnenBereichPanel } from '../components/UrnenBereichPanel';
 import { buildUrnenListe } from '../board/urnenLogic';
@@ -387,7 +388,7 @@ export function WallPage() {
                         <li
                           key={f.docId}
                           className={`wall-extern-person ${
-                            g.typ === 'krankenhaus'
+                            externKategorieHatFreigabe(g.typ)
                               ? f.freigabeFrei
                                 ? 'is-frei-erfasst'
                                 : 'is-nicht-frei'
@@ -399,7 +400,7 @@ export function WallPage() {
                             <span className="wall-extern-meta">
                               {f.hinweis}
                               {f.terminAm ? ` · ${f.terminAm}` : ''}
-                              {g.typ === 'krankenhaus' &&
+                              {externKategorieHatFreigabe(g.typ) &&
                               f.freigabeFrei &&
                               f.freigabeDatum
                                 ? ` · Freigabe ${f.freigabeDatum}`
@@ -407,7 +408,7 @@ export function WallPage() {
                             </span>
                           </div>
                           <div className="wall-extern-actions">
-                            {g.typ === 'krankenhaus' && (
+                            {externKategorieHatFreigabe(g.typ) && (
                               <WallFreigabeControl
                                 docId={f.docId}
                                 freigabeFrei={f.freigabeFrei}
