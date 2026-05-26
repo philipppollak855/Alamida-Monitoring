@@ -3,6 +3,8 @@ import { getDispositionSettings } from './dispositionSettingsStore';
 import {
   istKrematoriumOrt,
   istKrankenhausOrt,
+  istPflegeheimOrt,
+  istBestattungOrt,
   matchEigenerKuehlraumOrt,
   classifyOrt,
 } from './recognitionEngine';
@@ -31,6 +33,16 @@ export function istKrematorium(ort?: string, settings?: DispositionSettings): bo
 export function istKrankenhaus(ort?: string, settings?: DispositionSettings): boolean {
   if (!ort?.trim()) return false;
   return istKrankenhausOrt(ort, settings ?? getDispositionSettings());
+}
+
+export function istPflegeheim(ort?: string, settings?: DispositionSettings): boolean {
+  if (!ort?.trim()) return false;
+  return istPflegeheimOrt(ort, settings ?? getDispositionSettings());
+}
+
+export function istBestattung(ort?: string, settings?: DispositionSettings): boolean {
+  if (!ort?.trim()) return false;
+  return istBestattungOrt(ort, settings ?? getDispositionSettings());
 }
 
 export function matchEigenerKuehlraum(

@@ -60,6 +60,8 @@ public sealed class DispositionSettingsLoader
         var krem = ReadStringList(snap, "kremationKeywords");
         var pref = ReadStringList(snap, "krankenhausPrefixe");
         var kh = ReadStringList(snap, "krankenhausKeywords");
+        var ph = ReadStringList(snap, "pflegeheimKeywords");
+        var best = ReadStringList(snap, "bestattungKeywords");
         var kuehl = ReadKuehlraeume(snap);
 
         return new DispositionSettings
@@ -67,6 +69,8 @@ public sealed class DispositionSettingsLoader
             KremationKeywords = krem.Count > 0 ? krem : d.KremationKeywords,
             KrankenhausPrefixe = pref.Count > 0 ? pref : d.KrankenhausPrefixe,
             KrankenhausKeywords = kh.Count > 0 ? kh : d.KrankenhausKeywords,
+            PflegeheimKeywords = ph.Count > 0 ? ph : d.PflegeheimKeywords,
+            BestattungKeywords = best.Count > 0 ? best : d.BestattungKeywords,
             EigeneKuehlraeume = kuehl.Count > 0 ? kuehl : d.EigeneKuehlraeume,
         };
     }

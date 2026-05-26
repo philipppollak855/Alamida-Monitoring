@@ -9,7 +9,11 @@ import { firebaseConfigured } from '../firebase';
 import { buildPrimaerKuehlraumSlots, flattenOffene } from '../board/boardUtils';
 import { useDispositionSettings } from '../settings/SettingsProvider';
 import { filterAktiveSterbefaelle } from '../board/historieLogic';
-import { buildExternGruppen, externGesamt } from '../board/wallExternUtils';
+import {
+  buildExternGruppen,
+  externGesamt,
+  externKategorieBadgeLabel,
+} from '../board/wallExternUtils';
 import { UrnenBereichPanel } from '../components/UrnenBereichPanel';
 import { buildUrnenListe } from '../board/urnenLogic';
 import {
@@ -373,7 +377,7 @@ export function WallPage() {
                   >
                     <header className="wall-extern-card-head">
                       <span className={`wall-extern-badge wall-extern-badge--${g.typ}`}>
-                        {g.typ === 'krankenhaus' ? 'Krankenhaus' : 'Kremation'}
+                        {externKategorieBadgeLabel(g.typ)}
                       </span>
                       <h3 className="wall-extern-ort">{g.ort}</h3>
                       <span className="wall-extern-count">{g.faelle.length}</span>

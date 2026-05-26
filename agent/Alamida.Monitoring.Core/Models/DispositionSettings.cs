@@ -5,6 +5,8 @@ public sealed class DispositionSettings
     public List<string> KremationKeywords { get; init; } = [];
     public List<string> KrankenhausPrefixe { get; init; } = [];
     public List<string> KrankenhausKeywords { get; init; } = [];
+    public List<string> PflegeheimKeywords { get; init; } = [];
+    public List<string> BestattungKeywords { get; init; } = [];
     public List<EigenerKuehlraumConfig> EigeneKuehlraeume { get; init; } = [];
 
     public static DispositionSettings Default => new()
@@ -15,11 +17,9 @@ public sealed class DispositionSettings
             "einaescherung", "feuerbestattung", "einäscherungsanlage",
         ],
         KrankenhausPrefixe = ["UK ", "UK-", "KH ", "KH-", "KH."],
-        KrankenhausKeywords =
-        [
-            "krankenhaus", "spital", "klinik", "landesklinik",
-            "senecura", "pflegeheim", "altenheim", "hospiz", "pflege",
-        ],
+        KrankenhausKeywords = ["krankenhaus", "spital", "klinik", "landesklinik"],
+        PflegeheimKeywords = ["senecura", "pflegeheim", "altenheim", "hospiz", "pflege"],
+        BestattungKeywords = ["bestattung", "bestatter", "trauerhalle", "bestattungsinstitut"],
         EigeneKuehlraeume =
         [
             new EigenerKuehlraumConfig

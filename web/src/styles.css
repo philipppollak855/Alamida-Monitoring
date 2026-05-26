@@ -1583,6 +1583,18 @@ code {
   border-top: 3px solid var(--violet);
 }
 
+.wall-extern-card--pflegeheim {
+  border-top: 3px solid var(--accent);
+}
+
+.wall-extern-card--bestattung {
+  border-top: 3px solid var(--muted);
+}
+
+.wall-extern-card--extern {
+  border-top: 3px solid var(--border);
+}
+
 .wall-extern-card-head {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -1608,6 +1620,18 @@ code {
 
 .wall-extern-badge--kremation {
   color: var(--violet);
+}
+
+.wall-extern-badge--pflegeheim {
+  color: var(--accent);
+}
+
+.wall-extern-badge--bestattung {
+  color: var(--muted);
+}
+
+.wall-extern-badge--extern {
+  color: var(--text);
 }
 
 .wall-extern-ort {

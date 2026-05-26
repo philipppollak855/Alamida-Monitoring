@@ -21,6 +21,10 @@ export interface DispositionSettings {
   kremationKeywords: string[];
   krankenhausPrefixe: string[];
   krankenhausKeywords: string[];
+  /** Extern-Wand: Pflegeheim / Senecura … */
+  pflegeheimKeywords: string[];
+  /** Extern-Wand: Bestattung / Bestatter … */
+  bestattungKeywords: string[];
   eigeneKuehlraeume: EigenerKuehlraumConfig[];
   /** Wandmonitor: Sekunden pro Tab bis zum nächsten Übergang */
   wallTabWechselSekunden?: WallTabWechselSekunden;

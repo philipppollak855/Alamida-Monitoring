@@ -56,6 +56,16 @@ export function normalizeDispositionSettings(
         ? raw.krankenhausKeywords
         : DEFAULT_DISPOSITION_SETTINGS.krankenhausKeywords
     ),
+    pflegeheimKeywords: dedupeKeywords(
+      raw.pflegeheimKeywords?.length
+        ? raw.pflegeheimKeywords
+        : DEFAULT_DISPOSITION_SETTINGS.pflegeheimKeywords
+    ),
+    bestattungKeywords: dedupeKeywords(
+      raw.bestattungKeywords?.length
+        ? raw.bestattungKeywords
+        : DEFAULT_DISPOSITION_SETTINGS.bestattungKeywords
+    ),
     eigeneKuehlraeume,
     wallTabWechselSekunden,
     updatedAt: raw.updatedAt,

@@ -60,6 +60,8 @@ function normalizeForCompare(s: DispositionSettings) {
     kremationKeywords: [...s.kremationKeywords].sort(),
     krankenhausPrefixe: [...s.krankenhausPrefixe].sort(),
     krankenhausKeywords: [...s.krankenhausKeywords].sort(),
+    pflegeheimKeywords: [...s.pflegeheimKeywords].sort(),
+    bestattungKeywords: [...s.bestattungKeywords].sort(),
     wallTabWechselSekunden: s.wallTabWechselSekunden,
     eigeneKuehlraeume: s.eigeneKuehlraeume.map((k) => ({
       id: k.id,

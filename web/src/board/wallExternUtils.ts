@@ -23,6 +23,15 @@ import {
   hatAusstehendeUeberfuehrungVonExternemOrt,
   resolveExternAbholOrtLabel,
 } from './externStandortLogic';
+import {
+  classifyExternKartenKategorie,
+  externKategorieBadgeLabel,
+  externKategorieGruppenKey,
+  type ExternKartenKategorie,
+} from './externKategorie';
+
+export type { ExternKartenKategorie } from './externKategorie';
+export { externKategorieBadgeLabel };
 
 export interface ExternFallEintrag {
   docId: string;
@@ -38,7 +47,7 @@ export interface ExternFallEintrag {
 
 export interface ExternOrtGruppe {
   key: string;
-  typ: 'krankenhaus' | 'kremation';
+  typ: ExternKartenKategorie;
   ort: string;
   faelle: ExternFallEintrag[];
 }
@@ -64,13 +73,13 @@ function naechsterSchritt(s: Sterbefall) {
   return offen[0];
 }
 
-function hinweisFuerFall(s: Sterbefall, typ: 'krankenhaus' | 'kremation'): string {
+function hinweisFuerFall(s: Sterbefall, typ: ExternKartenKategorie): string {
   const n = naechsterSchritt(s);
   if (n && isAusstehendHeute(n)) return 'Termin heute';
   if (n?.status === 'abholung_noetig') return 'Abholung ausstehend';
 
   // Noch am KH/Sterbeort — vor „Überführung ohne Datum“, auch wenn KR-Überführung vorgebucht ist
-  if (typ === 'krankenhaus') {
+  if (typ !== 'kremation') {
     if (s.aktuellePositionTyp === 'sterbeort' || isAmKrankenhausOderSterbeort(s)) {
       return 'Am Sterbeort';
     }
@@ -183,10 +192,10 @@ function inferNamedKhKeyForGenericFall(
 function resolveKrankenhausStandort(
   s: Sterbefall,
   alle: Sterbefall[]
-): { typ: 'krankenhaus'; ort: string } | null {
+): { typ: ExternKartenKategorie; ort: string } | null {
   if (!istExternKrankenhausFall(s)) return null;
 
-  let ort = resolveKrankenhausOrtForFall(s);
+  let ort = resolveKrankenhausOrtForFall(s) ?? resolveExternAbholOrtLabel(s);
   if (!ort?.trim()) return null;
 
   if (isGenericKrankenhausKey(krankenhausOrtKey(ort))) {
@@ -211,7 +220,7 @@ function resolveKrankenhausStandort(
     }
   }
 
-  return { typ: 'krankenhaus', ort: ort.trim() };
+  return { typ: classifyExternKartenKategorie(ort), ort: ort.trim() };
 }
 
 /** Fälle mit nur „UK“/„KH“ der passenden benannten KH-Karte zuordnen (auch bei mehreren Kliniken). */
@@ -344,7 +353,7 @@ export function buildExternGruppen(sterbefaelle: Sterbefall[]): ExternOrtGruppe[
     const key =
       standort.typ === 'krankenhaus'
         ? `krankenhaus:${krankenhausOrtKey(standort.ort)}`
-        : `${standort.typ}:${ortLabel(standort.ort).toLowerCase()}`;
+        : externKategorieGruppenKey(standort.typ, standort.ort);
     const id = s.sterbefallId ?? s.id;
     const name = s.verstorbenerName ?? id;
     const n = naechsterSchritt(s);
@@ -385,8 +394,18 @@ export function buildExternGruppen(sterbefaelle: Sterbefall[]): ExternOrtGruppe[
 
   gruppen = mergeOrphanGenericKhGruppen(gruppen, sterbefaelle);
 
+  const typOrder: Record<ExternKartenKategorie, number> = {
+    krankenhaus: 0,
+    pflegeheim: 1,
+    bestattung: 2,
+    extern: 3,
+    kremation: 4,
+  };
+
   return gruppen.sort((a, b) => {
-    if (a.typ !== b.typ) return a.typ === 'krankenhaus' ? -1 : 1;
+    const oa = typOrder[a.typ] ?? 9;
+    const ob = typOrder[b.typ] ?? 9;
+    if (oa !== ob) return oa - ob;
     return a.ort.localeCompare(b.ort, 'de');
   });
 }

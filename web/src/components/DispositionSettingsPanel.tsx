@@ -199,6 +199,20 @@ export function DispositionSettingsPanel({ defaultOpen = false }: { defaultOpen?
                       {testErgebnis.krankenhaus && (
                         <span className="chip chip-warn">Krankenhaus</span>
                       )}
+                      {testErgebnis.pflegeheim && (
+                        <span className="chip chip-success">Pflegeheim</span>
+                      )}
+                      {testErgebnis.bestattung && (
+                        <span className="chip chip-muted">Bestattung</span>
+                      )}
+                      {!testErgebnis.kremation &&
+                        !testErgebnis.krankenhaus &&
+                        !testErgebnis.pflegeheim &&
+                        !testErgebnis.bestattung &&
+                        !testErgebnis.eigenerKuehlraum &&
+                        testOrt.trim() && (
+                          <span className="chip">Extern</span>
+                        )}
                       {testErgebnis.eigenerKuehlraum && (
                         <span className="chip chip-success">
                           {testErgebnis.eigenerKuehlraum.label}
@@ -300,6 +314,20 @@ export function DispositionSettingsPanel({ defaultOpen = false }: { defaultOpen?
                 count={normalizedDraft.krankenhausKeywords.length}
                 value={draft.krankenhausKeywords}
                 onChange={(krankenhausKeywords) => setDraft((d) => ({ ...d, krankenhausKeywords }))}
+              />
+              <KeywordSection
+                title="Pflegeheim — Keywords (Extern-Wand)"
+                hint="Badge „Pflegeheim“ auf Extern-Karten (z. B. Senecura)"
+                count={normalizedDraft.pflegeheimKeywords.length}
+                value={draft.pflegeheimKeywords}
+                onChange={(pflegeheimKeywords) => setDraft((d) => ({ ...d, pflegeheimKeywords }))}
+              />
+              <KeywordSection
+                title="Bestattung — Keywords (Extern-Wand)"
+                hint="Badge „Bestattung“ auf Extern-Karten"
+                count={normalizedDraft.bestattungKeywords.length}
+                value={draft.bestattungKeywords}
+                onChange={(bestattungKeywords) => setDraft((d) => ({ ...d, bestattungKeywords }))}
               />
 
               <div className="settings-block">

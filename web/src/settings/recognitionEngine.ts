@@ -4,6 +4,8 @@ export type OrtErkennungErgebnis = {
   ort: string;
   kremation: boolean;
   krankenhaus: boolean;
+  pflegeheim: boolean;
+  bestattung: boolean;
   eigenerKuehlraum: EigenerKuehlraumConfig | null;
   treffer: string[];
 };
@@ -67,6 +69,14 @@ export function istKrankenhausOrt(ort: string, settings: DispositionSettings): b
   return settings.krankenhausKeywords.some((kw) => keywordMatchesText(ort, kw));
 }
 
+export function istPflegeheimOrt(ort: string, settings: DispositionSettings): boolean {
+  return settings.pflegeheimKeywords.some((kw) => keywordMatchesText(ort, kw));
+}
+
+export function istBestattungOrt(ort: string, settings: DispositionSettings): boolean {
+  return settings.bestattungKeywords.some((kw) => keywordMatchesText(ort, kw));
+}
+
 export function matchEigenerKuehlraumOrt(
   ort: string,
   settings: DispositionSettings
@@ -121,10 +131,34 @@ export function classifyOrt(ort: string, settings: DispositionSettings): OrtErke
     }
   }
 
+  let pflegeheim = false;
+  for (const kw of settings.pflegeheimKeywords) {
+    if (keywordMatchesText(trimmed, kw)) {
+      pflegeheim = true;
+      treffer.push(`Pflegeheim: „${kw}"`);
+    }
+  }
+
+  let bestattung = false;
+  for (const kw of settings.bestattungKeywords) {
+    if (keywordMatchesText(trimmed, kw)) {
+      bestattung = true;
+      treffer.push(`Bestattung: „${kw}"`);
+    }
+  }
+
   const eigenerKuehlraum = matchEigenerKuehlraumOrt(trimmed, settings);
   if (eigenerKuehlraum) {
     treffer.push(`Eigener KR: ${eigenerKuehlraum.label}`);
   }
 
-  return { ort: trimmed, kremation, krankenhaus, eigenerKuehlraum, treffer };
+  return {
+    ort: trimmed,
+    kremation,
+    krankenhaus,
+    pflegeheim,
+    bestattung,
+    eigenerKuehlraum,
+    treffer,
+  };
 }

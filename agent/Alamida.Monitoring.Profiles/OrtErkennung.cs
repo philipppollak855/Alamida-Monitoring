@@ -27,6 +27,14 @@ public static class OrtErkennung
         return _cfg.KrankenhausKeywords.Any(kw => KeywordEntspricht(ort, kw));
     }
 
+    public static bool IstPflegeheim(string? ort) =>
+        !string.IsNullOrWhiteSpace(ort) &&
+        _cfg.PflegeheimKeywords.Any(kw => KeywordEntspricht(ort, kw));
+
+    public static bool IstBestattung(string? ort) =>
+        !string.IsNullOrWhiteSpace(ort) &&
+        _cfg.BestattungKeywords.Any(kw => KeywordEntspricht(ort, kw));
+
     public static EigenerKuehlraumConfig? MatchEigenerKuehlraum(string? ort)
     {
         if (string.IsNullOrWhiteSpace(ort)) return null;
@@ -69,6 +77,8 @@ public static class OrtErkennung
         KremationKeywords = Dedupe(s.KremationKeywords),
         KrankenhausPrefixe = Dedupe(s.KrankenhausPrefixe),
         KrankenhausKeywords = Dedupe(s.KrankenhausKeywords),
+        PflegeheimKeywords = Dedupe(s.PflegeheimKeywords),
+        BestattungKeywords = Dedupe(s.BestattungKeywords),
         EigeneKuehlraeume = s.EigeneKuehlraeume.Select(kr => new EigenerKuehlraumConfig
         {
             Id = kr.Id,
