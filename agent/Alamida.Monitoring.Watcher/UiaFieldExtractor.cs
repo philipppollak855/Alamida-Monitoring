@@ -74,10 +74,16 @@ public static class UiaFieldExtractor
                 var aid = UiaValueReader.SafeGet(() => el.AutomationId) ?? "";
                 if (!AutomationIdMatches(aid, locator, fieldKey)) continue;
 
-                var score = LongestMatchingPatternLength(aid, locator);
+                var elName = UiaValueReader.SafeGet(() => el.Name) ?? "";
                 var val = UiaValueReader.Read(el);
+                if (!NameOrValueMatchesLocator(elName, val, locator)) continue;
                 if (string.IsNullOrWhiteSpace(val)) continue;
                 val = val.Trim();
+
+                if (fieldKey == "sterbefallHeader" && !MaskDetector.LooksLikeSterbefallHeader(val))
+                    continue;
+
+                var score = LongestMatchingPatternLength(aid, locator);
 
                 if (UeberfuehrungSnapshotBuilder.TryParseDatum(val, out _))
                 {
@@ -126,5 +132,14 @@ public static class UiaFieldExtractor
         }
 
         return best;
+    }
+
+    private static bool NameOrValueMatchesLocator(string name, string? value, FieldLocator locator)
+    {
+        if (locator.NameContains.Count == 0) return true;
+
+        return locator.NameContains.Any(term =>
+            name.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+            (value?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false));
     }
 }

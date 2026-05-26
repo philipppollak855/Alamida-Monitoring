@@ -7,7 +7,7 @@
       "maxEtappen": 6,
       "fields": {
         "sterbefallHeader": {
-          "automationIdContains": ["Layout Object: 287303"],
+          "automationIdContains": ["Layout Object:"],
           "nameContains": ["|"],
           "controlTypes": ["Text"]
         },
@@ -17,7 +17,9 @@
             "Sterbeort_",
             "Todesort",
             "Verstorben_Ort",
-            "Verstorben_ Sterbeort"
+            "Verstorben_ Sterbeort",
+            "SD_Sterbeort",
+            "SD_Sterbeort_komplett"
           ],
           "nameContains": ["Sterbeort"],
           "controlTypes": ["Edit", "ComboBox", "Text"]
@@ -184,7 +186,7 @@
     "detectAutomationIdContains": ["Neuer_Sterbefall", "Sterbefall_Neu", "Neu_Sterbefall"],
     "fields": {
       "sterbefallHeader": {
-        "automationIdContains": ["Layout Object: 287303", "Sterbefall_Nr"],
+        "automationIdContains": ["Layout Object:", "Sterbefall_Nr"],
         "nameContains": ["|"],
         "controlTypes": ["Text"]
       },
@@ -206,7 +208,14 @@
         "controlTypes": ["Edit", "Text"]
       },
       "sterbeort": {
-        "automationIdContains": ["Sterbeort", "Sterbeort_", "Todesort", "Verstorben_Ort"],
+        "automationIdContains": [
+          "Sterbeort",
+          "Sterbeort_",
+          "Todesort",
+          "Verstorben_Ort",
+          "SD_Sterbeort",
+          "SD_Sterbeort_komplett"
+        ],
         "nameContains": ["Sterbeort"],
         "controlTypes": ["Edit", "ComboBox", "Text"]
       },

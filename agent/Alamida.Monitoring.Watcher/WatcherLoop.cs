@@ -78,9 +78,15 @@ public sealed class WatcherLoop
         }
 
         var snapshot = _watcher.TryCaptureSnapshot();
+        if (!_watcher.LetztesAlamidaFensterGefunden)
+        {
+            SetStatus("Sync — Alamida-Fenster nicht gefunden");
+            return false;
+        }
+
         if (snapshot == null || !snapshot.HasMinimumData)
         {
-            SetStatus("Sync — Alamida/Maske nicht erkannt");
+            SetStatus(FormatCaptureStatus("Sync —", includeSyncHint: true));
             return false;
         }
 
@@ -125,6 +131,27 @@ public sealed class WatcherLoop
         return $"Sync fehlgeschlagen — {msg}";
     }
 
+    private string FormatCaptureStatus(string prefix = "", bool includeSyncHint = false)
+    {
+        if (!_watcher.LetztesAlamidaFensterGefunden)
+            return string.IsNullOrEmpty(prefix)
+                ? "Alamida-Fenster nicht gefunden"
+                : $"{prefix} Alamida-Fenster nicht gefunden";
+
+        var maske = _watcher.LetzteErkannteMaske;
+        if (maske == MaskKind.Unbekannt)
+        {
+            var msg = string.IsNullOrEmpty(prefix)
+                ? "Alamida/Maske nicht erkannt"
+                : $"{prefix} Alamida/Maske nicht erkannt";
+            return includeSyncHint ? $"{msg} — Tab Termine oder Sterbefall öffnen" : msg;
+        }
+
+        return string.IsNullOrEmpty(prefix)
+            ? "Sterbefall erkannt — Felder noch leer (Tab Termine?)"
+            : $"{prefix} Sterbefall erkannt — Felder noch leer (Tab Termine?)";
+    }
+
     private void SetStatus(string status)
     {
         _lastStatus = status;
@@ -147,10 +174,7 @@ public sealed class WatcherLoop
                 if (snapshot == null || !snapshot.HasMinimumData)
                 {
                     _tracker.Clear();
-                    var maske = _watcher.LetzteErkannteMaske;
-                    SetStatus(maske == MaskKind.Unbekannt
-                        ? "Alamida/Maske nicht erkannt"
-                        : $"Maske {maske} — noch keine Daten");
+                    SetStatus(FormatCaptureStatus());
                 }
                 else
                 {

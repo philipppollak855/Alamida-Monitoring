@@ -1,4 +1,3 @@
-using Alamida.Monitoring.Profiles;
 using FlaUI.Core.AutomationElements;
 using FlaUI.Core.Definitions;
 using FlaUI.UIA3;
@@ -48,10 +47,16 @@ public static class AlamidaWindowHelper
         {
             var aid = UiaValueReader.SafeGet(() => el.AutomationId) ?? "";
             var name = UiaValueReader.SafeGet(() => el.Name) ?? "";
+            var value = UiaValueReader.Read(el);
 
-            if (aid.Contains("Termin_Überführung1_Text", StringComparison.OrdinalIgnoreCase))
+            if (aid.Contains("Termin_Überführung1_Text", StringComparison.OrdinalIgnoreCase)
+                || aid.Contains("Field: sfl 2::Termin_Überführung1_Text", StringComparison.OrdinalIgnoreCase))
                 score += 1000;
-            if (aid.Contains("Layout Object: 287303", StringComparison.OrdinalIgnoreCase))
+            else if (aid.Contains("Field: sfl 2::Termin_", StringComparison.OrdinalIgnoreCase))
+                score += 400;
+
+            if (MaskDetector.LooksLikeOpenSterbefallHeader(name) ||
+                MaskDetector.LooksLikeOpenSterbefallHeader(value))
                 score += 500;
 
             if (name.Contains("Neuer Sterbefall", StringComparison.OrdinalIgnoreCase) ||

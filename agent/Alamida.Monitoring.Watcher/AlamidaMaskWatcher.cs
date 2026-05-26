@@ -11,10 +11,13 @@ public sealed class AlamidaMaskWatcher
 {
     private readonly FieldMappingProfile _profile;
     private MaskKind _letzteMaske = MaskKind.Unbekannt;
+    private bool _letztesAlamidaFensterGefunden;
 
     public AlamidaMaskWatcher(FieldMappingProfile profile) => _profile = profile;
 
     public MaskKind LetzteErkannteMaske => _letzteMaske;
+
+    public bool LetztesAlamidaFensterGefunden => _letztesAlamidaFensterGefunden;
 
     public DetailSnapshot? TryCaptureSnapshot() => TryCaptureSnapshot(out _);
 
@@ -23,6 +26,7 @@ public sealed class AlamidaMaskWatcher
         debugLog = null;
         using var automation = new UIA3Automation();
         var window = AlamidaWindowHelper.FindBestWindow(automation, _profile.WindowTitlePatterns);
+        _letztesAlamidaFensterGefunden = window != null;
         if (window == null)
         {
             _letzteMaske = MaskKind.Unbekannt;
@@ -30,6 +34,9 @@ public sealed class AlamidaMaskWatcher
         }
 
         var maske = MaskDetector.Detect(window);
+        if (maske == MaskKind.Unbekannt && MaskDetector.WindowHasOpenSterbefallHeader(window))
+            maske = MaskKind.DetailUeberfuehrung;
+
         _letzteMaske = maske;
 
         if (maske == MaskKind.NeuerSterbefall && _profile.NeuerSterbefall.Fields.Count > 0)
