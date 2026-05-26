@@ -107,7 +107,7 @@ export function WallPage() {
   );
   const edgeSwipe = useWallEdgeSwipe(isNarrow, slide, goToSlide);
 
-  const sterbefaelleQuery = useFirestoreCollection<Sterbefall>('sterbefaelle', 'updatedAt');
+  const sterbefaelleQuery = useFirestoreCollection<Sterbefall>('sterbefaelle', 'lastSeenAt');
   const { items: sterbefaelleRaw, lastSyncAt, isLive, loading } = sterbefaelleQuery;
   const calendarDay = useCalendarDay();
   const sterbefaelle = useMemo(

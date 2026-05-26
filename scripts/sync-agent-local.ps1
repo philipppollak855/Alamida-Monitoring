@@ -32,6 +32,11 @@ if (-not (Test-Path (Join-Path $PublishDir "AlamidaMonitoringAgent.exe"))) {
 }
 
 $appData = Get-AlamidaAppDataDir
+$syncCache = Join-Path $appData "sterbefall-sync-cache.json"
+if (Test-Path $syncCache) {
+    Remove-Item $syncCache -Force
+    Write-Host "Sync-Cache geleert (Voll-Sync beim naechsten Lauf)." -ForegroundColor Yellow
+}
 $mappingTargets = @(
     (Join-Path $appData "field-mapping-9.2.1.json"),
     (Join-Path $PublishDir "field-mapping-9.2.1.json")

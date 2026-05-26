@@ -44,7 +44,7 @@ public sealed class FirestoreSyncService : IAsyncDisposable
         var now = Timestamp.FromDateTime(DateTime.UtcNow);
         var cached = _cache.Get(sterbefallId);
 
-        if (cached != null && cached.ContentHash == contentHash)
+        if (cached != null && cached.ContentHash == contentHash && cached.FullWriteCompleted)
         {
             var inHistoryCached = ResolveInHistoryFromCache(snapshot, cached);
             if (ShouldOnlyTouchLastSeenFromCache(snapshot, cached))
@@ -53,7 +53,7 @@ public sealed class FirestoreSyncService : IAsyncDisposable
                     BuildLastSeenPayload(sterbefallId, snapshot, _workstationId, now),
                     SetOptions.MergeAll,
                     ct);
-                _cache.Save(sterbefallId, contentHash, cached.HasDispositionData, inHistoryCached);
+                _cache.Save(sterbefallId, contentHash, cached.HasDispositionData, inHistoryCached, fullWriteCompleted: true);
                 return HeartbeatResult(sterbefallId, sterbefallWechsel, HeartbeatReason.LastSeenOnly);
             }
 
@@ -64,7 +64,7 @@ public sealed class FirestoreSyncService : IAsyncDisposable
             if (inHistoryCached)
                 await ArchiveToHistoryFromSnapshotAsync(sterbefallId, snapshot, now, ct);
 
-            _cache.Save(sterbefallId, contentHash, cached.HasDispositionData, inHistoryCached);
+            _cache.Save(sterbefallId, contentHash, cached.HasDispositionData, inHistoryCached, fullWriteCompleted: true);
             return HeartbeatResult(sterbefallId, sterbefallWechsel, HeartbeatReason.ContentUnchanged);
         }
 
@@ -89,13 +89,19 @@ public sealed class FirestoreSyncService : IAsyncDisposable
 
         var oldHash = FirestoreFieldHelpers.SafeString(existing!, "contentHash");
 
-        if (ShouldOnlyTouchLastSeen(snapshot, existing!))
+        if (ShouldOnlyTouchLastSeen(snapshot, existing!)
+            && existing!.ContainsField("updatedAt"))
         {
             await sterbefallRef.SetAsync(
                 BuildLastSeenPayload(sterbefallId, snapshot, _workstationId, now),
                 SetOptions.MergeAll,
                 ct);
-            _cache.Save(sterbefallId, contentHash, ExistingHasDispositionData(existing!), ResolveInHistory(snapshot, existing!));
+            _cache.Save(
+                sterbefallId,
+                contentHash,
+                ExistingHasDispositionData(existing),
+                ResolveInHistory(snapshot, existing),
+                fullWriteCompleted: true);
             return HeartbeatResult(sterbefallId, sterbefallWechsel, HeartbeatReason.LastSeenOnly);
         }
 
@@ -118,7 +124,7 @@ public sealed class FirestoreSyncService : IAsyncDisposable
             if (inHistory)
                 await ArchiveToHistoryFromSnapshotAsync(sterbefallId, snapshot, now, ct);
 
-            _cache.Save(sterbefallId, contentHash, ExistingHasDispositionData(existing!), inHistory);
+            _cache.Save(sterbefallId, contentHash, ExistingHasDispositionData(existing!), inHistory, fullWriteCompleted: true);
             return HeartbeatResult(sterbefallId, sterbefallWechsel, HeartbeatReason.ContentUnchanged);
         }
 
@@ -254,7 +260,8 @@ public sealed class FirestoreSyncService : IAsyncDisposable
             sterbefallId,
             contentHash,
             SnapshotHasDispositionData(snapshot) || ExistingHasDispositionData(existing!),
-            inHistory);
+            inHistory,
+            fullWriteCompleted: true);
 
         return new SyncResult
         {
@@ -277,7 +284,7 @@ public sealed class FirestoreSyncService : IAsyncDisposable
         snapshot = MergeSnapshotWithCache(snapshot, cached);
         contentHash = snapshot.ContentHash();
 
-        if (cached != null && cached.ContentHash == contentHash)
+        if (cached != null && cached.ContentHash == contentHash && cached.FullWriteCompleted)
         {
             var inHistoryCached = ResolveInHistoryFromCache(snapshot, cached);
             if (ShouldOnlyTouchLastSeenFromCache(snapshot, cached))
@@ -286,6 +293,7 @@ public sealed class FirestoreSyncService : IAsyncDisposable
                     BuildLastSeenPayload(sterbefallId, snapshot, _workstationId, now),
                     SetOptions.MergeAll,
                     ct);
+                _cache.Save(sterbefallId, contentHash, cached.HasDispositionData, inHistoryCached, fullWriteCompleted: true);
                 return HeartbeatResult(sterbefallId, sterbefallWechsel, HeartbeatReason.LastSeenOnly);
             }
 
@@ -293,6 +301,7 @@ public sealed class FirestoreSyncService : IAsyncDisposable
                 BuildHeartbeatPayload(sterbefallId, snapshot, inHistoryCached, _workstationId, now),
                 SetOptions.MergeAll,
                 ct);
+            _cache.Save(sterbefallId, contentHash, cached.HasDispositionData, inHistoryCached, fullWriteCompleted: true);
             return HeartbeatResult(sterbefallId, sterbefallWechsel, HeartbeatReason.ContentUnchanged);
         }
 
@@ -309,7 +318,8 @@ public sealed class FirestoreSyncService : IAsyncDisposable
             sterbefallId,
             contentHash,
             SnapshotHasDispositionData(snapshot) || (cached?.HasDispositionData ?? false),
-            inHistory);
+            inHistory,
+            fullWriteCompleted: true);
 
         return new SyncResult
         {
@@ -414,15 +424,25 @@ public sealed class FirestoreSyncService : IAsyncDisposable
         string sterbefallId,
         DetailSnapshot snapshot,
         string workstationId,
-        Timestamp now) =>
-        new()
+        Timestamp now)
+    {
+        var payload = new Dictionary<string, object>
         {
             ["sterbefallId"] = sterbefallId,
             ["aktivInAlamida"] = true,
+            ["aktivInDisposition"] = true,
+            ["inHistory"] = false,
             ["lastSeenAt"] = now,
+            ["updatedAt"] = now,
             ["workstationId"] = workstationId,
             ["verstorbenerName"] = snapshot.VerstorbenerName ?? "",
         };
+        AddStringIfPresent(payload, "sterbeort", snapshot.Sterbeort);
+        AddStringIfPresent(payload, "abholort", snapshot.Abholort);
+        if (snapshot.Ausstehend.Count > 0)
+            payload["ausstehend"] = BuildAusstehendPayload(snapshot.Ausstehend);
+        return payload;
+    }
 
     private static Dictionary<string, object> BuildHeartbeatPayload(
         string sterbefallId,
@@ -441,6 +461,7 @@ public sealed class FirestoreSyncService : IAsyncDisposable
             ["inHistory"] = inHistory,
             ["status"] = heartbeatStatus,
             ["lastSeenAt"] = now,
+            ["updatedAt"] = now,
             ["workstationId"] = workstationId,
             ["quelleMaske"] = snapshot.QuelleMaske ?? "",
             ["erfassungsPhase"] = snapshot.ErfassungsPhase ?? "",

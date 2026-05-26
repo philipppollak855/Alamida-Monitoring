@@ -4,7 +4,7 @@ import type { Sterbefall } from '../types';
 
 /** Gemeinsame Live-Leiste für Board und Wandmonitor. */
 export function LiveDataBar({ compact = false }: { compact?: boolean }) {
-  const sterbefaelle = useFirestoreCollection<Sterbefall>('sterbefaelle', 'updatedAt');
+  const sterbefaelle = useFirestoreCollection<Sterbefall>('sterbefaelle', 'lastSeenAt');
   const { lastSyncAt, isLive, loading, error } = sterbefaelle;
   const aktiv = sterbefaelle.items.filter((s) => s.aktivInAlamida).length;
 

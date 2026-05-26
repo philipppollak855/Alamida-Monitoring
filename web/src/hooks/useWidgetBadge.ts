@@ -21,7 +21,7 @@ async function setBadgeCount(count: number) {
 /** App-Icon-Badge: offene Termine heute + extern (Android/Windows PWA). */
 export function useWidgetBadge() {
   const { status } = useAuth();
-  const { items } = useFirestoreCollection<Sterbefall>('sterbefaelle', 'updatedAt');
+  const { items } = useFirestoreCollection<Sterbefall>('sterbefaelle', 'lastSeenAt');
 
   useEffect(() => {
     if (status !== 'activated') {

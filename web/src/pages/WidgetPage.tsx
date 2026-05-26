@@ -29,7 +29,7 @@ export function WidgetPage() {
   const kind = parseWidgetKind(kindParam);
   const calendarDay = useCalendarDay();
   const { items, lastSyncAt, isLive, loading } =
-    useFirestoreCollection<Sterbefall>('sterbefaelle', 'updatedAt');
+    useFirestoreCollection<Sterbefall>('sterbefaelle', 'lastSeenAt');
   const [tick, setTick] = useState(0);
 
   useEffect(() => {

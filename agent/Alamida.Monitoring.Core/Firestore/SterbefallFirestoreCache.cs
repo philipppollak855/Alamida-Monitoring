@@ -25,18 +25,31 @@ public sealed class SterbefallFirestoreCache
             return _entries.GetValueOrDefault(sterbefallId);
     }
 
+    public void Clear()
+    {
+        lock (_lock)
+        {
+            _entries = new Dictionary<string, Entry>(StringComparer.Ordinal);
+            if (File.Exists(_path))
+                File.Delete(_path);
+        }
+    }
+
     public void Save(
         string sterbefallId,
         string contentHash,
         bool hasDispositionData,
-        bool inHistory)
+        bool inHistory,
+        bool fullWriteCompleted = false)
     {
         lock (_lock)
         {
+            var prev = _entries.GetValueOrDefault(sterbefallId);
             _entries[sterbefallId] = new Entry(
                 contentHash,
                 hasDispositionData,
                 inHistory,
+                fullWriteCompleted || (prev?.FullWriteCompleted ?? false),
                 DateTime.UtcNow);
             Persist();
         }
@@ -51,7 +64,12 @@ public sealed class SterbefallFirestoreCache
             if (list == null) return;
             _entries = list.ToDictionary(
                 e => e.SterbefallId,
-                e => new Entry(e.ContentHash, e.HasDispositionData, e.InHistory, e.LastSyncedUtc),
+                e => new Entry(
+                    e.ContentHash,
+                    e.HasDispositionData,
+                    e.InHistory,
+                    e.FullWriteCompleted,
+                    e.LastSyncedUtc),
                 StringComparer.Ordinal);
         }
         catch
@@ -67,6 +85,7 @@ public sealed class SterbefallFirestoreCache
             kv.Value.ContentHash,
             kv.Value.HasDispositionData,
             kv.Value.InHistory,
+            kv.Value.FullWriteCompleted,
             kv.Value.LastSyncedUtc)).ToList();
         File.WriteAllText(_path, JsonSerializer.Serialize(list, MonitoringJson.Options));
     }
@@ -75,6 +94,7 @@ public sealed class SterbefallFirestoreCache
         string ContentHash,
         bool HasDispositionData,
         bool InHistory,
+        bool FullWriteCompleted,
         DateTime LastSyncedUtc);
 
     private sealed record EntryDto(
@@ -82,5 +102,6 @@ public sealed class SterbefallFirestoreCache
         string ContentHash,
         bool HasDispositionData,
         bool InHistory,
+        bool FullWriteCompleted,
         DateTime LastSyncedUtc);
 }

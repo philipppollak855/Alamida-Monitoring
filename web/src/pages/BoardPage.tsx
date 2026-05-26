@@ -61,7 +61,7 @@ export function BoardPage() {
   const calendarDay = useCalendarDay();
   const { settings } = useDispositionSettings();
   const { items: sterbefaelleRaw, loading, error } =
-    useFirestoreCollection<Sterbefall>('sterbefaelle', 'updatedAt');
+    useFirestoreCollection<Sterbefall>('sterbefaelle', 'lastSeenAt');
   const sterbefaelle = useMemo(
     () => filterAktiveSterbefaelle(sterbefaelleRaw),
     [sterbefaelleRaw]
