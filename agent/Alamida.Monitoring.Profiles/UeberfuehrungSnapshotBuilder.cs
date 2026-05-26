@@ -96,17 +96,11 @@ public static class UeberfuehrungSnapshotBuilder
 
 
 
+        // Sterbeort nur aus Abholung (Tab Termine, Zeile 1) — nicht aus „Angabe zum Sterbeort“ (Verstorbener).
         var abholort = UeberfuehrungTypResolver.AbholortAusErsterZeile(
             schritte.FirstOrDefault(s => s.SchrittTyp == "abholung")?.VonOrt);
-        var abholortIstKh = UeberfuehrungTypResolver.IstKrankenhausAbholort(abholort)
-            || UeberfuehrungTypResolver.IstKrankenhausAbholort(sterbeort);
-
-        var sterbeortKh = string.IsNullOrWhiteSpace(sterbeort)
-            ? null
-            : AlamidaFieldParser.ParseUeberfuehrungText(sterbeort).Von;
-        var effektiverSterbeort = string.IsNullOrWhiteSpace(sterbeort)
-            ? abholort
-            : (sterbeortKh ?? sterbeort);
+        var abholortIstKh = UeberfuehrungTypResolver.IstKrankenhausAbholort(abholort);
+        var effektiverSterbeort = abholort;
 
 
 

@@ -11,7 +11,8 @@
 | Feld | Alamida | Mapping-Key |
 |------|---------|-------------|
 | Sterbefall-ID | Header `260087 \| Name` | `sterbefallHeader` |
-| **Sterbeort** | Maske **Verstorbener** (andere Modalansicht) | `sterbeort` |
+| **Abholort / Sterbeort (Monitoring)** | Tab **Termine**, Zeile 1 („von“ der Abholung) | `ueberfuehrungText` + `abholungAm` |
+| ~~Angabe zum Sterbeort~~ | Tab Verstorbener (`sterbeort` in Mapping) | **wird nicht gelesen** (Detail-Überführung) |
 | Ueberfuehrung 1-6 | Tab Termine, Text + Datum | `ueberfuehrungText` … `abholung6Am` |
 
 ## Inspector
@@ -55,9 +56,9 @@ Alamida-Feld `kuehlplatz` / `Kuehlraum_Nr` weiter per Inspector in `field-mappin
 
 ## Positionslogik (Agent)
 
-- Position **0** = Sterbeort (Sterbeort-Maske)
+- Position **0** = Abholort (nur „von“ Zeile 1 / Tab Termine), **nicht** Feld „Angabe zum Sterbeort“
 - Zeilen **1..6** = Überführungsorte (Tab Termine); Typ: **Abholung** (Zeile 1), **Überführung**, **Kremation** (aus von/nach)
-- **Abholort** = „von“ der Abholungszeile
+- **Abholort** = „von“ der Abholungszeile; Firestore-Feld `sterbeort` = gleicher Wert (Kompatibilität)
 - **Kremation-Keywords** (in `OrtSchluesselwoerter.cs`): Feba, Innermanzing, Krematorium, Kremation, Einäscherung, …
 - **Krankenhaus** (Abholort): Präfix `UK`, `KH`, `KH-`, `KH.` sowie Krankenhaus, Spital, Klinik
 - **Aktuelle Position** = Ziel der letzten Zeile mit Datum ≤ heute, sonst Sterbeort

@@ -254,21 +254,21 @@ function istExternKrankenhausFall(s: Sterbefall): boolean {
   }
 
   if (s.aktuellePositionTyp === 'sterbeort' || hatAusstehendeUeberfuehrungInsEigeneKr(s)) {
-    const khOrt = s.sterbeort || s.abholort;
+    const khOrt = s.abholort;
     if (khOrt && istKrankenhaus(khOrt)) return true;
     if ((s.ausstehend ?? []).some((a) => khVonAusUeberfuehrungstext(a.vonOrt))) return true;
   }
 
   if (
     (s.aktuellePositionTyp === 'sterbeort' || !s.aktuellePosition?.trim()) &&
-    s.sterbeort &&
-    istKrankenhaus(s.sterbeort)
+    s.abholort &&
+    istKrankenhaus(s.abholort)
   ) {
     return true;
   }
 
   if (hatOffeneAbholungVomSterbeort(s)) {
-    const ort = s.sterbeort || s.abholort;
+    const ort = s.abholort;
     if (ort && istKrankenhaus(ort)) return true;
     if (s.abholortIstKrankenhaus && s.abholort) return true;
   }
@@ -285,7 +285,7 @@ function istExternKrankenhausFall(s: Sterbefall): boolean {
   }
 
   if (isAmKrankenhausOderSterbeort(s)) {
-    const fallback = s.sterbeort || s.abholort;
+    const fallback = s.abholort;
     if (fallback && istKrankenhaus(fallback)) return true;
     if (s.abholortIstKrankenhaus && s.abholort) return true;
   }

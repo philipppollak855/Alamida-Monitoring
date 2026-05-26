@@ -66,7 +66,7 @@ public sealed class AlamidaMaskWatcher
             var snap = UeberfuehrungSnapshotBuilder.Build(
                 fields.GetValueOrDefault("sterbefallId") ?? id,
                 fields.GetValueOrDefault("verstorbenerName") ?? name,
-                fields.GetValueOrDefault("sterbeort"),
+                sterbeort: null,
                 fields.GetValueOrDefault("bestattungsart"),
                 fields.GetValueOrDefault("beisetzungsort"),
                 fields.GetValueOrDefault("krematoriumOrt"),

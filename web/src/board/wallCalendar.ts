@@ -268,7 +268,6 @@ function buildSearchText(s: Sterbefall, parts: AtomicTermin[]): string {
   const chunks = [
     fallName(s),
     s.sterbefallId,
-    s.sterbeort,
     s.abholort,
     s.bestattungsart,
     s.endziel,

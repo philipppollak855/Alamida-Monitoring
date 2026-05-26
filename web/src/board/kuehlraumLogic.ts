@@ -121,7 +121,6 @@ export function isAmKrankenhausOderSterbeort(s: Sterbefall): boolean {
 
   if (
     s.abholortIstKrankenhaus ||
-    istKrankenhaus(s.sterbeort) ||
     istKrankenhaus(s.abholort)
   ) {
     return true;

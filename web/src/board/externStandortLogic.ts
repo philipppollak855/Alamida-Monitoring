@@ -38,9 +38,8 @@ export function resolveExternAbholOrtLabel(s: Sterbefall): string | null {
   }
 
   const kandidaten = [
-    s.aktuellePosition,
-    s.sterbeort,
     s.abholort,
+    s.aktuellePosition,
     s.naechsterSchrittVon,
     s.naechsteUeberfuehrungVon,
   ];

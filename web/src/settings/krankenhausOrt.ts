@@ -135,9 +135,8 @@ function gatherSterbefallTexts(s: Sterbefall): string {
   const push = (v?: string) => {
     if (v?.trim()) parts.push(v.trim());
   };
-  push(s.sterbeort);
-  push(s.aktuellePosition);
   push(s.abholort);
+  push(s.aktuellePosition);
   push(s.naechsterSchrittVon);
   push(s.naechsterSchrittNach);
   push(s.naechsteUeberfuehrungVon);
@@ -186,8 +185,8 @@ export function extractUkKlinikFromTexts(text: string): string[] {
   return found;
 }
 
-/** Sterbeort aus Verstorbener/Details (ohne Terminseite). */
-export function collectSterbeortKrankenhausKandidaten(s: Sterbefall): string[] {
+/** Abholung (Tab Termine, Zeile 1) — nicht „Angabe zum Sterbeort“ (Feld sterbeort). */
+export function collectAbholungSterbeortKandidaten(s: Sterbefall): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
 
@@ -205,21 +204,23 @@ export function collectSterbeortKrankenhausKandidaten(s: Sterbefall): string[] {
     if (route.nach && route.nach !== t) add(route.nach, force || istKrankenhaus(route.nach));
   };
 
-  const sterbeort = s.sterbeort?.trim();
-  if (sterbeort) {
-    const lines = sterbeort.split(/\r?\n+/).map((l) => l.trim()).filter(Boolean);
-    if (lines.length <= 1) {
-      add(sterbeort, true);
-    } else {
-      for (const line of lines) add(line, true);
-    }
-    for (const ukName of extractUkKlinikFromTexts(sterbeort)) {
-      add(ukName, true);
-    }
+  add(s.abholort, true);
+
+  const abholungSchritt = (s.ausstehend ?? []).find(
+    (a) => a.schrittTyp === 'abholung' || a.zeile === 1
+  );
+  if (abholungSchritt?.vonOrt) add(abholungSchritt.vonOrt, true);
+
+  const textSource = [s.abholort, abholungSchritt?.vonOrt].filter(Boolean).join('\n');
+  for (const ukName of extractUkKlinikFromTexts(textSource)) {
+    add(ukName, true);
   }
 
   return out;
 }
+
+/** @deprecated Alias — nur Abholung (Termine), siehe {@link collectAbholungSterbeortKandidaten}. */
+export const collectSterbeortKrankenhausKandidaten = collectAbholungSterbeortKandidaten;
 
 /** Straßen/PLZ-Zeilen nicht als Klinikname verwenden. */
 export function looksLikeStreetAddress(ort: string): boolean {
@@ -312,7 +313,7 @@ export function collectTerminKrankenhausKandidaten(s: Sterbefall): string[] {
     add(a.nachOrt);
   }
 
-  const detailText = [s.sterbeort, s.abholort].filter(Boolean).join('\n');
+  const detailText = s.abholort?.trim() ?? '';
   const terminText = gatherSterbefallTexts(s);
   for (const ukName of extractUkKlinikFromTexts(`${detailText}\n${terminText}`)) {
     add(ukName, true);
@@ -325,7 +326,7 @@ export function collectTerminKrankenhausKandidaten(s: Sterbefall): string[] {
 export function collectKrankenhausKandidaten(s: Sterbefall): string[] {
   const seen = new Set<string>();
   const merged: string[] = [];
-  for (const k of [...collectSterbeortKrankenhausKandidaten(s), ...collectTerminKrankenhausKandidaten(s)]) {
+  for (const k of [...collectAbholungSterbeortKandidaten(s), ...collectTerminKrankenhausKandidaten(s)]) {
     const norm = k.toLowerCase();
     if (seen.has(norm)) continue;
     seen.add(norm);
@@ -335,7 +336,7 @@ export function collectKrankenhausKandidaten(s: Sterbefall): string[] {
 }
 
 /**
- * Krankenhaus-Label für Extern/Gruppierung: Sterbeort (Details) vor Terminseite.
+ * Krankenhaus-Label für Extern/Gruppierung: Abholung (Termine) vor übrigen Terminfeldern.
  */
 export function resolveKrankenhausOrtForFall(
   s: Sterbefall,
@@ -346,13 +347,8 @@ export function resolveKrankenhausOrtForFall(
   const pendingKh = resolvePendingKhVonForEigeneKr(s, cfg);
   if (pendingKh) return pendingKh;
 
-  const sterbeort = s.sterbeort?.trim();
-
-  if (sterbeort) {
-    const fromDetails = resolveBestKrankenhausOrt(collectSterbeortKrankenhausKandidaten(s), cfg);
-    if (fromDetails) return fromDetails;
-    if (istKrankenhaus(sterbeort)) return krankenhausOrtBasis(sterbeort);
-  }
+  const fromAbholung = resolveBestKrankenhausOrt(collectAbholungSterbeortKandidaten(s), cfg);
+  if (fromAbholung) return fromAbholung;
 
   return resolveBestKrankenhausOrt(collectTerminKrankenhausKandidaten(s), cfg);
 }
