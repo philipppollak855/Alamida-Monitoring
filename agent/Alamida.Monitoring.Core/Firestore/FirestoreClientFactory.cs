@@ -78,6 +78,21 @@ public static class FirestoreClientFactory
                 ["user"] = Environment.UserName,
                 ["probeAt"] = Timestamp.FromDateTime(DateTime.UtcNow),
             }, cancellationToken: ct);
+
+            var sterbeRef = db.Collection("sterbefaelle").Document("_agent_write_probe");
+            await sterbeRef.SetAsync(new Dictionary<string, object>
+            {
+                ["sterbefallId"] = "_agent_write_probe",
+                ["probeAt"] = Timestamp.FromDateTime(DateTime.UtcNow),
+                ["workstationId"] = workstationId,
+                ["aktivInAlamida"] = false,
+                ["aktivInDisposition"] = false,
+                ["inHistory"] = true,
+                ["contentHash"] = "probe",
+                ["updatedAt"] = Timestamp.FromDateTime(DateTime.UtcNow),
+            }, cancellationToken: ct);
+            await sterbeRef.DeleteAsync(cancellationToken: ct);
+
             return (true, null);
         }
         catch (Exception ex)

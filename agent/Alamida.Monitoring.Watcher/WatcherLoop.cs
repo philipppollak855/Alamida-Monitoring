@@ -91,7 +91,9 @@ public sealed class WatcherLoop
                 await _settingsLoader.RefreshAsync(ct);
                 OrtErkennung.Apply(_settingsLoader.Current);
             }
-            await _offlineQueue.FlushAsync(_firestore, ct);
+            var flush = await _offlineQueue.FlushAsync(_firestore, ct);
+            if (flush.Failed > 0 && flush.LastError != null)
+                LogSyncError(flush.LastError, "Flush vor manuellem Sync");
             _tracker.Register(snapshot);
 
             var result = await _firestore.SyncSnapshotAsync(snapshot, sterbefallWechsel: false, ct);
@@ -103,10 +105,24 @@ public sealed class WatcherLoop
         catch (Exception ex)
         {
             _offlineQueue.Enqueue(snapshot);
+            LogSyncError(ex, "Manueller Sync");
             ErrorOccurred?.Invoke(ex);
-            SetStatus($"Sync-Fehler — {ex.Message}");
+            SetStatus(FormatSyncErrorStatus(ex));
             return false;
         }
+    }
+
+    private static void LogSyncError(Exception ex, string context)
+    {
+        FirestoreClientFactory.WriteError(
+            $"{context}: {ex.Message}\n{ex.GetType().Name}\n{ex.StackTrace}");
+    }
+
+    private static string FormatSyncErrorStatus(Exception ex)
+    {
+        var msg = ex.Message.Trim();
+        if (msg.Length > 72) msg = msg[..72] + "…";
+        return $"Sync fehlgeschlagen — {msg}";
     }
 
     private void SetStatus(string status)
@@ -151,7 +167,9 @@ public sealed class WatcherLoop
                                 await _settingsLoader.RefreshAsync(ct);
                                 OrtErkennung.Apply(_settingsLoader.Current);
                             }
-                            await _offlineQueue.FlushAsync(_firestore, ct);
+                            var flush = await _offlineQueue.FlushAsync(_firestore, ct);
+                            if (flush.Failed > 0 && flush.LastError != null)
+                                LogSyncError(flush.LastError, "Queue-Flush");
 
                             var result = await _firestore.SyncSnapshotAsync(snapshot, fallWechsel, ct);
                             var id = result.SterbefallId
@@ -170,8 +188,13 @@ public sealed class WatcherLoop
                         catch (Exception syncEx)
                         {
                             _offlineQueue.Enqueue(snapshot);
+                            LogSyncError(syncEx, $"Sync {SterbefallTracker.Schluessel(snapshot)}");
                             ErrorOccurred?.Invoke(syncEx);
-                            SetStatus($"Queue offline — {SterbefallTracker.Schluessel(snapshot)}");
+                            var pending = _offlineQueue.PendingCount;
+                            SetStatus(
+                                pending > 1
+                                    ? $"{FormatSyncErrorStatus(syncEx)} ({pending} in Queue)"
+                                    : FormatSyncErrorStatus(syncEx));
                         }
                     }
                     else

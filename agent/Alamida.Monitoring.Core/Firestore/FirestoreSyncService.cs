@@ -41,10 +41,18 @@ public sealed class FirestoreSyncService : IAsyncDisposable
 
         var contentHash = snapshot.ContentHash();
         var sterbefallRef = _db.Collection("sterbefaelle").Document(sterbefallId);
-        var existing = await sterbefallRef.GetSnapshotAsync(ct);
-        var oldHash = existing.Exists && existing.ContainsField("contentHash")
-            ? existing.GetValue<string>("contentHash")
-            : null;
+        DocumentSnapshot existing;
+        try
+        {
+            existing = await sterbefallRef.GetSnapshotAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException(
+                $"Lesen sterbefaelle/{sterbefallId} fehlgeschlagen: {ex.Message}", ex);
+        }
+
+        var oldHash = FirestoreFieldHelpers.SafeString(existing, "contentHash");
         var now = Timestamp.FromDateTime(DateTime.UtcNow);
 
         if (ShouldOnlyTouchLastSeen(snapshot, existing))
@@ -64,9 +72,7 @@ public sealed class FirestoreSyncService : IAsyncDisposable
 
         snapshot = MergeSnapshotWithExisting(snapshot, existing);
         contentHash = snapshot.ContentHash();
-        oldHash = existing.Exists && existing.ContainsField("contentHash")
-            ? existing.GetValue<string>("contentHash")
-            : null;
+        oldHash = FirestoreFieldHelpers.SafeString(existing, "contentHash");
 
         var inHistory = ResolveInHistory(snapshot, existing);
         Timestamp? sichtbarBis = snapshot.SichtbarBis.HasValue
@@ -238,12 +244,11 @@ public sealed class FirestoreSyncService : IAsyncDisposable
 
     private static bool ExistingHasDispositionData(DocumentSnapshot existing)
     {
-        if (!string.IsNullOrWhiteSpace(existing.GetValue<string>("sterbeort")))
+        if (!string.IsNullOrWhiteSpace(FirestoreFieldHelpers.SafeString(existing, "sterbeort")))
             return true;
-        if (existing.ContainsField("abholortIstKrankenhaus") && existing.GetValue<bool>("abholortIstKrankenhaus"))
+        if (FirestoreFieldHelpers.SafeBool(existing, "abholortIstKrankenhaus"))
             return true;
-        if (existing.ContainsField("ausstehend") &&
-            existing.GetValue<List<object>>("ausstehend") is { Count: > 0 })
+        if (FirestoreFieldHelpers.HasNonEmptyListField(existing, "ausstehend"))
             return true;
         return false;
     }
@@ -254,12 +259,11 @@ public sealed class FirestoreSyncService : IAsyncDisposable
     {
         if (existing.Exists)
         {
-            if (existing.ContainsField("historieGrund")
-                && existing.GetValue<string>("historieGrund") == ManuellEntferntGrund)
+            if (FirestoreFieldHelpers.SafeString(existing, "historieGrund") == ManuellEntferntGrund)
                 return true;
 
             if (existing.ContainsField("inHistory"))
-                return existing.GetValue<bool>("inHistory");
+                return FirestoreFieldHelpers.SafeBool(existing, "inHistory");
         }
 
         if (snapshot.IsDetailMaske)
@@ -333,16 +337,16 @@ public sealed class FirestoreSyncService : IAsyncDisposable
             return snapshot;
 
         var sterbeort = snapshot.Sterbeort;
-        if (string.IsNullOrWhiteSpace(sterbeort) && existing.ContainsField("sterbeort"))
-            sterbeort = existing.GetValue<string>("sterbeort");
+        if (string.IsNullOrWhiteSpace(sterbeort))
+            sterbeort = FirestoreFieldHelpers.SafeString(existing, "sterbeort");
 
         var abholort = snapshot.Abholort;
-        if (string.IsNullOrWhiteSpace(abholort) && existing.ContainsField("abholort"))
-            abholort = existing.GetValue<string>("abholort");
+        if (string.IsNullOrWhiteSpace(abholort))
+            abholort = FirestoreFieldHelpers.SafeString(existing, "abholort");
 
         var abholortKh = snapshot.AbholortIstKrankenhaus;
         if (!abholortKh && existing.ContainsField("abholortIstKrankenhaus"))
-            abholortKh = existing.GetValue<bool>("abholortIstKrankenhaus");
+            abholortKh = FirestoreFieldHelpers.SafeBool(existing, "abholortIstKrankenhaus");
 
         return snapshot with
         {
@@ -385,15 +389,17 @@ public sealed class FirestoreSyncService : IAsyncDisposable
     private static string ResolveSterbefallDocumentId(DetailSnapshot snapshot)
     {
         if (!string.IsNullOrWhiteSpace(snapshot.SterbefallId))
-            return snapshot.SterbefallId.Trim();
+            return FirestoreFieldHelpers.SanitizeDocumentId(snapshot.SterbefallId);
 
         if (!string.IsNullOrWhiteSpace(snapshot.ErfassungSchluessel))
-            return DokumentIdAusSchluessel(snapshot.ErfassungSchluessel);
+            return FirestoreFieldHelpers.SanitizeDocumentId(
+                DokumentIdAusSchluessel(snapshot.ErfassungSchluessel));
 
         if (!string.IsNullOrWhiteSpace(snapshot.VerstorbenerName))
-            return DokumentIdAusSchluessel(snapshot.VerstorbenerName);
+            return FirestoreFieldHelpers.SanitizeDocumentId(
+                DokumentIdAusSchluessel(snapshot.VerstorbenerName));
 
-        return $"NEU-{Guid.NewGuid():N}"[..16];
+        return FirestoreFieldHelpers.SanitizeDocumentId($"NEU-{Guid.NewGuid():N}"[..16]);
     }
 
     private static string DokumentIdAusSchluessel(string schluessel)

@@ -18,6 +18,15 @@ public sealed class OfflineQueue
         _queuePath = Path.Combine(dir, "pending-snapshots.json");
     }
 
+    public int PendingCount
+    {
+        get
+        {
+            lock (_lock)
+                return Load().Count;
+        }
+    }
+
     public void Enqueue(DetailSnapshot snapshot)
     {
         lock (_lock)
@@ -28,34 +37,50 @@ public sealed class OfflineQueue
         }
     }
 
-    public async Task FlushAsync(FirestoreSyncService firestore, CancellationToken ct)
+    /// <summary>Schreibt wartende Snapshots; fehlgeschlagene bleiben in der Queue.</summary>
+    public async Task<FlushResult> FlushAsync(FirestoreSyncService firestore, CancellationToken ct)
     {
         List<DetailSnapshot> list;
         lock (_lock)
         {
             list = Load();
-            if (list.Count == 0) return;
+            if (list.Count == 0)
+                return new FlushResult(0, 0, null);
             Save([]);
         }
+
+        var ok = 0;
+        var failed = new List<DetailSnapshot>();
+        Exception? lastError = null;
 
         foreach (var snap in list)
         {
             try
             {
                 await firestore.SyncSnapshotAsync(snap, ct);
+                ok++;
             }
-            catch
+            catch (Exception ex)
             {
-                lock (_lock)
-                {
-                    var current = Load();
-                    current.Add(snap);
-                    Save(current);
-                }
-                throw;
+                lastError = ex;
+                failed.Add(snap);
             }
         }
+
+        if (failed.Count > 0)
+        {
+            lock (_lock)
+            {
+                var current = Load();
+                current.AddRange(failed);
+                Save(current);
+            }
+        }
+
+        return new FlushResult(ok, failed.Count, lastError);
     }
+
+    public readonly record struct FlushResult(int Succeeded, int Failed, Exception? LastError);
 
     private List<DetailSnapshot> Load()
     {

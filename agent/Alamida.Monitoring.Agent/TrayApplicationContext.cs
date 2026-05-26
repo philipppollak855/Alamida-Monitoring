@@ -47,7 +47,24 @@ public sealed class TrayApplicationContext : ApplicationContext
         if (firestore == null)
             ShowBalloon(fsError ?? "Firestore nicht verbunden", ToolTipIcon.Warning);
         else
+        {
             ShowBalloon("Watcher gestartet", ToolTipIcon.Info);
+            _ = VerifyFirestoreWriteAsync(config);
+        }
+    }
+
+    private async Task VerifyFirestoreWriteAsync(Core.Models.AgentConfig config)
+    {
+        var path = FirestoreClientFactory.ResolveServiceAccountPath(config.ServiceAccountPath);
+        var (ok, err) = await FirestoreClientFactory.VerifyWriteAccessAsync(
+            config.FirebaseProjectId,
+            path,
+            config.WorkstationId);
+        if (ok) return;
+
+        ShowBalloon(
+            err?.Split('\n')[0] ?? "Firestore-Schreibtest fehlgeschlagen",
+            ToolTipIcon.Warning);
     }
 
     private ContextMenuStrip BuildMenu()

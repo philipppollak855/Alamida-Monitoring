@@ -26,6 +26,16 @@ Tray-Status (mehrere PCs):
 - "Nur Lebenszeichen" = Firebase erreichbar, aber Alamida-Detail/Termine
   nicht offen — Wand zeigt ggf. alte Daten oder nichts Neues
 - "Live unveraendert" = Fall unveraendert, Verbindung OK
+- "Sync fehlgeschlagen — …" = Dienstkonto verbunden, Schreiben scheitert
+  (NICHT dasselbe wie "Firestore nicht verbunden")
+
+Fehlerdiagnose:
+1. Tray: Status anzeigen → steht "Firestore: verbunden"?
+2. Log lesen: %AppData%\AlamidaMonitoring\firestore-last-error.txt
+3. Schreibtest: AlamidaMonitoring.Agent.exe --seed (aus Installordner)
+4. Firebase Console → IAM: Dienstkonto braucht Rolle
+   "Cloud Datastore User" oder "Firebase Admin SDK Administrator Service Agent"
+5. serviceAccount.json muss type "service_account" sein (kein OAuth/Web-Config-JSON)
 
 Wand leer trotz Sync? In Firebase Console sterbefaelle pruefen:
 inHistory, aktivInDisposition, historieGrund (manuell_entfernt).
