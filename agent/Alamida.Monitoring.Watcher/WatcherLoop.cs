@@ -14,6 +14,7 @@ public sealed class WatcherLoop
     private readonly int _pollIntervalMs;
     private CancellationTokenSource? _cts;
     private volatile bool _paused;
+    private int _syncBackoffMs;
     private string _lastStatus = "Bereit";
 
     public event Action<string>? StatusChanged;
@@ -188,14 +189,17 @@ public sealed class WatcherLoop
                     {
                         try
                         {
-                            if (_settingsLoader != null)
+                            if (_settingsLoader != null && _syncBackoffMs == 0)
                             {
                                 await _settingsLoader.RefreshAsync(ct);
                                 OrtErkennung.Apply(_settingsLoader.Current);
                             }
-                            var flush = await _offlineQueue.FlushAsync(_firestore, ct);
-                            if (flush.Failed > 0 && flush.LastError != null)
-                                LogSyncError(flush.LastError, "Queue-Flush");
+                            if (_syncBackoffMs == 0)
+                            {
+                                var flush = await _offlineQueue.FlushAsync(_firestore, ct);
+                                if (flush.Failed > 0 && flush.LastError != null)
+                                    LogSyncError(flush.LastError, "Queue-Flush");
+                            }
 
                             var result = await FirestoreRetry.ExecuteAsync(
                                 () => _firestore.SyncSnapshotAsync(snapshot, fallWechsel, ct),
@@ -212,18 +216,28 @@ public sealed class WatcherLoop
                                 maskeLabel,
                                 fallWechsel,
                                 snapshot.IstNeuerFall));
+                            _syncBackoffMs = 0;
                         }
                         catch (Exception syncEx)
                         {
-                            _offlineQueue.Enqueue(snapshot);
+                            if (!FirestoreRetry.IsTransient(syncEx))
+                                _offlineQueue.Enqueue(snapshot);
                             LogSyncError(syncEx, $"Sync {SterbefallTracker.Schluessel(snapshot)}");
                             ErrorOccurred?.Invoke(syncEx);
                             var pending = _offlineQueue.PendingCount;
                             var queueHint = pending > 0 ? $" ({pending} in Queue)" : "";
-                            var retryHint = FirestoreRetry.IsTransient(syncEx)
-                                ? " — Firestore-Limit, wird verzögert nachversucht"
-                                : "";
-                            SetStatus($"{FormatSyncErrorStatus(syncEx)}{queueHint}{retryHint}");
+                            if (FirestoreRetry.IsTransient(syncEx))
+                            {
+                                _syncBackoffMs = Math.Min(
+                                    _syncBackoffMs <= 0 ? 20_000 : _syncBackoffMs + 10_000,
+                                    120_000);
+                                SetStatus(
+                                    $"Firestore-Limit — Pause {_syncBackoffMs / 1000}s, nur Schreiben{queueHint}");
+                            }
+                            else
+                            {
+                                SetStatus($"{FormatSyncErrorStatus(syncEx)}{queueHint}");
+                            }
                         }
                     }
                     else
@@ -241,7 +255,8 @@ public sealed class WatcherLoop
 
             try
             {
-                await Task.Delay(sofortWeiter ? 0 : _pollIntervalMs, ct);
+                var delay = sofortWeiter ? 0 : _pollIntervalMs + _syncBackoffMs;
+                await Task.Delay(delay, ct);
             }
             catch (TaskCanceledException)
             {

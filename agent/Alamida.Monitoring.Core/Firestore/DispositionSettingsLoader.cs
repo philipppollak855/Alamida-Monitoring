@@ -9,7 +9,7 @@ public sealed class DispositionSettingsLoader
     private DispositionSettings _cached = DispositionSettings.Default;
     private DateTime _loadedAt = DateTime.MinValue;
     private long _lastSettingsVersion = -1;
-    private static readonly TimeSpan CacheTtl = TimeSpan.FromSeconds(30);
+    private TimeSpan _cacheTtl = TimeSpan.FromSeconds(60);
 
     public DispositionSettingsLoader(FirestoreDb db) => _db = db;
 
@@ -21,16 +21,19 @@ public sealed class DispositionSettingsLoader
         {
             var snap = await _db.Collection("settings").Document("disposition").GetSnapshotAsync(ct);
             var version = ReadSettingsVersion(snap);
-            var cacheValid = DateTime.UtcNow - _loadedAt < CacheTtl && version == _lastSettingsVersion;
+            var cacheValid = DateTime.UtcNow - _loadedAt < _cacheTtl && version == _lastSettingsVersion;
             if (cacheValid)
                 return;
 
             _cached = snap.Exists ? Parse(snap) : DispositionSettings.Default;
             _lastSettingsVersion = version;
         }
-        catch
+        catch (Exception ex)
         {
-            _cached = DispositionSettings.Default;
+            if (FirestoreRetry.IsTransient(ex))
+                _cacheTtl = TimeSpan.FromMinutes(10);
+            else
+                _cached = DispositionSettings.Default;
         }
 
         _loadedAt = DateTime.UtcNow;
