@@ -1,25 +1,44 @@
 import {
   collection,
-  onSnapshot,
-  query,
-  orderBy,
   limit,
+  onSnapshot,
+  orderBy,
+  query,
   type Query,
   type DocumentData,
 } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { isFirestoreAuthError, normalizeFirestoreError } from '../auth/firestoreErrors';
 import { ensureFreshIdToken } from '../auth/sessionRefresh';
 import { db } from '../firebase';
+import type { Sterbefall } from '../types';
 
-export function useFirestoreCollection<T extends { id: string }>(
-  collectionName: string,
-  orderField?: string,
-  max = 200
-) {
+const COLLECTION = 'sterbefaelle';
+const ORDER_FIELD = 'lastSeenAt';
+const MAX_DOCS = 200;
+
+type SterbefaelleContextValue = {
+  items: Sterbefall[];
+  loading: boolean;
+  error: string | null;
+  lastSyncAt: Date | null;
+  isLive: boolean;
+};
+
+const SterbefaelleContext = createContext<SterbefaelleContextValue | null>(null);
+
+/** Ein gemeinsamer onSnapshot für alle Seiten — vermeidet parallele Listener. */
+export function SterbefaelleProvider({ children }: { children: ReactNode }) {
   const { status } = useAuth();
-  const [items, setItems] = useState<T[]>([]);
+  const [items, setItems] = useState<Sterbefall[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastSyncAt, setLastSyncAt] = useState<Date | null>(null);
@@ -51,16 +70,18 @@ export function useFirestoreCollection<T extends { id: string }>(
     }
 
     setLoading(true);
-    const ref = collection(db, collectionName);
-    let q: Query<DocumentData> = orderField
-      ? query(ref, orderBy(orderField, 'desc'), limit(max))
-      : query(ref, limit(max));
+    const ref = collection(db, COLLECTION);
+    const q: Query<DocumentData> = query(
+      ref,
+      orderBy(ORDER_FIELD, 'desc'),
+      limit(MAX_DOCS)
+    );
 
     const unsub = onSnapshot(
       q,
       { includeMetadataChanges: false },
       (snap) => {
-        setItems(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as T));
+        setItems(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Sterbefall));
         setLastSyncAt(new Date());
         setLoading(false);
         setError(null);
@@ -79,13 +100,28 @@ export function useFirestoreCollection<T extends { id: string }>(
     );
 
     return () => unsub();
-  }, [collectionName, orderField, max, status, authReconnectTick]);
+  }, [status, authReconnectTick]);
 
-  return {
-    items,
-    loading,
-    error,
-    lastSyncAt,
-    isLive: status === 'activated' && lastSyncAt != null && !error,
-  };
+  const value = useMemo(
+    (): SterbefaelleContextValue => ({
+      items,
+      loading,
+      error,
+      lastSyncAt,
+      isLive: status === 'activated' && lastSyncAt != null && !error,
+    }),
+    [items, loading, error, lastSyncAt, status]
+  );
+
+  return (
+    <SterbefaelleContext.Provider value={value}>{children}</SterbefaelleContext.Provider>
+  );
+}
+
+export function useSterbefaelle(): SterbefaelleContextValue {
+  const ctx = useContext(SterbefaelleContext);
+  if (!ctx) {
+    throw new Error('useSterbefaelle muss innerhalb von SterbefaelleProvider verwendet werden');
+  }
+  return ctx;
 }

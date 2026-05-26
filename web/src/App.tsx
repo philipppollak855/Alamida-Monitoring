@@ -1,5 +1,6 @@
 import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthProvider';
+import { SterbefaelleProvider } from './firestore/SterbefaelleProvider';
 import { SettingsProvider } from './settings/SettingsProvider';
 import { ThemeProvider } from './theme/ThemeProvider';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -22,6 +23,7 @@ export function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
+      <SterbefaelleProvider>
       <InstallPwa />
       <AppBadgeSync />
       <Routes>
@@ -51,6 +53,7 @@ export function App() {
           </Route>
         </Route>
       </Routes>
+      </SterbefaelleProvider>
       </AuthProvider>
     </ThemeProvider>
   );

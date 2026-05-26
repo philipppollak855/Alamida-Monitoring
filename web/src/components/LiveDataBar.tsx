@@ -1,12 +1,10 @@
-import { useFirestoreCollection } from '../hooks/useFirestoreCollection';
+import { useSterbefaelle } from '../hooks/useSterbefaelle';
 import { LiveIndicator } from './LiveIndicator';
-import type { Sterbefall } from '../types';
 
 /** Gemeinsame Live-Leiste für Board und Wandmonitor. */
 export function LiveDataBar({ compact = false }: { compact?: boolean }) {
-  const sterbefaelle = useFirestoreCollection<Sterbefall>('sterbefaelle', 'lastSeenAt');
-  const { lastSyncAt, isLive, loading, error } = sterbefaelle;
-  const aktiv = sterbefaelle.items.filter((s) => s.aktivInAlamida).length;
+  const { items, lastSyncAt, isLive, loading, error } = useSterbefaelle();
+  const aktiv = items.filter((s) => s.aktivInAlamida).length;
 
   return (
     <div className={`live-data-bar ${compact ? 'compact' : ''}`}>
@@ -18,8 +16,8 @@ export function LiveDataBar({ compact = false }: { compact?: boolean }) {
       )}
       {isLive && (
         <span className="live-meta small">
-          {sterbefaelle.items.length > 0
-            ? `${sterbefaelle.items.length} Fälle${aktiv > 0 ? ` · ${aktiv} aktiv in Alamida` : ''}`
+          {items.length > 0
+            ? `${items.length} Fälle${aktiv > 0 ? ` · ${aktiv} aktiv in Alamida` : ''}`
             : 'Verbunden — warte auf Agent-Sync'}
         </span>
       )}

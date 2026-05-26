@@ -7,6 +7,8 @@ namespace Alamida.Monitoring.Core.Firestore;
 
 public sealed class FirestoreSyncService : IAsyncDisposable
 {
+    private static readonly TimeSpan HeartbeatWriteInterval = TimeSpan.FromMinutes(3);
+
     private readonly FirestoreDb _db;
     private readonly string _workstationId;
     private readonly SterbefallFirestoreCache _cache = new();
@@ -46,6 +48,9 @@ public sealed class FirestoreSyncService : IAsyncDisposable
 
         if (cached != null && cached.ContentHash == contentHash && cached.FullWriteCompleted)
         {
+            if (!ShouldWriteHeartbeat(cached, sterbefallWechsel))
+                return HeartbeatResult(sterbefallId, sterbefallWechsel, HeartbeatReason.Throttled);
+
             var inHistoryCached = ResolveInHistoryFromCache(snapshot, cached);
             if (ShouldOnlyTouchLastSeenFromCache(snapshot, cached))
             {
@@ -116,6 +121,10 @@ public sealed class FirestoreSyncService : IAsyncDisposable
 
         if (oldHash == contentHash)
         {
+            var heartbeatCache = _cache.Get(sterbefallId);
+            if (!ShouldWriteHeartbeat(heartbeatCache, sterbefallWechsel))
+                return HeartbeatResult(sterbefallId, sterbefallWechsel, HeartbeatReason.Throttled);
+
             await sterbefallRef.SetAsync(
                 BuildHeartbeatPayload(sterbefallId, snapshot, inHistory, _workstationId, now),
                 SetOptions.MergeAll,
@@ -286,6 +295,9 @@ public sealed class FirestoreSyncService : IAsyncDisposable
 
         if (cached != null && cached.ContentHash == contentHash && cached.FullWriteCompleted)
         {
+            if (!ShouldWriteHeartbeat(cached, sterbefallWechsel))
+                return HeartbeatResult(sterbefallId, sterbefallWechsel, HeartbeatReason.Throttled);
+
             var inHistoryCached = ResolveInHistoryFromCache(snapshot, cached);
             if (ShouldOnlyTouchLastSeenFromCache(snapshot, cached))
             {
@@ -327,6 +339,13 @@ public sealed class FirestoreSyncService : IAsyncDisposable
             SterbefallId = sterbefallId,
             SterbefallWechsel = sterbefallWechsel || cached == null,
         };
+    }
+
+    private static bool ShouldWriteHeartbeat(SterbefallFirestoreCache.Entry? cache, bool sterbefallWechsel)
+    {
+        if (sterbefallWechsel) return true;
+        if (cache == null) return true;
+        return DateTime.UtcNow - cache.LastSyncedUtc >= HeartbeatWriteInterval;
     }
 
     private static SyncResult HeartbeatResult(

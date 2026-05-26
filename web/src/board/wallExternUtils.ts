@@ -6,7 +6,7 @@ import {
   isGenericKrankenhausKey,
   krankenhausOrtKey,
   matchNamedKrankenhausGruppe,
-  resolveBestKrankenhausOrt,
+  resolveKrankenhausOrtForFall,
 } from '../settings/krankenhausOrt';
 import { istKrankenhaus, istKrematorium, ortLabel } from './ortKeywords';
 import { isAusstehendHeute, isAusstehendHeuteOrGeplant } from './ausstehendStatus';
@@ -179,14 +179,13 @@ function resolveKrankenhausStandort(
 ): { typ: 'krankenhaus'; ort: string } | null {
   if (!istExternKrankenhausFall(s)) return null;
 
-  let ort = resolveBestKrankenhausOrt(collectKrankenhausKandidaten(s));
+  let ort = resolveKrankenhausOrtForFall(s);
   if (!ort?.trim()) return null;
 
   if (isGenericKrankenhausKey(krankenhausOrtKey(ort))) {
     const namedMeta = alle
       .map((x) => {
-        const kandidaten = collectKrankenhausKandidaten(x);
-        const o = resolveBestKrankenhausOrt(kandidaten);
+        const o = resolveKrankenhausOrtForFall(x);
         if (!o || isGenericKrankenhausKey(krankenhausOrtKey(o))) return null;
         return { key: `krankenhaus:${krankenhausOrtKey(o)}`, slug: krankenhausOrtKey(o) };
       })
@@ -196,11 +195,11 @@ function resolveKrankenhausStandort(
     if (inferredKey) {
       const slug = inferredKey.replace(/^krankenhaus:/, '');
       const peer = alle.find((x) => {
-        const o = resolveBestKrankenhausOrt(collectKrankenhausKandidaten(x));
+        const o = resolveKrankenhausOrtForFall(x);
         return o && krankenhausOrtKey(o) === slug;
       });
       if (peer) {
-        ort = resolveBestKrankenhausOrt(collectKrankenhausKandidaten(peer)) ?? ort;
+        ort = resolveKrankenhausOrtForFall(peer) ?? ort;
       }
     }
   }

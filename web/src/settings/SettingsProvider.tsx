@@ -39,14 +39,12 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [reconnectTick, setReconnectTick] = useState(0);
+  const [authReconnectTick, setAuthReconnectTick] = useState(0);
 
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState === 'visible' && status === 'activated') {
-        void ensureFreshIdToken(true).finally(() => {
-          setReconnectTick((t) => t + 1);
-        });
+        void ensureFreshIdToken(true);
       }
     };
     document.addEventListener('visibilitychange', onVisible);
@@ -80,7 +78,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         if (isFirestoreAuthError(err)) {
           setError(normalizeFirestoreError(err));
           void ensureFreshIdToken(true).then((ok) => {
-            if (ok) setReconnectTick((t) => t + 1);
+            if (ok) setAuthReconnectTick((t) => t + 1);
           });
         } else {
           setError(normalizeFirestoreError(err));
@@ -89,7 +87,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       }
     );
     return () => unsub();
-  }, [status, reconnectTick]);
+  }, [status, authReconnectTick]);
 
   const saveSettings = useCallback(async (next: DispositionSettings) => {
     if (!db) throw new Error('Firebase nicht konfiguriert');

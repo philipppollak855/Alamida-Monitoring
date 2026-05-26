@@ -5,6 +5,7 @@ import { TransferCardItem } from '../components/board/TransferCardItem';
 import { useNarrowViewport } from '../hooks/useNarrowViewport';
 import { useCalendarDay } from '../hooks/useCalendarDay';
 import { useFirestoreCollection } from '../hooks/useFirestoreCollection';
+import { useSterbefaelle } from '../hooks/useSterbefaelle';
 import { firebaseConfigured } from '../firebase';
 import {
   boardStats,
@@ -62,8 +63,7 @@ export function BoardPage() {
   const section = parseBoardSection(searchParams.get('tab'));
   const calendarDay = useCalendarDay();
   const { settings } = useDispositionSettings();
-  const { items: sterbefaelleRaw, loading, error } =
-    useFirestoreCollection<Sterbefall>('sterbefaelle', 'lastSeenAt');
+  const { items: sterbefaelleRaw, loading, error } = useSterbefaelle();
   const sterbefaelle = useMemo(
     () => filterAktiveSterbefaelle(sterbefaelleRaw),
     [sterbefaelleRaw]

@@ -1,9 +1,7 @@
 import { useEffect } from 'react';
 import { useAuth } from '../auth/AuthContext';
-import { useFirestoreCollection } from './useFirestoreCollection';
+import { useSterbefaelle } from './useSterbefaelle';
 import { buildWidgetSnapshot } from '../widget/widgetData';
-import type { Sterbefall } from '../types';
-
 async function setBadgeCount(count: number) {
   if (!('setAppBadge' in navigator)) return;
   try {
@@ -21,7 +19,7 @@ async function setBadgeCount(count: number) {
 /** App-Icon-Badge: offene Termine heute + extern (Android/Windows PWA). */
 export function useWidgetBadge() {
   const { status } = useAuth();
-  const { items } = useFirestoreCollection<Sterbefall>('sterbefaelle', 'lastSeenAt');
+  const { items } = useSterbefaelle();
 
   useEffect(() => {
     if (status !== 'activated') {

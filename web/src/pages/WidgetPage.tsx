@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useCalendarDay } from '../hooks/useCalendarDay';
-import { useFirestoreCollection } from '../hooks/useFirestoreCollection';
+import { useSterbefaelle } from '../hooks/useSterbefaelle';
 import { firebaseConfigured } from '../firebase';
 import { useDispositionSettings } from '../settings/SettingsProvider';
 import { buildWidgetSnapshot, parseWidgetKind, type WidgetKind } from '../widget/widgetData';
-import type { Sterbefall } from '../types';
-
 const REFRESH_MS = 45_000;
 
 const TITLES: Record<WidgetKind, string> = {
@@ -28,8 +26,7 @@ export function WidgetPage() {
   const { kind: kindParam } = useParams<{ kind: string }>();
   const kind = parseWidgetKind(kindParam);
   const calendarDay = useCalendarDay();
-  const { items, lastSyncAt, isLive, loading } =
-    useFirestoreCollection<Sterbefall>('sterbefaelle', 'lastSeenAt');
+  const { items, lastSyncAt, isLive, loading } = useSterbefaelle();
   const [tick, setTick] = useState(0);
 
   useEffect(() => {

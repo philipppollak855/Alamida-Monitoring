@@ -179,8 +179,35 @@ export function extractUkKlinikFromTexts(text: string): string[] {
   return found;
 }
 
-/** Alle Orts-Strings eines Falls, die ein KH bezeichnen können. */
-export function collectKrankenhausKandidaten(s: Sterbefall): string[] {
+/** Sterbeort aus Verstorbener/Details (ohne Terminseite). */
+export function collectSterbeortKrankenhausKandidaten(s: Sterbefall): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+
+  const add = (v?: string, force = false) => {
+    const t = v?.trim();
+    if (!t) return;
+    const norm = t.toLowerCase();
+    if (seen.has(norm)) return;
+    if (!force && !istKrankenhaus(t)) return;
+    seen.add(norm);
+    out.push(t);
+
+    const route = parseUeberfuehrungRoute(t);
+    if (route.von && route.von !== t) add(route.von, force || istKrankenhaus(route.von));
+    if (route.nach && route.nach !== t) add(route.nach, force || istKrankenhaus(route.nach));
+  };
+
+  add(s.sterbeort, true);
+  for (const ukName of extractUkKlinikFromTexts(s.sterbeort ?? '')) {
+    add(ukName, true);
+  }
+
+  return out;
+}
+
+/** Position, Termine, Verlauf — nachrangig zum Sterbeort-Feld. */
+export function collectTerminKrankenhausKandidaten(s: Sterbefall): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
 
@@ -199,7 +226,6 @@ export function collectKrankenhausKandidaten(s: Sterbefall): string[] {
   };
 
   add(s.aktuellePosition);
-  add(s.sterbeort);
   add(s.abholort, !!s.abholortIstKrankenhaus);
   add(s.naechsterSchrittVon);
   add(s.naechsterSchrittNach);
@@ -216,11 +242,45 @@ export function collectKrankenhausKandidaten(s: Sterbefall): string[] {
     add(a.nachOrt);
   }
 
-  for (const ukName of extractUkKlinikFromTexts(gatherSterbefallTexts(s))) {
+  const detailText = [s.sterbeort, s.abholort].filter(Boolean).join('\n');
+  const terminText = gatherSterbefallTexts(s);
+  for (const ukName of extractUkKlinikFromTexts(`${detailText}\n${terminText}`)) {
     add(ukName, true);
   }
 
   return out;
+}
+
+/** Alle Orts-Strings eines Falls, die ein KH bezeichnen können. */
+export function collectKrankenhausKandidaten(s: Sterbefall): string[] {
+  const seen = new Set<string>();
+  const merged: string[] = [];
+  for (const k of [...collectSterbeortKrankenhausKandidaten(s), ...collectTerminKrankenhausKandidaten(s)]) {
+    const norm = k.toLowerCase();
+    if (seen.has(norm)) continue;
+    seen.add(norm);
+    merged.push(k);
+  }
+  return merged;
+}
+
+/**
+ * Krankenhaus-Label für Extern/Gruppierung: Sterbeort (Details) vor Terminseite.
+ */
+export function resolveKrankenhausOrtForFall(
+  s: Sterbefall,
+  settings?: DispositionSettings
+): string | null {
+  const cfg = settings ?? getDispositionSettings();
+  const sterbeort = s.sterbeort?.trim();
+
+  if (sterbeort) {
+    const fromDetails = resolveBestKrankenhausOrt(collectSterbeortKrankenhausKandidaten(s), cfg);
+    if (fromDetails) return fromDetails;
+    if (istKrankenhaus(sterbeort)) return krankenhausOrtBasis(sterbeort);
+  }
+
+  return resolveBestKrankenhausOrt(collectTerminKrankenhausKandidaten(s), cfg);
 }
 
 /** Bester Ortsname für Gruppierung (längster spezifischer Schlüssel, nicht nur „UK“). */

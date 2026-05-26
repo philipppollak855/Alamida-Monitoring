@@ -4,7 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import { LiveIndicator } from '../components/LiveIndicator';
 import { ThemeSwitch } from '../components/ThemeSwitch';
 import { useCalendarDay } from '../hooks/useCalendarDay';
-import { useFirestoreCollection } from '../hooks/useFirestoreCollection';
+import { useSterbefaelle } from '../hooks/useSterbefaelle';
 import { firebaseConfigured } from '../firebase';
 import { buildPrimaerKuehlraumSlots, flattenOffene } from '../board/boardUtils';
 import { useDispositionSettings } from '../settings/SettingsProvider';
@@ -111,8 +111,7 @@ export function WallPage() {
   );
   const edgeSwipe = useWallEdgeSwipe(isNarrow, slide, goToSlide);
 
-  const sterbefaelleQuery = useFirestoreCollection<Sterbefall>('sterbefaelle', 'lastSeenAt');
-  const { items: sterbefaelleRaw, lastSyncAt, isLive, loading } = sterbefaelleQuery;
+  const { items: sterbefaelleRaw, lastSyncAt, isLive, loading } = useSterbefaelle();
   const calendarDay = useCalendarDay();
   const sterbefaelle = useMemo(
     () => filterAktiveSterbefaelle(sterbefaelleRaw),

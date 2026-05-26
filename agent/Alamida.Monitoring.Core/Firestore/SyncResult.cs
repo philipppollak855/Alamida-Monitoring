@@ -15,6 +15,8 @@ public enum HeartbeatReason
     LastSeenOnly,
     /// <summary>Inhalt unverändert (contentHash gleich).</summary>
     ContentUnchanged,
+    /// <summary>Heartbeat-Firestore-Write gedrosselt (weniger Lese-Last in Clients).</summary>
+    Throttled,
 }
 
 public readonly struct SyncResult
