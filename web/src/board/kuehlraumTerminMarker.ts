@@ -3,7 +3,7 @@ import { isAusstehendHeuteOrGeplant } from './ausstehendStatus';
 import { parseDatumDeToDate } from './dateUtils';
 import { istKrematorium } from './ortKeywords';
 
-export type KuehlraumTerminMarkerKind = 'kremation' | 'beisetzung';
+export type KuehlraumTerminMarkerKind = 'kremation' | 'beisetzung' | 'trauerfeier';
 
 export interface KuehlraumTerminMarker {
   kind: KuehlraumTerminMarkerKind;
@@ -12,6 +12,12 @@ export interface KuehlraumTerminMarker {
   /** Anzeigezeile, z. B. „Kremation in 2 Tagen · 24.05.2026“ */
   label: string;
 }
+
+const MARKER_PREFIX: Record<KuehlraumTerminMarkerKind, string> = {
+  kremation: 'Kremation',
+  beisetzung: 'Beisetzung',
+  trauerfeier: 'Trauerfeier',
+};
 
 function istOffenerKremationsschritt(a: {
   schrittTyp?: string;
@@ -42,6 +48,17 @@ function findeKremationTermin(s: Sterbefall): string | undefined {
   return undefined;
 }
 
+function findeErsteTrauerfeierDatum(s: Sterbefall): string | undefined {
+  const d = s.trauerfeierdatum?.trim();
+  return d && parseDatumDeToDate(d) ? d : undefined;
+}
+
+function dayMs(datum?: string): number | null {
+  const d = parseDatumDeToDate(datum);
+  if (!d) return null;
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+}
+
 export function relativeTerminLabel(datum: string, now: Date): string {
   const target = parseDatumDeToDate(datum);
   if (!target) return '';
@@ -62,7 +79,7 @@ function formatMarkerLabel(
   datum: string | undefined,
   now: Date
 ): KuehlraumTerminMarker | null {
-  const prefix = kind === 'kremation' ? 'Kremation' : 'Beisetzung';
+  const prefix = MARKER_PREFIX[kind];
   if (!datum?.trim() || !parseDatumDeToDate(datum)) {
     if (kind === 'kremation') {
       return {
@@ -80,20 +97,52 @@ function formatMarkerLabel(
   return { kind, datum: d, relativeLabel, label };
 }
 
-/** Nächster relevanter Termin für Kühlraum-Kacheln: Kremation oder Beisetzung. */
-export function buildKuehlraumTerminMarker(
+function trauerfeierVorKremationAnzeigen(
+  trauerfeierDatum: string | undefined,
+  kremationDatum: string | undefined
+): boolean {
+  if (!trauerfeierDatum) return false;
+  if (!kremationDatum) return true;
+  const tf = dayMs(trauerfeierDatum);
+  const kr = dayMs(kremationDatum);
+  if (tf == null || kr == null) return !kremationDatum;
+  return tf < kr;
+}
+
+/** Relevante Termine für Kühlraum-Kacheln (Kremation ± Trauerfeier, sonst Beisetzung). */
+export function buildKuehlraumTerminMarkers(
   s: Sterbefall,
   now: Date = new Date()
-): KuehlraumTerminMarker | null {
+): KuehlraumTerminMarker[] {
   if (hatKremationImAblauf(s)) {
-    const marker = formatMarkerLabel('kremation', findeKremationTermin(s), now);
-    if (marker) return marker;
+    const kremationDatum = findeKremationTermin(s);
+    const trauerfeierDatum = findeErsteTrauerfeierDatum(s);
+    const markers: KuehlraumTerminMarker[] = [];
+
+    if (trauerfeierVorKremationAnzeigen(trauerfeierDatum, kremationDatum)) {
+      const tf = formatMarkerLabel('trauerfeier', trauerfeierDatum, now);
+      if (tf) markers.push(tf);
+    }
+
+    const kr = formatMarkerLabel('kremation', kremationDatum, now);
+    if (kr) markers.push(kr);
+
+    return markers;
   }
 
   const beisetzung = s.beisetzungsdatum?.trim();
   if (beisetzung && parseDatumDeToDate(beisetzung)) {
-    return formatMarkerLabel('beisetzung', beisetzung, now);
+    const b = formatMarkerLabel('beisetzung', beisetzung, now);
+    return b ? [b] : [];
   }
 
-  return null;
+  return [];
+}
+
+/** @deprecated Einzelmarker — nutzt ersten Eintrag aus {@link buildKuehlraumTerminMarkers}. */
+export function buildKuehlraumTerminMarker(
+  s: Sterbefall,
+  now: Date = new Date()
+): KuehlraumTerminMarker | null {
+  return buildKuehlraumTerminMarkers(s, now)[0] ?? null;
 }

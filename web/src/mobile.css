@@ -975,8 +975,8 @@
   }
 
   .wall-cal-card--mobile.is-grouped.wall-cal-card--color-feier {
-    border-color: rgba(61, 122, 140, 0.65);
-    background: rgba(61, 122, 140, 0.14);
+    border-color: rgba(5, 150, 105, 0.65);
+    background: rgba(52, 211, 153, 0.18);
   }
 
   .wall-cal-card--mobile .wall-cal-share-link {
@@ -992,18 +992,21 @@
   }
 
   [data-theme='alamida'] .wall-cal-card--mobile.wall-cal-card--color-fahrt {
-    background: rgba(154, 123, 58, 0.12);
-    border-color: rgba(154, 123, 58, 0.45);
+    background: rgba(251, 146, 60, 0.28);
+    border-color: rgba(234, 88, 12, 0.55);
+    border-left: 4px solid #ea580c;
   }
 
   [data-theme='alamida'] .wall-cal-card--mobile.wall-cal-card--color-kremation {
-    background: rgba(139, 106, 174, 0.12);
-    border-color: rgba(139, 106, 174, 0.45);
+    background: rgba(192, 132, 252, 0.3);
+    border-color: rgba(126, 34, 206, 0.55);
+    border-left: 4px solid #7e22ce;
   }
 
   [data-theme='alamida'] .wall-cal-card--mobile.wall-cal-card--color-feier {
-    background: rgba(61, 122, 140, 0.1);
-    border-color: rgba(61, 122, 140, 0.45);
+    background: rgba(52, 211, 153, 0.22);
+    border-color: rgba(5, 150, 105, 0.55);
+    border-left: 4px solid #059669;
   }
 
   [data-theme='alamida'] .wall-cal-period-cell {
@@ -1118,9 +1121,13 @@
     white-space: nowrap;
   }
 
-  .wall-cool-termin-marker {
-    font-size: 0.5rem;
+  .wall-cool-termin-marker.cool-termin-markers {
     margin-top: 0.15rem;
+    gap: 0.12rem;
+  }
+
+  .wall-cool-termin-marker .cool-termin-marker {
+    font-size: 0.5rem;
     padding: 0.12rem 0.25rem;
     line-height: 1.2;
     overflow: hidden;
