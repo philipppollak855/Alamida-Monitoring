@@ -354,35 +354,45 @@ export function WallPage() {
                       {g.faelle.map((f) => (
                         <li
                           key={f.docId}
-                          className={`wall-extern-person ${f.freigabeFrei ? 'is-frei-erfasst' : 'is-nicht-frei'}`}
+                          className={`wall-extern-person ${
+                            g.typ === 'krankenhaus'
+                              ? f.freigabeFrei
+                                ? 'is-frei-erfasst'
+                                : 'is-nicht-frei'
+                              : ''
+                          }`}
                         >
                           <div className="wall-extern-person-main">
                             <span className="wall-extern-name">{f.name}</span>
                             <span className="wall-extern-meta">
                               {f.hinweis}
                               {f.terminAm ? ` · ${f.terminAm}` : ''}
-                              {f.freigabeFrei && f.freigabeDatum
+                              {g.typ === 'krankenhaus' &&
+                              f.freigabeFrei &&
+                              f.freigabeDatum
                                 ? ` · Freigabe ${f.freigabeDatum}`
                                 : ''}
                             </span>
                           </div>
                           <div className="wall-extern-actions">
-                            <WallFreigabeControl
-                              docId={f.docId}
-                              freigabeFrei={f.freigabeFrei}
-                              freigabeDatum={f.freigabeDatum}
-                              defaultDate={now}
-                              disabled={
-                                freigabePending === f.docId || urnenPending === f.docId
-                              }
-                              onSave={saveFreigabe}
-                              onClear={clearFreigabe}
-                            />
+                            {g.typ === 'krankenhaus' && (
+                              <WallFreigabeControl
+                                docId={f.docId}
+                                freigabeFrei={f.freigabeFrei}
+                                freigabeDatum={f.freigabeDatum}
+                                defaultDate={now}
+                                disabled={
+                                  freigabePending === f.docId || urnenPending === f.docId
+                                }
+                                onSave={saveFreigabe}
+                                onClear={clearFreigabe}
+                              />
+                            )}
                             {g.typ === 'kremation' && (
                               <button
                                 type="button"
                                 className="wall-retour-btn"
-                                disabled={urnenPending === f.docId || freigabePending === f.docId}
+                                disabled={urnenPending === f.docId}
                                 title="In Bereich Urnen unter Kühlraum übernehmen"
                                 onClick={() => void handleRetour(f.docId, f.kremationOrt)}
                               >
