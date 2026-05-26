@@ -1,4 +1,4 @@
-import type { Sterbefall } from '../types';
+import type { AusstehendEintrag, Sterbefall } from '../types';
 import { istInHistory } from './historieLogic';
 import {
   canonicalKrankenhausAnzeigeLabel,
@@ -74,17 +74,29 @@ function naechsterSchritt(s: Sterbefall) {
   return offen[0];
 }
 
-function naechsterKremationSchritt(s: Sterbefall) {
-  const ausAusstehend = (s.ausstehend ?? []).find(
-    (a) =>
-      a.schrittTyp === 'kremation' &&
-      (a.status === 'abholung_noetig' || isAusstehendHeuteOrGeplant(a))
+type ExternSchrittRef = {
+  schrittTyp?: string;
+  vonOrt?: string;
+  nachOrt?: string;
+  terminAm?: string;
+  abholungAm?: string;
+  status?: string;
+};
+
+function istOffenerAusstehendSchritt(a: AusstehendEintrag): boolean {
+  if (a.status === 'abholung_noetig') return true;
+  return isAusstehendHeuteOrGeplant(a);
+}
+
+function findeKremationSchritt(s: Sterbefall): ExternSchrittRef | undefined {
+  const kremAusstehend = (s.ausstehend ?? []).find(
+    (a) => a.schrittTyp === 'kremation' && istOffenerAusstehendSchritt(a)
   );
-  if (ausAusstehend) return ausAusstehend;
+  if (kremAusstehend) return kremAusstehend;
 
   if (s.naechsterSchrittTyp === 'kremation') {
     return {
-      schrittTyp: 'kremation' as const,
+      schrittTyp: 'kremation',
       vonOrt: s.naechsterSchrittVon,
       nachOrt: s.naechsterSchrittNach,
       terminAm: s.naechsterSchrittAm,
@@ -92,6 +104,22 @@ function naechsterKremationSchritt(s: Sterbefall) {
   }
 
   return undefined;
+}
+
+function naechsterKremationSchritt(s: Sterbefall): ExternSchrittRef | undefined {
+  return findeKremationSchritt(s);
+}
+
+/** Erster offener Schritt, der nicht Kremation ist (für KH/Pflegeheim-Hinweise). */
+function naechsterNichtKremationSchritt(s: Sterbefall): ExternSchrittRef | undefined {
+  return (s.ausstehend ?? []).find(
+    (a) => a.schrittTyp !== 'kremation' && istOffenerAusstehendSchritt(a)
+  );
+}
+
+function terminFuerSchritt(schritt?: ExternSchrittRef): string | undefined {
+  const t = schritt?.terminAm?.trim() || schritt?.abholungAm?.trim();
+  return t || undefined;
 }
 
 function ersterKrematoriumOrt(...candidates: (string | undefined)[]): string | null {
@@ -119,23 +147,32 @@ function hatKremationExternBezug(s: Sterbefall): boolean {
 }
 
 function hinweisFuerFall(s: Sterbefall, typ: ExternKartenKategorie): string {
-  const n = naechsterSchritt(s);
-  if (n && isAusstehendHeute(n)) return 'Termin heute';
-  if (n?.status === 'abholung_noetig') return 'Abholung ausstehend';
+  if (typ === 'kremation') {
+    if (istAktuellImKrematorium(s)) return 'Im Krematorium';
 
-  // Noch am KH/Sterbeort — vor „Überführung ohne Datum“, auch wenn KR-Überführung vorgebucht ist
-  if (typ !== 'kremation') {
-    if (s.aktuellePositionTyp === 'sterbeort' || isAmKrankenhausOderSterbeort(s)) {
-      return 'Am Sterbeort';
+    const krem = findeKremationSchritt(s);
+    if (krem) {
+      const termin = terminFuerSchritt(krem);
+      if (!termin) return 'Kremation ohne Datum';
+      if (isAusstehendHeute(krem)) return 'Termin heute';
+      return 'Kremation geplant';
     }
-  } else if (s.aktuellePositionTyp === 'sterbeort') {
+
+    return 'Wartend';
+  }
+
+  const n = naechsterNichtKremationSchritt(s) ?? naechsterSchritt(s);
+  if (n?.schrittTyp !== 'kremation') {
+    if (n && isAusstehendHeute(n)) return 'Termin heute';
+    if (n?.status === 'abholung_noetig') return 'Abholung ausstehend';
+    if (n?.schrittTyp === 'abholung') return 'Wartet auf Abholung';
+  }
+
+  if (s.aktuellePositionTyp === 'sterbeort' || isAmKrankenhausOderSterbeort(s)) {
     return 'Am Sterbeort';
   }
 
   if (hatAusstehendeUeberfuehrungInsEigeneKr(s)) return 'Überführung ohne Datum';
-  if (typ === 'kremation' && istAktuellImKrematorium(s)) return 'Im Krematorium';
-  if (n?.schrittTyp === 'abholung') return 'Wartet auf Abholung';
-  if (n?.schrittTyp === 'kremation') return 'Kremation geplant';
   return 'Wartend';
 }
 
@@ -406,7 +443,12 @@ export function buildExternGruppen(sterbefaelle: Sterbefall[]): ExternOrtGruppe[
         : externKategorieGruppenKey(standort.typ, standort.ort);
     const id = s.sterbefallId ?? s.id;
     const name = s.verstorbenerName ?? id;
-    const n = naechsterKremationSchritt(s) ?? naechsterSchritt(s);
+    const kremSchritt =
+      standort.typ === 'kremation' ? findeKremationSchritt(s) : undefined;
+    const n =
+      standort.typ === 'kremation'
+        ? kremSchritt
+        : naechsterNichtKremationSchritt(s) ?? naechsterSchritt(s);
 
     const displayOrt =
       standort.typ === 'krankenhaus'
@@ -430,7 +472,10 @@ export function buildExternGruppen(sterbefaelle: Sterbefall[]): ExternOrtGruppe[
       sterbefallId: id,
       name,
       hinweis: hinweisFuerFall(s, standort.typ),
-      terminAm: n?.terminAm ?? n?.abholungAm ?? s.naechsterSchrittAm,
+      terminAm:
+        standort.typ === 'kremation'
+          ? terminFuerSchritt(kremSchritt)
+          : terminFuerSchritt(n) ?? s.naechsterSchrittAm,
       kremationOrt: standort.typ === 'kremation' ? displayOrt : undefined,
       freigabeFrei: s.freigabeFrei === true,
       freigabeDatum: s.freigabeDatum?.trim() || undefined,
