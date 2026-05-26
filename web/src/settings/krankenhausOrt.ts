@@ -216,6 +216,9 @@ export function collectAbholungSterbeortKandidaten(s: Sterbefall): string[] {
     add(ukName, true);
   }
 
+  const routeKh = findKhRouteZuEigeneKrInFall(s);
+  if (routeKh) add(routeKh, true);
+
   return out;
 }
 
@@ -243,6 +246,74 @@ function khVonAusSchrittText(vonRaw?: string): string | null {
   const { von } = parseUeberfuehrungRoute(raw);
   const candidate = (von || raw).trim();
   return istKrankenhaus(candidate) ? candidate : null;
+}
+
+/** Alle Routen-Texte (ausstehend, naechsterSchritt, Verlauf, …). */
+function collectFallRouteTexte(s: Sterbefall): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  const push = (v?: string) => {
+    const t = v?.trim();
+    if (!t) return;
+    const norm = t.toLowerCase();
+    if (seen.has(norm)) return;
+    seen.add(norm);
+    out.push(t);
+  };
+
+  push(s.abholort);
+  push(s.aktuellePosition);
+  push(s.naechsterSchrittVon);
+  push(s.naechsterSchrittNach);
+  push(s.naechsteUeberfuehrungVon);
+  push(s.naechsteUeberfuehrungNach);
+  for (const a of s.ausstehend ?? []) {
+    push(a.vonOrt);
+    push(a.nachOrt);
+  }
+  for (const v of s.verlauf ?? []) {
+    push(v.ort);
+    push(v.vonOrt);
+    push(v.nachOrt);
+  }
+  return out;
+}
+
+function extractKhVonRouteZuEigeneKr(
+  raw: string,
+  cfg: DispositionSettings
+): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+
+  const route = parseUeberfuehrungRoute(trimmed);
+  const nachZiel = route.nach?.trim() ?? '';
+  if (!nachZiel || !zielIstEigenerKuehlraumNach(nachZiel, cfg)) return null;
+
+  const von = (route.von || trimmed).trim();
+  const khVon = khVonAusSchrittText(von);
+  if (!khVon) return null;
+  return resolveBestKrankenhausOrt([khVon], cfg) ?? krankenhausOrtBasis(khVon);
+}
+
+/**
+ * UK/KH → eigenes KR aus beliebigem Schritt-Feld (auch wenn Abholort fehlt
+ * oder nur spätere Überführungen in ausstehend stehen).
+ */
+export function findKhRouteZuEigeneKrInFall(
+  s: Sterbefall,
+  settings?: DispositionSettings
+): string | null {
+  const cfg = settings ?? getDispositionSettings();
+  for (const raw of collectFallRouteTexte(s)) {
+    const kh = extractKhVonRouteZuEigeneKr(raw, cfg);
+    if (kh) return kh;
+  }
+  return null;
+}
+
+export function hatKhRouteZuEigeneKrInFall(s: Sterbefall): boolean {
+  return findKhRouteZuEigeneKrInFall(s) != null;
 }
 
 /** Von-UK bei offener Überführung ins eigene KR (heute/geplant). */
@@ -346,6 +417,9 @@ export function resolveKrankenhausOrtForFall(
 
   const pendingKh = resolvePendingKhVonForEigeneKr(s, cfg);
   if (pendingKh) return pendingKh;
+
+  const routeKh = findKhRouteZuEigeneKrInFall(s, cfg);
+  if (routeKh) return routeKh;
 
   const fromAbholung = resolveBestKrankenhausOrt(collectAbholungSterbeortKandidaten(s), cfg);
   if (fromAbholung) return fromAbholung;

@@ -6,6 +6,7 @@ import {
   isGenericKrankenhausKey,
   krankenhausOrtKey,
   matchNamedKrankenhausGruppe,
+  hatKhRouteZuEigeneKrInFall,
   resolveKrankenhausOrtForFall,
 } from '../settings/krankenhausOrt';
 import { parseUeberfuehrungRoute } from './routeParse';
@@ -240,6 +241,8 @@ function istExternKrankenhausFall(s: Sterbefall): boolean {
   if (hatAusstehendeUeberfuehrungVonExternemOrt(s)) return true;
 
   if (hatOffeneKhUeberfuehrungInsEigeneKr(s)) return true;
+
+  if (hatKhRouteZuEigeneKrInFall(s)) return true;
 
   const pos = s.aktuellePosition?.trim();
   if (pos && istKrankenhaus(pos)) return true;

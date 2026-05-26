@@ -99,6 +99,8 @@ public static class UeberfuehrungSnapshotBuilder
         // Sterbeort nur aus Abholung (Tab Termine, Zeile 1) — nicht aus „Angabe zum Sterbeort“ (Verstorbener).
         var abholort = UeberfuehrungTypResolver.AbholortAusErsterZeile(
             schritte.FirstOrDefault(s => s.SchrittTyp == "abholung")?.VonOrt);
+        if (string.IsNullOrWhiteSpace(abholort))
+            abholort = InferKhAbholortAusSchritten(schritte);
         var abholortIstKh = UeberfuehrungTypResolver.IstKrankenhausAbholort(abholort);
         var effektiverSterbeort = abholort;
 
@@ -216,6 +218,32 @@ public static class UeberfuehrungSnapshotBuilder
     public static bool TryParseDatum(string? text, out DateTime datum) =>
 
         AlamidaFieldParser.TryParseDatum(text, out datum);
+
+    /// <summary>
+    /// Abholort aus UK/KH → eigenes KR, wenn Zeile 1 (Abholung) fehlt aber Route in späterer Zeile steht.
+    /// </summary>
+    private static string? InferKhAbholortAusSchritten(IReadOnlyList<UeberfuehrungSchritt> schritte)
+    {
+        foreach (var s in schritte.Where(x => x.HasRoute).OrderBy(x => x.Zeile))
+        {
+            var vonRaw = s.VonOrt?.Trim();
+            if (string.IsNullOrWhiteSpace(vonRaw))
+                continue;
+
+            var (von, nachAusVon, _) = AlamidaFieldParser.ParseUeberfuehrungText(vonRaw);
+            var nachZiel = s.NachOrt?.Trim() ?? nachAusVon?.Trim();
+            if (string.IsNullOrWhiteSpace(nachZiel) || OrtErkennung.MatchEigenerKuehlraum(nachZiel) == null)
+                continue;
+
+            var khVon = von?.Trim() ?? vonRaw;
+            if (!UeberfuehrungTypResolver.IstKrankenhausAbholort(khVon))
+                continue;
+
+            return UeberfuehrungTypResolver.AbholortAusErsterZeile(khVon);
+        }
+
+        return null;
+    }
 
 }
 
