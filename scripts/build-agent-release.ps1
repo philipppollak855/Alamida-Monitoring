@@ -51,7 +51,7 @@ if (Test-Path $OutputDir) {
     try {
         Remove-Item $OutputDir -Recurse -Force -ErrorAction Stop
     } catch {
-        Write-Warning "Ausgabeordner gesperrt — publish wird ueberschrieben: $OutputDir"
+        Write-Warning "Ausgabeordner gesperrt - publish wird ueberschrieben: $OutputDir"
         if (Test-Path $publishDir) {
             Get-ChildItem $publishDir -Force -ErrorAction SilentlyContinue | ForEach-Object {
                 Remove-Item $_.FullName -Recurse -Force -ErrorAction SilentlyContinue
@@ -125,20 +125,20 @@ foreach ($inf in $installerFiles) {
 Copy-Item (Join-Path $Root "scripts\START-HIER.bat") (Join-Path $installerDir "START-HIER.bat") -Force
 Copy-Item (Join-Path $Root "scripts\START-HIER.txt") (Join-Path $installerDir "START-HIER.txt") -Force
 
-$readmeInstaller = @"
-Alamida Monitoring - Installation (Windows)
-
-*** START-HIER.bat doppelklicken ***
-
-Dieses Paket enthaelt KEINE fertige EXE im Ordner!
-Der Wizard installiert nach C:\AlamidaMonitoring\
-
-1. START-HIER.bat oder install-wizard.bat
-2. Agent-ZIP: AlamidaMonitoringAgent-win-x64.zip (liegt in diesem Ordner)
-3. serviceAccount.json waehlen (FIREBASE-SETUP.txt)
-
-Version: $versionLine
-"@
+$readmeInstaller = @(
+    "Alamida Monitoring - Installation (Windows)",
+    "",
+    "*** START-HIER.bat doppelklicken ***",
+    "",
+    "Dieses Paket enthaelt KEINE fertige EXE im Ordner!",
+    "Der Wizard installiert nach C:\AlamidaMonitoring\",
+    "",
+    "- START-HIER.bat oder install-wizard.bat",
+    "- Agent-ZIP: AlamidaMonitoringAgent-win-x64.zip (liegt in diesem Ordner)",
+    "- serviceAccount.json waehlen (FIREBASE-SETUP.txt)",
+    "",
+    "Version: $versionLine"
+) -join [Environment]::NewLine
 Set-Content -Path (Join-Path $installerDir "README.txt") -Value $readmeInstaller -Encoding UTF8
 
 if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
@@ -154,6 +154,6 @@ Compress-Archive -Path (Join-Path $installerDir "*") -DestinationPath $installer
 Write-Host "Version:  $versionLine" -ForegroundColor Green
 Write-Host "Ordner:   $publishDir" -ForegroundColor Green
 Write-Host "ZIP:      $zipPath" -ForegroundColor Green
-Write-Host "Wizard:   $installerDir\install-wizard.bat" -ForegroundColor Green
+Write-Host "Wizard:   $(Join-Path $installerDir 'install-wizard.bat')" -ForegroundColor Green
 Write-Host "Bundle:   $installerZip" -ForegroundColor Green
 # Release tag on GitHub: agent-v{run} via .github/workflows/agent-release.yml
