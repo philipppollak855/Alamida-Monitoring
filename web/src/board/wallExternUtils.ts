@@ -208,18 +208,55 @@ function kremationOrtLabel(s: Sterbefall): string | null {
   );
 }
 
+function khVonAusUeberfuehrungstext(vonRaw?: string): string | null {
+  const raw = vonRaw?.trim();
+  if (!raw) return null;
+  const { von } = parseUeberfuehrungRoute(raw);
+  const candidate = (von || raw).trim();
+  return istKrankenhaus(candidate) ? candidate : null;
+}
+
+function schrittZielIstEigeneKr(a: {
+  vonOrt?: string;
+  nachOrt?: string;
+}): boolean {
+  if (zielIstEigenerKuehlraum(a.nachOrt)) return true;
+  const route = parseUeberfuehrungRoute(a.vonOrt ?? '');
+  return zielIstEigenerKuehlraum(route.nach ?? undefined);
+}
+
+/** UK/KH → eigenes KR, Termin heute oder geplant (nicht nur „ab morgen“). */
+function hatOffeneKhUeberfuehrungInsEigeneKr(s: Sterbefall): boolean {
+  return (s.ausstehend ?? []).some((a) => {
+    if (!schrittZielIstEigeneKr(a)) return false;
+    if (!khVonAusUeberfuehrungstext(a.vonOrt)) return false;
+    return a.status === 'abholung_noetig' || isAusstehendHeuteOrGeplant(a);
+  });
+}
+
 function istExternKrankenhausFall(s: Sterbefall): boolean {
   if (isImEigenenKuehlraum(s) || istAktuellImKrematorium(s)) return false;
 
   if (hatAusstehendeUeberfuehrungVonExternemOrt(s)) return true;
 
+  if (hatOffeneKhUeberfuehrungInsEigeneKr(s)) return true;
+
   const pos = s.aktuellePosition?.trim();
   if (pos && istKrankenhaus(pos)) return true;
+
+  if (
+    (s.ausstehend ?? []).some((a) => {
+      if (!schrittZielIstEigeneKr(a)) return false;
+      return !!khVonAusUeberfuehrungstext(a.vonOrt);
+    })
+  ) {
+    return true;
+  }
 
   if (s.aktuellePositionTyp === 'sterbeort' || hatAusstehendeUeberfuehrungInsEigeneKr(s)) {
     const khOrt = s.sterbeort || s.abholort;
     if (khOrt && istKrankenhaus(khOrt)) return true;
-    if ((s.ausstehend ?? []).some((a) => a.vonOrt && istKrankenhaus(a.vonOrt))) return true;
+    if ((s.ausstehend ?? []).some((a) => khVonAusUeberfuehrungstext(a.vonOrt))) return true;
   }
 
   if (
@@ -237,12 +274,14 @@ function istExternKrankenhausFall(s: Sterbefall): boolean {
   }
 
   const naechster = naechsterSchritt(s);
-  if (
-    naechster?.schrittTyp === 'abholung' &&
-    naechster.vonOrt &&
-    istKrankenhaus(naechster.vonOrt)
-  ) {
-    return true;
+  if (naechster?.vonOrt && khVonAusUeberfuehrungstext(naechster.vonOrt)) {
+    if (
+      naechster.schrittTyp === 'abholung' ||
+      naechster.schrittTyp === 'ueberfuehrung' ||
+      schrittZielIstEigeneKr(naechster)
+    ) {
+      return true;
+    }
   }
 
   if (isAmKrankenhausOderSterbeort(s)) {
