@@ -8,6 +8,7 @@ import {
   matchNamedKrankenhausGruppe,
   resolveKrankenhausOrtForFall,
 } from '../settings/krankenhausOrt';
+import { parseUeberfuehrungRoute } from './routeParse';
 import { istKrankenhaus, istKrematorium, ortLabel } from './ortKeywords';
 import { isAusstehendHeute, isAusstehendHeuteOrGeplant } from './ausstehendStatus';
 import {
@@ -73,6 +74,50 @@ function naechsterSchritt(s: Sterbefall) {
   return offen[0];
 }
 
+function naechsterKremationSchritt(s: Sterbefall) {
+  const ausAusstehend = (s.ausstehend ?? []).find(
+    (a) =>
+      a.schrittTyp === 'kremation' &&
+      (a.status === 'abholung_noetig' || isAusstehendHeuteOrGeplant(a))
+  );
+  if (ausAusstehend) return ausAusstehend;
+
+  if (s.naechsterSchrittTyp === 'kremation') {
+    return {
+      schrittTyp: 'kremation' as const,
+      vonOrt: s.naechsterSchrittVon,
+      nachOrt: s.naechsterSchrittNach,
+      terminAm: s.naechsterSchrittAm,
+    };
+  }
+
+  return undefined;
+}
+
+function ersterKrematoriumOrt(...candidates: (string | undefined)[]): string | null {
+  for (const raw of candidates) {
+    const t = raw?.trim();
+    if (!t) continue;
+    if (istKrematorium(t)) return ortLabel(t);
+    const route = parseUeberfuehrungRoute(t);
+    if (route.von && istKrematorium(route.von)) return ortLabel(route.von);
+    if (route.nach && istKrematorium(route.nach)) return ortLabel(route.nach);
+  }
+  return null;
+}
+
+/** Kremation relevant für Extern (am Krematorium oder geplanter Kremationsschritt). */
+function hatKremationExternBezug(s: Sterbefall): boolean {
+  if (istAktuellImKrematorium(s)) return true;
+  if (s.naechsterSchrittTyp === 'kremation') return true;
+  if (s.endzielTyp === 'kremation' || (s.endziel && istKrematorium(s.endziel))) return true;
+  return (s.ausstehend ?? []).some(
+    (a) =>
+      a.schrittTyp === 'kremation' &&
+      (a.status === 'abholung_noetig' || isAusstehendHeuteOrGeplant(a))
+  );
+}
+
 function hinweisFuerFall(s: Sterbefall, typ: ExternKartenKategorie): string {
   const n = naechsterSchritt(s);
   if (n && isAusstehendHeute(n)) return 'Termin heute';
@@ -95,16 +140,33 @@ function hinweisFuerFall(s: Sterbefall, typ: ExternKartenKategorie): string {
 }
 
 function kremationOrtLabel(s: Sterbefall): string | null {
-  const pos = s.aktuellePosition?.trim();
-  if (pos && istKrematorium(pos)) return ortLabel(pos);
+  const kremSchritt = naechsterKremationSchritt(s);
 
-  const letzte = letzteAbgeschlosseneEtappe(s);
-  const ort = letzte?.nachOrt ?? letzte?.ort;
-  if (ort && istKrematorium(ort)) return ortLabel(ort);
-
-  if (s.endziel && istKrematorium(s.endziel)) return ortLabel(s.endziel);
-
-  return null;
+  return (
+    ersterKrematoriumOrt(
+      s.aktuellePosition,
+      kremSchritt?.vonOrt,
+      kremSchritt?.nachOrt,
+      s.naechsterSchrittVon,
+      s.naechsterSchrittNach,
+      s.naechsteUeberfuehrungVon,
+      s.naechsteUeberfuehrungNach
+    ) ??
+    (() => {
+      const letzte = letzteAbgeschlosseneEtappe(s);
+      const ort = letzte?.nachOrt ?? letzte?.ort;
+      return ort && istKrematorium(ort) ? ortLabel(ort) : null;
+    })() ??
+    (s.endziel && istKrematorium(s.endziel) ? ortLabel(s.endziel) : null) ??
+    (() => {
+      const raw =
+        kremSchritt?.nachOrt ??
+        kremSchritt?.vonOrt ??
+        s.naechsterSchrittNach ??
+        s.naechsterSchrittVon;
+      return raw?.trim() ? ortLabel(raw) : null;
+    })()
+  );
 }
 
 function istExternKrankenhausFall(s: Sterbefall): boolean {
@@ -288,59 +350,47 @@ function mergeOrphanGenericKhGruppen(
 function resolveKremationStandort(
   s: Sterbefall
 ): { typ: 'kremation'; ort: string } | null {
-  if (!istAktuellImKrematorium(s)) {
-    const naechster = naechsterSchritt(s);
-    if (naechster?.schrittTyp !== 'kremation') return null;
-
-    const kremOrt =
-      (naechster.vonOrt && istKrematorium(naechster.vonOrt) ? naechster.vonOrt : null) ||
-      (naechster.nachOrt && istKrematorium(naechster.nachOrt) ? naechster.nachOrt : null) ||
-      (s.endziel && istKrematorium(s.endziel) ? s.endziel : null);
-    if (!kremOrt || isImEigenenKuehlraum(s)) return null;
-    return { typ: 'kremation', ort: ortLabel(kremOrt) };
-  }
+  if (!hatKremationExternBezug(s)) return null;
 
   const ort = kremationOrtLabel(s);
-  if (ort) return { typ: 'kremation', ort };
+  if (!ort) return null;
 
-  return null;
+  return { typ: 'kremation', ort };
 }
 
 /**
  * Ermittelt externen Standort (Krankenhaus oder Krematorium), sofern der Verstorbene
  * nicht im eigenen Kühlraum liegt.
  */
-export function resolveExternStandort(
-  s: Sterbefall
-): { typ: 'krankenhaus' | 'kremation'; ort: string } | null {
-  if (!isAktiv(s)) return null;
-  if (istInUrnenBereich(s)) return null;
-  if (isImEigenenKuehlraum(s)) return null;
-
-  const krem = resolveKremationStandort(s);
-  if (krem) return krem;
-
-  const kh = resolveKrankenhausStandort(s, [s]);
-  if (kh) return kh;
-
-  return null;
-}
-
-function resolveExternStandortWithAlle(
+function resolveExternStandortCore(
   s: Sterbefall,
   alle: Sterbefall[]
-): { typ: 'krankenhaus' | 'kremation'; ort: string } | null {
+): { typ: ExternKartenKategorie; ort: string } | null {
   if (!isAktiv(s)) return null;
   if (istInUrnenBereich(s)) return null;
-  if (isImEigenenKuehlraum(s)) return null;
 
   const krem = resolveKremationStandort(s);
   if (krem) return krem;
+
+  if (isImEigenenKuehlraum(s)) return null;
 
   const kh = resolveKrankenhausStandort(s, alle);
   if (kh) return kh;
 
   return null;
+}
+
+export function resolveExternStandort(
+  s: Sterbefall
+): { typ: ExternKartenKategorie; ort: string } | null {
+  return resolveExternStandortCore(s, [s]);
+}
+
+function resolveExternStandortWithAlle(
+  s: Sterbefall,
+  alle: Sterbefall[]
+): { typ: ExternKartenKategorie; ort: string } | null {
+  return resolveExternStandortCore(s, alle);
 }
 
 export function buildExternGruppen(sterbefaelle: Sterbefall[]): ExternOrtGruppe[] {
@@ -356,7 +406,7 @@ export function buildExternGruppen(sterbefaelle: Sterbefall[]): ExternOrtGruppe[
         : externKategorieGruppenKey(standort.typ, standort.ort);
     const id = s.sterbefallId ?? s.id;
     const name = s.verstorbenerName ?? id;
-    const n = naechsterSchritt(s);
+    const n = naechsterKremationSchritt(s) ?? naechsterSchritt(s);
 
     const displayOrt =
       standort.typ === 'krankenhaus'
