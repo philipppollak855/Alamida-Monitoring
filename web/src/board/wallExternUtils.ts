@@ -155,7 +155,7 @@ function hinweisFuerFall(s: Sterbefall, typ: ExternKartenKategorie): string {
     const krem = findeKremationSchritt(s);
     if (krem) {
       const termin = terminFuerSchritt(krem);
-      if (!termin) return 'Kremation ohne Datum';
+      if (!termin) return 'Wartet auf Kremation';
       if (isAusstehendHeute(krem)) return 'Termin heute';
       return 'Kremation geplant';
     }
