@@ -88,9 +88,10 @@ export function krankenhausOrtKey(ort: string, settings?: DispositionSettings): 
   }
 
   s = stripLeadingMarkers(s);
-  s = s.replace(/^[\s.\-_]+/, '').replace(/[\s.\-_]+/g, '');
+  s = s.replace(/^[\s.\-_]+/, '').replace(/[\s.\-_]+$/g, '');
+  s = s.replace(/\s+/g, ' ').trim();
 
-  const raw = krankenhausOrtBasis(ort).toLowerCase().replace(/[\s.\-_]+/g, '');
+  const raw = krankenhausOrtBasis(ort).toLowerCase().replace(/\s+/g, ' ').trim();
   const result = s || raw;
   if (isGenericKrankenhausKey(result)) return result;
   return result;
@@ -110,10 +111,15 @@ export function canonicalKrankenhausAnzeigeLabel(
   ort: string,
   settings?: DispositionSettings
 ): string {
+  const basis = krankenhausOrtBasis(ort).replace(/\s+/g, ' ').trim();
   const key = krankenhausOrtKey(ort, settings);
-  if (isGenericKrankenhausKey(key)) return ort.trim();
-  const city = titleCaseOrt(key);
-  if (!city) return ort.trim();
+  if (isGenericKrankenhausKey(key)) return basis || ort.replace(/\s+/g, ' ').trim();
+
+  if (/^uk\s*[-–]\s*/i.test(basis)) return basis;
+
+  const cityFromBasis = basis.replace(/^uk\s*[-–]\s*/i, '').trim();
+  const city = cityFromBasis ? titleCaseOrt(cityFromBasis) : titleCaseOrt(key);
+  if (!city) return basis || ort.replace(/\s+/g, ' ').trim();
   return `UK - ${city}`;
 }
 

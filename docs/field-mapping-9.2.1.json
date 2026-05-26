@@ -13,15 +13,15 @@
         },
         "sterbeort": {
           "automationIdContains": [
-            "Sterbeort",
+            "SD_Sterbeort_komplett",
+            "SD_Sterbeort",
             "Sterbeort_",
+            "Sterbeort",
             "Todesort",
             "Verstorben_Ort",
-            "Verstorben_ Sterbeort",
-            "SD_Sterbeort",
-            "SD_Sterbeort_komplett"
+            "Verstorben_ Sterbeort"
           ],
-          "nameContains": ["Sterbeort"],
+          "automationIdExcludes": ["Standesamt"],
           "controlTypes": ["Edit", "ComboBox", "Text"]
         },
         "bestattungsart": {
@@ -209,14 +209,14 @@
       },
       "sterbeort": {
         "automationIdContains": [
-          "Sterbeort",
-          "Sterbeort_",
-          "Todesort",
-          "Verstorben_Ort",
+          "SD_Sterbeort_komplett",
           "SD_Sterbeort",
-          "SD_Sterbeort_komplett"
+          "Sterbeort_",
+          "Sterbeort",
+          "Todesort",
+          "Verstorben_Ort"
         ],
-        "nameContains": ["Sterbeort"],
+        "automationIdExcludes": ["Standesamt"],
         "controlTypes": ["Edit", "ComboBox", "Text"]
       },
       "sterbedatum": {

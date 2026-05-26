@@ -16,7 +16,7 @@ public static class UiaFieldExtractor
         {
             var value = FindBestMatch(candidates, locator, key);
             if (!string.IsNullOrWhiteSpace(value))
-                result[key] = value.Trim();
+                result[key] = AlamidaFieldNormalizer.Normalize(value);
         }
 
         return result;
@@ -78,7 +78,7 @@ public static class UiaFieldExtractor
                 var val = UiaValueReader.Read(el);
                 if (!NameOrValueMatchesLocator(elName, val, locator)) continue;
                 if (string.IsNullOrWhiteSpace(val)) continue;
-                val = val.Trim();
+                val = AlamidaFieldNormalizer.Normalize(val)!;
 
                 if (fieldKey == "sterbefallHeader" && !MaskDetector.LooksLikeSterbefallHeader(val))
                     continue;
@@ -137,6 +137,14 @@ public static class UiaFieldExtractor
     private static bool NameOrValueMatchesLocator(string name, string? value, FieldLocator locator)
     {
         if (locator.NameContains.Count == 0) return true;
+
+        if (locator.AutomationIdContains.Any(id =>
+                id.Contains("SD_", StringComparison.OrdinalIgnoreCase) ||
+                id.Contains("Field:", StringComparison.OrdinalIgnoreCase))
+            && !string.IsNullOrWhiteSpace(value))
+        {
+            return true;
+        }
 
         return locator.NameContains.Any(term =>
             name.Contains(term, StringComparison.OrdinalIgnoreCase) ||
