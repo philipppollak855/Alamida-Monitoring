@@ -16,6 +16,7 @@ import {
   externKategorieHatFreigabe,
 } from '../board/wallExternUtils';
 import { UrnenBereichPanel } from '../components/UrnenBereichPanel';
+import { KuehlraumTerminMarker } from '../components/KuehlraumTerminMarker';
 import { buildUrnenListe } from '../board/urnenLogic';
 import {
   clearSterbefallUrnenRetour,
@@ -123,8 +124,8 @@ export function WallPage() {
     [sterbefaelleRaw]
   );
   const kalenderTermine7d = useMemo(
-    () => wallCalendarTabCount(sterbefaelleRaw, now),
-    [sterbefaelleRaw, now]
+    () => wallCalendarTabCount(sterbefaelle, now),
+    [sterbefaelle, now]
   );
 
   const { cfg, slots } = useMemo(
@@ -338,6 +339,11 @@ export function WallPage() {
                         {fall.verstorbenerName || fall.sterbefallId}
                       </span>
                       <span className="wall-tile-pos">{fall.aktuellePosition}</span>
+                      <KuehlraumTerminMarker
+                        fall={fall}
+                        now={now}
+                        className="wall-cool-termin-marker"
+                      />
                     </>
                   ) : (
                     <span className="wall-tile-free">Frei</span>
@@ -445,7 +451,7 @@ export function WallPage() {
 
         {view === 'kalender' && (
           <div className="wall-cal-stage">
-            <WallCalendarPanel sterbefaelle={sterbefaelleRaw} now={now} />
+            <WallCalendarPanel sterbefaelle={sterbefaelle} now={now} />
           </div>
         )}
 

@@ -20,6 +20,7 @@ import {
 import { filterAktiveSterbefaelle } from '../board/historieLogic';
 import { buildUrnenListe, countUrnen } from '../board/urnenLogic';
 import { UrnenBereichPanel } from '../components/UrnenBereichPanel';
+import { KuehlraumTerminMarker } from '../components/KuehlraumTerminMarker';
 import { getErledigteZeilen } from '../board/ueberfuehrungErledigt';
 import { removeSterbefallFromDisposition } from '../services/dispositionFall';
 import { toggleUeberfuehrungErledigt } from '../services/ueberfuehrungErledigt';
@@ -62,6 +63,10 @@ export function BoardPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const section = parseBoardSection(searchParams.get('tab'));
   const calendarDay = useCalendarDay();
+  const calendarNow = useMemo(() => {
+    const [y, m, d] = calendarDay.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }, [calendarDay]);
   const { settings } = useDispositionSettings();
   const { items: sterbefaelleRaw, loading, error } = useSterbefaelle();
   const sterbefaelle = useMemo(
@@ -510,6 +515,7 @@ export function BoardPage() {
                           {fall.verstorbenerName || fall.sterbefallId}
                         </span>
                         <span className="cool-cell-meta">{fall.aktuellePosition}</span>
+                        <KuehlraumTerminMarker fall={fall} now={calendarNow} />
                         {(fall.naechsterSchrittNach ?? fall.naechsteUeberfuehrungNach) && (
                           <span className="cool-cell-next">
                             → {fall.naechsterSchrittNach ?? fall.naechsteUeberfuehrungNach}

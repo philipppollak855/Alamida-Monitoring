@@ -765,7 +765,7 @@
   /* Termine: horizontal zwischen Tagen wischen (nicht vertikal durch alle Tage) */
   .wall-cal-mobile-strip {
     flex: 1 1 0;
-    min-height: 0;
+    min-height: 7rem;
     display: flex;
     flex-direction: row;
     align-items: stretch;
@@ -974,9 +974,9 @@
     white-space: nowrap;
   }
 
-  .wall-cal-card--mobile.is-grouped {
-    border-color: rgba(77, 159, 255, 0.65);
-    background: rgba(77, 159, 255, 0.18);
+  .wall-cal-card--mobile.is-grouped.wall-cal-card--color-feier {
+    border-color: rgba(61, 122, 140, 0.65);
+    background: rgba(61, 122, 140, 0.14);
   }
 
   .wall-cal-card--mobile .wall-cal-share-link {
@@ -988,9 +988,22 @@
   }
 
   [data-theme='alamida'] .wall-cal-card--mobile {
-    background: #fff;
-    border-color: rgba(42, 72, 78, 0.22);
     box-shadow: 0 1px 4px rgba(42, 72, 78, 0.1);
+  }
+
+  [data-theme='alamida'] .wall-cal-card--mobile.wall-cal-card--color-fahrt {
+    background: rgba(154, 123, 58, 0.12);
+    border-color: rgba(154, 123, 58, 0.45);
+  }
+
+  [data-theme='alamida'] .wall-cal-card--mobile.wall-cal-card--color-kremation {
+    background: rgba(139, 106, 174, 0.12);
+    border-color: rgba(139, 106, 174, 0.45);
+  }
+
+  [data-theme='alamida'] .wall-cal-card--mobile.wall-cal-card--color-feier {
+    background: rgba(61, 122, 140, 0.1);
+    border-color: rgba(61, 122, 140, 0.45);
   }
 
   [data-theme='alamida'] .wall-cal-period-cell {
@@ -1100,6 +1113,16 @@
   .wall-tile-pos {
     font-size: 0.55rem;
     margin-top: 0.1rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .wall-cool-termin-marker {
+    font-size: 0.5rem;
+    margin-top: 0.15rem;
+    padding: 0.12rem 0.25rem;
+    line-height: 1.2;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

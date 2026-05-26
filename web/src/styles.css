@@ -1022,6 +1022,35 @@ code {
   color: var(--warn);
 }
 
+.cool-termin-marker {
+  display: block;
+  margin-top: 0.35rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.25;
+  border: 1px solid transparent;
+}
+
+.cool-termin-marker--kremation {
+  color: #8b6aae;
+  background: rgba(139, 106, 174, 0.14);
+  border-color: rgba(139, 106, 174, 0.35);
+}
+
+.cool-termin-marker--beisetzung {
+  color: var(--accent);
+  background: rgba(61, 122, 140, 0.12);
+  border-color: rgba(61, 122, 140, 0.35);
+}
+
+.wall-cool-termin-marker {
+  font-size: clamp(0.72rem, 1.4vw, 0.88rem);
+  margin-top: 0.5rem;
+  padding: 0.28rem 0.5rem;
+}
+
 .cool-cell-free {
   font-size: 0.8rem;
   color: var(--muted);
@@ -2422,10 +2451,40 @@ code {
   color: var(--text);
 }
 
-.wall-cal-card.is-grouped,
-.wall-cal-event.is-grouped .wall-cal-card {
-  border-color: rgba(77, 159, 255, 0.45);
-  background: rgba(77, 159, 255, 0.08);
+/* Abholung + Überführung (ohne Krematorium) */
+.wall-cal-card--color-fahrt {
+  border-color: rgba(154, 123, 58, 0.55);
+  background: rgba(154, 123, 58, 0.1);
+}
+
+.wall-cal-card--color-fahrt .wall-cal-time {
+  color: #9a7b3a;
+}
+
+/* Überführung ins Krematorium */
+.wall-cal-card--color-kremation {
+  border-color: rgba(139, 106, 174, 0.55);
+  background: rgba(139, 106, 174, 0.1);
+}
+
+.wall-cal-card--color-kremation .wall-cal-time {
+  color: #8b6aae;
+}
+
+/* Rosenkranz, Trauerfeier, Beisetzung, Trauerblock */
+.wall-cal-card--color-feier {
+  border-color: rgba(61, 122, 140, 0.55);
+  background: rgba(61, 122, 140, 0.1);
+}
+
+.wall-cal-card--color-feier .wall-cal-time {
+  color: var(--accent);
+}
+
+.wall-cal-card--color-feier.is-grouped,
+.wall-cal-event.is-grouped .wall-cal-card--color-feier {
+  border-color: rgba(61, 122, 140, 0.55);
+  background: rgba(61, 122, 140, 0.1);
 }
 
 .wall-cal-card-top {

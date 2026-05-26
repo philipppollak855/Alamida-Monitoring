@@ -2,10 +2,11 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   ALL_CALENDAR_TERMIN_ARTEN,
   type CalendarTerminArt,
+  isCalendarFilterComplete,
   isCalendarTerminArt,
 } from '../board/wallCalendar';
 
-const STORAGE_KEY = 'alamida-wall-cal-art-filter';
+const STORAGE_KEY = 'alamida-wall-cal-art-filter-v2';
 
 function loadFromStorage(): Set<CalendarTerminArt> {
   try {
@@ -14,7 +15,8 @@ function loadFromStorage(): Set<CalendarTerminArt> {
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return new Set(ALL_CALENDAR_TERMIN_ARTEN);
     const valid = parsed.filter(isCalendarTerminArt);
-    return valid.length > 0 ? new Set(valid) : new Set(ALL_CALENDAR_TERMIN_ARTEN);
+    const set = valid.length > 0 ? new Set(valid) : new Set(ALL_CALENDAR_TERMIN_ARTEN);
+    return isCalendarFilterComplete(set) ? set : new Set(ALL_CALENDAR_TERMIN_ARTEN);
   } catch {
     return new Set(ALL_CALENDAR_TERMIN_ARTEN);
   }

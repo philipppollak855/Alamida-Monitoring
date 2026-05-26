@@ -18,7 +18,29 @@ export type CalendarTerminArt =
   | 'trauerfeier2'
   | 'beisetzung'
   | 'ueberfuehrung'
+  | 'ueberfuehrung_kremation'
   | 'trauerblock';
+
+/** Farbgruppen im Kalender (Filter bleiben bei den sichtbaren Terminarten). */
+export type CalendarColorGroup = 'fahrt' | 'kremation' | 'feier';
+
+export function calendarColorGroupFromArts(arts: readonly CalendarTerminArt[]): CalendarColorGroup {
+  if (arts.some((a) => a === 'ueberfuehrung_kremation')) return 'kremation';
+  if (arts.some((a) => a === 'ueberfuehrung')) return 'fahrt';
+  return 'feier';
+}
+
+function calendarArtFromSchritt(schrittTyp?: string): CalendarTerminArt {
+  const typ = (schrittTyp ?? '').trim().toLowerCase();
+  if (typ === 'kremation') return 'ueberfuehrung_kremation';
+  return 'ueberfuehrung';
+}
+
+function artMatchesFilter(art: CalendarTerminArt, activeArts: ReadonlySet<CalendarTerminArt>): boolean {
+  if (activeArts.has(art)) return true;
+  if (art === 'ueberfuehrung_kremation' && activeArts.has('ueberfuehrung')) return true;
+  return false;
+}
 
 export const ALL_CALENDAR_TERMIN_ARTEN: CalendarTerminArt[] = [
   'rosenkranz',
@@ -37,8 +59,13 @@ export const CALENDAR_TERMIN_ART_LABELS: Record<CalendarTerminArt, string> = {
   trauerfeier2: 'Trauerfeier 2',
   beisetzung: 'Beisetzung',
   ueberfuehrung: 'Überführung',
+  ueberfuehrung_kremation: 'Ins Krematorium',
   trauerblock: 'Trauerblock',
 };
+
+export function isCalendarFilterComplete(activeArts: ReadonlySet<CalendarTerminArt>): boolean {
+  return ALL_CALENDAR_TERMIN_ARTEN.every((a) => activeArts.has(a));
+}
 
 export function isCalendarTerminArt(v: unknown): v is CalendarTerminArt {
   return typeof v === 'string' && ALL_CALENDAR_TERMIN_ARTEN.includes(v as CalendarTerminArt);
@@ -50,8 +77,8 @@ export function filterEntriesByArts(
   activeArts: ReadonlySet<CalendarTerminArt>
 ): WallCalendarEntry[] {
   if (activeArts.size === 0) return [];
-  if (activeArts.size >= ALL_CALENDAR_TERMIN_ARTEN.length) return entries;
-  return entries.filter((e) => e.arts.some((a) => activeArts.has(a)));
+  if (isCalendarFilterComplete(activeArts)) return entries;
+  return entries.filter((e) => e.arts.some((a) => artMatchesFilter(a, activeArts)));
 }
 
 interface AtomicTermin {
@@ -223,7 +250,7 @@ function collectAtomics(s: Sterbefall): AtomicTermin[] {
     const key = ueberfuehrungKey(datum, v.typ, von, nach, v.ort);
     if (!key || seen.has(key)) continue;
     add(
-      'ueberfuehrung',
+      calendarArtFromSchritt(v.typ),
       schrittTypLabel(v.typ),
       datum,
       undefined,

@@ -17,11 +17,15 @@ import {
 
   CALENDAR_TERMIN_ART_LABELS,
 
+  calendarColorGroupFromArts,
+
   countCalendarEntries,
 
   filterCalendarEntries,
 
   filterEntriesByArts,
+
+  isCalendarFilterComplete,
 
   isWallCalendarDayInAnchorMonth,
 
@@ -153,7 +157,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
 
 
 
-  const filterAllOn = activeArts.size >= ALL_CALENDAR_TERMIN_ARTEN.length;
+  const filterAllOn = isCalendarFilterComplete(activeArts);
 
   const onToday = todayKey;
   const focusIsToday = focusDayKey === onToday;
@@ -581,9 +585,7 @@ function WallCalendarEventCard({
 
 }) {
 
-  const displayArt =
-    entry.arts.find((a) => a === 'trauerfeier' || a === 'verabschiedung') ?? entry.arts[0];
-  const artClass = displayArt ? `wall-cal-card--art-${displayArt}` : '';
+  const colorClass = `wall-cal-card--color-${calendarColorGroupFromArts(entry.arts)}`;
 
 
 
@@ -593,7 +595,7 @@ function WallCalendarEventCard({
 
       <article
 
-        className={`wall-cal-card wall-cal-card--mobile ${artClass} ${entry.grouped ? 'is-grouped' : ''}`}
+        className={`wall-cal-card wall-cal-card--mobile ${colorClass} ${entry.grouped ? 'is-grouped' : ''}`}
 
       >
 
@@ -629,7 +631,7 @@ function WallCalendarEventCard({
 
   return (
 
-    <article className={`wall-cal-card ${compact ? 'wall-cal-card--compact' : ''} ${artClass}`}>
+    <article className={`wall-cal-card ${compact ? 'wall-cal-card--compact' : ''} ${colorClass}`}>
 
       <div className="wall-cal-card-top">
 
