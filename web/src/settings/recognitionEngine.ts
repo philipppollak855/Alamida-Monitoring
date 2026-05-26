@@ -60,21 +60,63 @@ export function prefixMatchesText(text: string, prefix: string): boolean {
   return text.trim().toLowerCase().startsWith(p.toLowerCase());
 }
 
+function ortMatchesPrefixe(ort: string, prefixe: string[]): boolean {
+  return prefixe.some((p) => prefixMatchesText(ort, p));
+}
+
+function ortMatchesKeywords(ort: string, keywords: string[]): boolean {
+  return keywords.some((kw) => keywordMatchesText(ort, kw));
+}
+
+function classifyPrefixAndKeywords(
+  trimmed: string,
+  prefixe: string[],
+  keywords: string[],
+  prefixLabel: string,
+  keywordLabel: string,
+  treffer: string[]
+): boolean {
+  for (const p of prefixe) {
+    if (prefixMatchesText(trimmed, p)) {
+      treffer.push(`${prefixLabel}: „${p}"`);
+      return true;
+    }
+  }
+  for (const kw of keywords) {
+    if (keywordMatchesText(trimmed, kw)) {
+      treffer.push(`${keywordLabel}: „${kw}"`);
+      return true;
+    }
+  }
+  return false;
+}
+
 export function istKrematoriumOrt(ort: string, settings: DispositionSettings): boolean {
-  return settings.kremationKeywords.some((kw) => keywordMatchesText(ort, kw));
+  return (
+    ortMatchesPrefixe(ort, settings.kremationPrefixe) ||
+    ortMatchesKeywords(ort, settings.kremationKeywords)
+  );
 }
 
 export function istKrankenhausOrt(ort: string, settings: DispositionSettings): boolean {
-  if (settings.krankenhausPrefixe.some((p) => prefixMatchesText(ort, p))) return true;
-  return settings.krankenhausKeywords.some((kw) => keywordMatchesText(ort, kw));
+  return (
+    ortMatchesPrefixe(ort, settings.krankenhausPrefixe) ||
+    ortMatchesKeywords(ort, settings.krankenhausKeywords)
+  );
 }
 
 export function istPflegeheimOrt(ort: string, settings: DispositionSettings): boolean {
-  return settings.pflegeheimKeywords.some((kw) => keywordMatchesText(ort, kw));
+  return (
+    ortMatchesPrefixe(ort, settings.pflegeheimPrefixe) ||
+    ortMatchesKeywords(ort, settings.pflegeheimKeywords)
+  );
 }
 
 export function istBestattungOrt(ort: string, settings: DispositionSettings): boolean {
-  return settings.bestattungKeywords.some((kw) => keywordMatchesText(ort, kw));
+  return (
+    ortMatchesPrefixe(ort, settings.bestattungPrefixe) ||
+    ortMatchesKeywords(ort, settings.bestattungKeywords)
+  );
 }
 
 export function matchEigenerKuehlraumOrt(
@@ -104,48 +146,52 @@ export function classifyOrt(ort: string, settings: DispositionSettings): OrtErke
   const treffer: string[] = [];
 
   if (!trimmed) {
-    return { ort: '', kremation: false, krankenhaus: false, eigenerKuehlraum: null, treffer: [] };
+    return {
+      ort: '',
+      kremation: false,
+      krankenhaus: false,
+      pflegeheim: false,
+      bestattung: false,
+      eigenerKuehlraum: null,
+      treffer: [],
+    };
   }
 
-  let kremation = false;
-  for (const kw of settings.kremationKeywords) {
-    if (keywordMatchesText(trimmed, kw)) {
-      kremation = true;
-      treffer.push(`Kremation: „${kw}"`);
-    }
-  }
+  const kremation = classifyPrefixAndKeywords(
+    trimmed,
+    settings.kremationPrefixe,
+    settings.kremationKeywords,
+    'Kremation-Präfix',
+    'Kremation',
+    treffer
+  );
 
-  let krankenhaus = false;
-  for (const p of settings.krankenhausPrefixe) {
-    if (prefixMatchesText(trimmed, p)) {
-      krankenhaus = true;
-      treffer.push(`KH-Präfix: „${p}"`);
-    }
-  }
-  if (!krankenhaus) {
-    for (const kw of settings.krankenhausKeywords) {
-      if (keywordMatchesText(trimmed, kw)) {
-        krankenhaus = true;
-        treffer.push(`Krankenhaus: „${kw}"`);
-      }
-    }
-  }
+  const krankenhaus = classifyPrefixAndKeywords(
+    trimmed,
+    settings.krankenhausPrefixe,
+    settings.krankenhausKeywords,
+    'KH-Präfix',
+    'Krankenhaus',
+    treffer
+  );
 
-  let pflegeheim = false;
-  for (const kw of settings.pflegeheimKeywords) {
-    if (keywordMatchesText(trimmed, kw)) {
-      pflegeheim = true;
-      treffer.push(`Pflegeheim: „${kw}"`);
-    }
-  }
+  const pflegeheim = classifyPrefixAndKeywords(
+    trimmed,
+    settings.pflegeheimPrefixe,
+    settings.pflegeheimKeywords,
+    'Pflegeheim-Präfix',
+    'Pflegeheim',
+    treffer
+  );
 
-  let bestattung = false;
-  for (const kw of settings.bestattungKeywords) {
-    if (keywordMatchesText(trimmed, kw)) {
-      bestattung = true;
-      treffer.push(`Bestattung: „${kw}"`);
-    }
-  }
+  const bestattung = classifyPrefixAndKeywords(
+    trimmed,
+    settings.bestattungPrefixe,
+    settings.bestattungKeywords,
+    'Bestattung-Präfix',
+    'Bestattung',
+    treffer
+  );
 
   const eigenerKuehlraum = matchEigenerKuehlraumOrt(trimmed, settings);
   if (eigenerKuehlraum) {

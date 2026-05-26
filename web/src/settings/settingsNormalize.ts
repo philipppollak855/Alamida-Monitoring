@@ -41,6 +41,11 @@ export function normalizeDispositionSettings(
   };
 
   return {
+    kremationPrefixe: dedupeKeywords(
+      raw.kremationPrefixe?.length
+        ? raw.kremationPrefixe
+        : DEFAULT_DISPOSITION_SETTINGS.kremationPrefixe
+    ),
     kremationKeywords: dedupeKeywords(
       raw.kremationKeywords?.length
         ? raw.kremationKeywords
@@ -56,10 +61,20 @@ export function normalizeDispositionSettings(
         ? raw.krankenhausKeywords
         : DEFAULT_DISPOSITION_SETTINGS.krankenhausKeywords
     ),
+    pflegeheimPrefixe: dedupeKeywords(
+      raw.pflegeheimPrefixe?.length
+        ? raw.pflegeheimPrefixe
+        : DEFAULT_DISPOSITION_SETTINGS.pflegeheimPrefixe
+    ),
     pflegeheimKeywords: dedupeKeywords(
       raw.pflegeheimKeywords?.length
         ? raw.pflegeheimKeywords
         : DEFAULT_DISPOSITION_SETTINGS.pflegeheimKeywords
+    ),
+    bestattungPrefixe: dedupeKeywords(
+      raw.bestattungPrefixe?.length
+        ? raw.bestattungPrefixe
+        : DEFAULT_DISPOSITION_SETTINGS.bestattungPrefixe
     ),
     bestattungKeywords: dedupeKeywords(
       raw.bestattungKeywords?.length

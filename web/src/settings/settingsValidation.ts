@@ -43,7 +43,16 @@ export function validateDispositionSettings(s: DispositionSettings): SettingsVal
     }
   }
 
-  const allKh = [...s.krankenhausPrefixe, ...s.krankenhausKeywords, ...s.kremationKeywords];
+  const allKh = [
+    ...s.kremationPrefixe,
+    ...s.kremationKeywords,
+    ...s.krankenhausPrefixe,
+    ...s.krankenhausKeywords,
+    ...s.pflegeheimPrefixe,
+    ...s.pflegeheimKeywords,
+    ...s.bestattungPrefixe,
+    ...s.bestattungKeywords,
+  ];
   for (const kw of allKh) {
     if (kw.length === 1) warnings.push(`Sehr kurzes Keyword „${kw}" kann Fehl-Treffer erzeugen.`);
   }
@@ -57,10 +66,13 @@ export function settingsChanged(a: DispositionSettings, b: DispositionSettings):
 
 function normalizeForCompare(s: DispositionSettings) {
   return {
+    kremationPrefixe: [...s.kremationPrefixe].sort(),
     kremationKeywords: [...s.kremationKeywords].sort(),
     krankenhausPrefixe: [...s.krankenhausPrefixe].sort(),
     krankenhausKeywords: [...s.krankenhausKeywords].sort(),
+    pflegeheimPrefixe: [...s.pflegeheimPrefixe].sort(),
     pflegeheimKeywords: [...s.pflegeheimKeywords].sort(),
+    bestattungPrefixe: [...s.bestattungPrefixe].sort(),
     bestattungKeywords: [...s.bestattungKeywords].sort(),
     wallTabWechselSekunden: s.wallTabWechselSekunden,
     eigeneKuehlraeume: s.eigeneKuehlraeume.map((k) => ({

@@ -57,19 +57,25 @@ public sealed class DispositionSettingsLoader
     private static DispositionSettings Parse(DocumentSnapshot snap)
     {
         var d = DispositionSettings.Default;
+        var kremPref = ReadStringList(snap, "kremationPrefixe");
         var krem = ReadStringList(snap, "kremationKeywords");
         var pref = ReadStringList(snap, "krankenhausPrefixe");
         var kh = ReadStringList(snap, "krankenhausKeywords");
+        var phPref = ReadStringList(snap, "pflegeheimPrefixe");
         var ph = ReadStringList(snap, "pflegeheimKeywords");
+        var bestPref = ReadStringList(snap, "bestattungPrefixe");
         var best = ReadStringList(snap, "bestattungKeywords");
         var kuehl = ReadKuehlraeume(snap);
 
         return new DispositionSettings
         {
+            KremationPrefixe = kremPref.Count > 0 ? kremPref : d.KremationPrefixe,
             KremationKeywords = krem.Count > 0 ? krem : d.KremationKeywords,
             KrankenhausPrefixe = pref.Count > 0 ? pref : d.KrankenhausPrefixe,
             KrankenhausKeywords = kh.Count > 0 ? kh : d.KrankenhausKeywords,
+            PflegeheimPrefixe = phPref.Count > 0 ? phPref : d.PflegeheimPrefixe,
             PflegeheimKeywords = ph.Count > 0 ? ph : d.PflegeheimKeywords,
+            BestattungPrefixe = bestPref.Count > 0 ? bestPref : d.BestattungPrefixe,
             BestattungKeywords = best.Count > 0 ? best : d.BestattungKeywords,
             EigeneKuehlraeume = kuehl.Count > 0 ? kuehl : d.EigeneKuehlraeume,
         };

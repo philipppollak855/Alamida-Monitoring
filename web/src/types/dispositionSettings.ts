@@ -18,12 +18,15 @@ export interface WallTabWechselSekunden {
 }
 
 export interface DispositionSettings {
+  kremationPrefixe: string[];
   kremationKeywords: string[];
   krankenhausPrefixe: string[];
   krankenhausKeywords: string[];
   /** Extern-Wand: Pflegeheim / Senecura … */
+  pflegeheimPrefixe: string[];
   pflegeheimKeywords: string[];
   /** Extern-Wand: Bestattung / Bestatter … */
+  bestattungPrefixe: string[];
   bestattungKeywords: string[];
   eigeneKuehlraeume: EigenerKuehlraumConfig[];
   /** Wandmonitor: Sekunden pro Tab bis zum nächsten Übergang */

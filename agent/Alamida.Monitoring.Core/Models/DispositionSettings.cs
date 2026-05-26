@@ -2,15 +2,19 @@ namespace Alamida.Monitoring.Core.Models;
 
 public sealed class DispositionSettings
 {
+    public List<string> KremationPrefixe { get; init; } = [];
     public List<string> KremationKeywords { get; init; } = [];
     public List<string> KrankenhausPrefixe { get; init; } = [];
     public List<string> KrankenhausKeywords { get; init; } = [];
+    public List<string> PflegeheimPrefixe { get; init; } = [];
     public List<string> PflegeheimKeywords { get; init; } = [];
+    public List<string> BestattungPrefixe { get; init; } = [];
     public List<string> BestattungKeywords { get; init; } = [];
     public List<EigenerKuehlraumConfig> EigeneKuehlraeume { get; init; } = [];
 
     public static DispositionSettings Default => new()
     {
+        KremationPrefixe = [],
         KremationKeywords =
         [
             "krematorium", "innermanzing", "feba", "kremation", "einäscherung",
@@ -18,7 +22,9 @@ public sealed class DispositionSettings
         ],
         KrankenhausPrefixe = ["UK ", "UK-", "KH ", "KH-", "KH."],
         KrankenhausKeywords = ["krankenhaus", "spital", "klinik", "landesklinik"],
+        PflegeheimPrefixe = ["Senecura"],
         PflegeheimKeywords = ["senecura", "pflegeheim", "altenheim", "hospiz", "pflege"],
+        BestattungPrefixe = [],
         BestattungKeywords = ["bestattung", "bestatter", "trauerhalle", "bestattungsinstitut"],
         EigeneKuehlraeume =
         [

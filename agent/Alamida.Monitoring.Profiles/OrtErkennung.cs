@@ -11,29 +11,30 @@ public static class OrtErkennung
     public static void Apply(DispositionSettings settings) =>
         _cfg = Normalize(settings ?? DispositionSettings.Default);
 
-    public static bool IstKrematorium(string? ort)
-    {
-        if (string.IsNullOrWhiteSpace(ort)) return false;
-        return _cfg.KremationKeywords.Any(kw => KeywordEntspricht(ort, kw));
-    }
+    public static bool IstKrematorium(string? ort) =>
+        OrtMitPrefixUndKeywords(ort, _cfg.KremationPrefixe, _cfg.KremationKeywords);
 
-    public static bool IstKrankenhaus(string? ort)
+    public static bool IstKrankenhaus(string? ort) =>
+        OrtMitPrefixUndKeywords(ort, _cfg.KrankenhausPrefixe, _cfg.KrankenhausKeywords);
+
+    public static bool IstPflegeheim(string? ort) =>
+        OrtMitPrefixUndKeywords(ort, _cfg.PflegeheimPrefixe, _cfg.PflegeheimKeywords);
+
+    public static bool IstBestattung(string? ort) =>
+        OrtMitPrefixUndKeywords(ort, _cfg.BestattungPrefixe, _cfg.BestattungKeywords);
+
+    private static bool OrtMitPrefixUndKeywords(
+        string? ort,
+        IEnumerable<string> prefixe,
+        IEnumerable<string> keywords)
     {
         if (string.IsNullOrWhiteSpace(ort)) return false;
         var t = ort.Trim();
-        if (_cfg.KrankenhausPrefixe.Any(p => !string.IsNullOrWhiteSpace(p) &&
+        if (prefixe.Any(p => !string.IsNullOrWhiteSpace(p) &&
             t.StartsWith(p.Trim(), StringComparison.OrdinalIgnoreCase)))
             return true;
-        return _cfg.KrankenhausKeywords.Any(kw => KeywordEntspricht(ort, kw));
+        return keywords.Any(kw => KeywordEntspricht(ort, kw));
     }
-
-    public static bool IstPflegeheim(string? ort) =>
-        !string.IsNullOrWhiteSpace(ort) &&
-        _cfg.PflegeheimKeywords.Any(kw => KeywordEntspricht(ort, kw));
-
-    public static bool IstBestattung(string? ort) =>
-        !string.IsNullOrWhiteSpace(ort) &&
-        _cfg.BestattungKeywords.Any(kw => KeywordEntspricht(ort, kw));
 
     public static EigenerKuehlraumConfig? MatchEigenerKuehlraum(string? ort)
     {
@@ -74,10 +75,13 @@ public static class OrtErkennung
 
     private static DispositionSettings Normalize(DispositionSettings s) => new()
     {
+        KremationPrefixe = Dedupe(s.KremationPrefixe),
         KremationKeywords = Dedupe(s.KremationKeywords),
         KrankenhausPrefixe = Dedupe(s.KrankenhausPrefixe),
         KrankenhausKeywords = Dedupe(s.KrankenhausKeywords),
+        PflegeheimPrefixe = Dedupe(s.PflegeheimPrefixe),
         PflegeheimKeywords = Dedupe(s.PflegeheimKeywords),
+        BestattungPrefixe = Dedupe(s.BestattungPrefixe),
         BestattungKeywords = Dedupe(s.BestattungKeywords),
         EigeneKuehlraeume = s.EigeneKuehlraeume.Select(kr => new EigenerKuehlraumConfig
         {

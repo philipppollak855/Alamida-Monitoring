@@ -320,7 +320,14 @@ export function DispositionSettingsPanel({ defaultOpen = false }: { defaultOpen?
               </div>
 
               <KeywordSection
-                title="Kremation / Krematorium"
+                title="Kremation — Präfixe"
+                hint="Ein Präfix pro Zeile (Enter). Ortsname beginnt mit …"
+                count={normalizedDraft.kremationPrefixe.length}
+                value={draft.kremationPrefixe}
+                onChange={(kremationPrefixe) => setDraft((d) => ({ ...d, kremationPrefixe }))}
+              />
+              <KeywordSection
+                title="Kremation — Keywords"
                 hint="Ein Keyword pro Zeile (Enter). Enthält-Match, min. 2 Zeichen."
                 count={normalizedDraft.kremationKeywords.length}
                 value={draft.kremationKeywords}
@@ -341,15 +348,29 @@ export function DispositionSettingsPanel({ defaultOpen = false }: { defaultOpen?
                 onChange={(krankenhausKeywords) => setDraft((d) => ({ ...d, krankenhausKeywords }))}
               />
               <KeywordSection
+                title="Pflegeheim — Präfixe (Extern-Wand)"
+                hint="Ein Präfix pro Zeile (Enter). z. B. Senecura für „Senecura Ternitz“."
+                count={normalizedDraft.pflegeheimPrefixe.length}
+                value={draft.pflegeheimPrefixe}
+                onChange={(pflegeheimPrefixe) => setDraft((d) => ({ ...d, pflegeheimPrefixe }))}
+              />
+              <KeywordSection
                 title="Pflegeheim — Keywords (Extern-Wand)"
-                hint="Ein Keyword pro Zeile (Enter). Badge „Pflegeheim“ (z. B. Senecura)."
+                hint="Ein Keyword pro Zeile (Enter). Enthält im Ortsnamen."
                 count={normalizedDraft.pflegeheimKeywords.length}
                 value={draft.pflegeheimKeywords}
                 onChange={(pflegeheimKeywords) => setDraft((d) => ({ ...d, pflegeheimKeywords }))}
               />
               <KeywordSection
+                title="Bestattung — Präfixe (Extern-Wand)"
+                hint="Ein Präfix pro Zeile (Enter). Ortsname beginnt mit …"
+                count={normalizedDraft.bestattungPrefixe.length}
+                value={draft.bestattungPrefixe}
+                onChange={(bestattungPrefixe) => setDraft((d) => ({ ...d, bestattungPrefixe }))}
+              />
+              <KeywordSection
                 title="Bestattung — Keywords (Extern-Wand)"
-                hint="Ein Keyword pro Zeile (Enter). Badge „Bestattung“ auf Extern-Karten."
+                hint="Ein Keyword pro Zeile (Enter). Enthält im Ortsnamen."
                 count={normalizedDraft.bestattungKeywords.length}
                 value={draft.bestattungKeywords}
                 onChange={(bestattungKeywords) => setDraft((d) => ({ ...d, bestattungKeywords }))}

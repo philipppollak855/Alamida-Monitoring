@@ -1,6 +1,7 @@
 import type { DispositionSettings } from '../types/dispositionSettings';
 
 export const DEFAULT_DISPOSITION_SETTINGS: DispositionSettings = {
+  kremationPrefixe: [],
   kremationKeywords: [
     'krematorium',
     'innermanzing',
@@ -13,7 +14,9 @@ export const DEFAULT_DISPOSITION_SETTINGS: DispositionSettings = {
   ],
   krankenhausPrefixe: ['UK ', 'UK-', 'KH ', 'KH-', 'KH.'],
   krankenhausKeywords: ['krankenhaus', 'spital', 'klinik', 'landesklinik'],
+  pflegeheimPrefixe: ['Senecura'],
   pflegeheimKeywords: ['senecura', 'pflegeheim', 'altenheim', 'hospiz', 'pflege'],
+  bestattungPrefixe: [],
   bestattungKeywords: ['bestattung', 'bestatter', 'trauerhalle', 'bestattungsinstitut'],
   wallTabWechselSekunden: {
     kuehlraum: 18,
