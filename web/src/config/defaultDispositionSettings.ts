@@ -12,7 +12,17 @@ export const DEFAULT_DISPOSITION_SETTINGS: DispositionSettings = {
     'einäscherungsanlage',
   ],
   krankenhausPrefixe: ['UK ', 'UK-', 'KH ', 'KH-', 'KH.'],
-  krankenhausKeywords: ['krankenhaus', 'spital', 'klinik', 'landesklinik'],
+  krankenhausKeywords: [
+    'krankenhaus',
+    'spital',
+    'klinik',
+    'landesklinik',
+    'senecura',
+    'pflegeheim',
+    'altenheim',
+    'hospiz',
+    'pflege',
+  ],
   wallTabWechselSekunden: {
     kuehlraum: 18,
     extern: 18,

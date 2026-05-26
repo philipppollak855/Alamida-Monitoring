@@ -15,7 +15,11 @@ public sealed class DispositionSettings
             "einaescherung", "feuerbestattung", "einäscherungsanlage",
         ],
         KrankenhausPrefixe = ["UK ", "UK-", "KH ", "KH-", "KH."],
-        KrankenhausKeywords = ["krankenhaus", "spital", "klinik", "landesklinik"],
+        KrankenhausKeywords =
+        [
+            "krankenhaus", "spital", "klinik", "landesklinik",
+            "senecura", "pflegeheim", "altenheim", "hospiz", "pflege",
+        ],
         EigeneKuehlraeume =
         [
             new EigenerKuehlraumConfig

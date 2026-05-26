@@ -18,6 +18,11 @@ import {
 } from './kuehlraumLogic';
 import { istInUrnenBereich } from './urnenLogic';
 import { istAktuellImKrematorium, letzteAbgeschlosseneEtappe } from './positionLogic';
+import {
+  externOrtAnzeigeLabel,
+  hatAusstehendeUeberfuehrungVonExternemOrt,
+  resolveExternAbholOrtLabel,
+} from './externStandortLogic';
 
 export interface ExternFallEintrag {
   docId: string;
@@ -95,6 +100,8 @@ function kremationOrtLabel(s: Sterbefall): string | null {
 
 function istExternKrankenhausFall(s: Sterbefall): boolean {
   if (isImEigenenKuehlraum(s) || istAktuellImKrematorium(s)) return false;
+
+  if (hatAusstehendeUeberfuehrungVonExternemOrt(s)) return true;
 
   const pos = s.aktuellePosition?.trim();
   if (pos && istKrankenhaus(pos)) return true;
@@ -344,7 +351,7 @@ export function buildExternGruppen(sterbefaelle: Sterbefall[]): ExternOrtGruppe[
 
     const displayOrt =
       standort.typ === 'krankenhaus'
-        ? canonicalKrankenhausAnzeigeLabel(standort.ort)
+        ? externOrtAnzeigeLabel(standort.ort)
         : ortLabel(standort.ort);
 
     const existing = map.get(key);
@@ -356,7 +363,7 @@ export function buildExternGruppen(sterbefaelle: Sterbefall[]): ExternOrtGruppe[
         faelle: [],
       });
     } else if (standort.typ === 'krankenhaus') {
-      existing.ort = canonicalKrankenhausAnzeigeLabel(standort.ort);
+      existing.ort = externOrtAnzeigeLabel(standort.ort);
     }
 
     map.get(key)!.faelle.push({
