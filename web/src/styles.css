@@ -2361,9 +2361,9 @@ code {
 }
 
 .wall-cal-period-cell.is-today {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 16%, var(--surface-solid));
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent);
+  border-color: #2563eb;
+  background: #dbeafe;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.55);
 }
 
 .wall-cal-period-cell.is-today.is-selected {
@@ -2453,8 +2453,8 @@ code {
 }
 
 .wall-cal-day.is-today {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 32%, transparent);
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.45);
 }
 
 .wall-cal-day.is-active {
@@ -2485,7 +2485,13 @@ code {
 }
 
 .wall-cal-day.is-today .wall-cal-day-head {
-  background: color-mix(in srgb, var(--accent) 14%, var(--surface-solid));
+  background: #dbeafe;
+}
+
+.wall-cal-day.is-today .wall-cal-day-wd,
+.wall-cal-day.is-today .wall-cal-day-num {
+  color: #0f172a;
+  font-weight: 800;
 }
 
 .wall-cal-day--strip .wall-cal-day-head {
@@ -2518,13 +2524,13 @@ code {
 }
 
 .wall-cal-today-pill {
-  font-size: 0.62rem;
-  font-weight: 700;
+  font-size: 0.64rem;
+  font-weight: 800;
   padding: 0.08rem 0.4rem;
   border-radius: 999px;
-  border: 1px solid var(--accent);
-  background: color-mix(in srgb, var(--accent) 18%, var(--surface-solid));
-  color: var(--accent);
+  border: 1px solid #1d4ed8;
+  background: #2563eb;
+  color: #ffffff;
   white-space: nowrap;
 }
 
