@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { Sterbefall } from '../types';
 
-import { dayKeyFromDate } from '../board/dateUtils';
 import { useNarrowViewport } from '../hooks/useNarrowViewport';
 
 import { useCalendarArtFilter } from '../hooks/useCalendarArtFilter';
+import { useWallCalendarViewState } from '../hooks/useWallCalendarViewState';
 
 import {
 
@@ -68,19 +68,20 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
 
   const isNarrow = useNarrowViewport();
 
-  const [range, setRange] = useState<WallCalendarRange>(7);
-
-  const [search, setSearch] = useState('');
+  const { range, setRange, search, setSearch, focusDayKey, setFocusDayKey, todayKey } =
+    useWallCalendarViewState(now);
 
   const { activeArts, toggle, selectAll, isActive } = useCalendarArtFilter();
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [focusDayKey, setFocusDayKey] = useState<string | null>(null);
   const scrollToFocusPending = useRef(false);
 
-  const selectFocusDay = useCallback((dayKey: string) => {
-    scrollToFocusPending.current = true;
-    setFocusDayKey(dayKey);
-  }, []);
+  const selectFocusDay = useCallback(
+    (dayKey: string) => {
+      scrollToFocusPending.current = true;
+      setFocusDayKey(dayKey);
+    },
+    [setFocusDayKey]
+  );
 
   const allEntries = useMemo(() => buildWallCalendarEntries(sterbefaelle), [sterbefaelle]);
 
@@ -130,14 +131,6 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
   const showPeriodOverview = range === 'month' || range === 7 || range === 14;
 
   const overviewColumns = range === 14 ? 7 : 7;
-
-  const todayKey = useMemo(() => dayKeyFromDate(now), [now]);
-
-  useEffect(() => {
-    if (!showPeriodOverview) return;
-    scrollToFocusPending.current = true;
-    setFocusDayKey(todayKey);
-  }, [range, todayKey, showPeriodOverview]);
 
   useEffect(() => {
     if (!scrollToFocusPending.current || !focusDayKey || activeArts.size === 0) return;
@@ -348,6 +341,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
                   day={day}
                   compact
                   scrollId={day.dayKey}
+                  active={focusDayKey === day.dayKey}
                 />
 
               ))}
@@ -371,6 +365,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
                   day={day}
                   strip
                   scrollId={day.dayKey}
+                  active={focusDayKey === day.dayKey}
                 />
 
               ))}
@@ -491,6 +486,7 @@ function WallCalendarDaySection({
   strip = false,
 
   scrollId,
+  active = false,
 
 }: {
 
@@ -501,6 +497,7 @@ function WallCalendarDaySection({
   strip?: boolean;
 
   scrollId?: string;
+  active?: boolean;
 
 }) {
 
@@ -511,7 +508,7 @@ function WallCalendarDaySection({
     <section
 
       id={scrollId ? `wall-cal-focus-${scrollId}` : undefined}
-      className={`wall-cal-day wall-cal-day--${mod} ${day.isToday ? 'is-today' : ''} ${day.isWeekend ? 'is-weekend' : ''} ${day.entries.length === 0 && compact ? 'is-empty' : ''}`}
+      className={`wall-cal-day wall-cal-day--${mod} ${day.isToday ? 'is-today' : ''} ${active ? 'is-active' : ''} ${day.isWeekend ? 'is-weekend' : ''} ${day.entries.length === 0 && compact ? 'is-empty' : ''}`}
 
     >
 
