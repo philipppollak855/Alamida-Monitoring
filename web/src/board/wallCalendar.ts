@@ -548,6 +548,20 @@ export function buildWallCalendarDays(
 ): WallCalendarDay[] {
   const todayKey = dayKeyFromDate(anchor);
   const days: WallCalendarDay[] = [];
+  const entriesByDay = new Map<string, WallCalendarEntry[]>();
+
+  for (const entry of entries) {
+    const list = entriesByDay.get(entry.dayKey);
+    if (list) {
+      list.push(entry);
+    } else {
+      entriesByDay.set(entry.dayKey, [entry]);
+    }
+  }
+
+  for (const list of entriesByDay.values()) {
+    list.sort((a, b) => a.sortMs - b.sortMs || a.name.localeCompare(b.name, 'de'));
+  }
 
   let cursor: Date;
   let count: number;
@@ -570,9 +584,7 @@ export function buildWallCalendarDays(
   for (let i = 0; i < count; i++) {
     const d = addDays(cursor, i);
     const dayKey = dayKeyFromDate(d);
-    const dayEntries = entries
-      .filter((e) => e.dayKey === dayKey)
-      .sort((a, b) => a.sortMs - b.sortMs || a.name.localeCompare(b.name, 'de'));
+    const dayEntries = entriesByDay.get(dayKey) ?? [];
 
     days.push({
       dayKey,
