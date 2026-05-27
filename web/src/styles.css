@@ -1780,6 +1780,13 @@ code {
   box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.35);
 }
 
+.wall-freigabe-btn.is-frei-geplant {
+  border-color: var(--danger);
+  background: rgba(248, 113, 113, 0.22);
+  color: #fecaca;
+  box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.25);
+}
+
 .wall-freigabe-btn:disabled {
   opacity: 0.55;
   cursor: wait;

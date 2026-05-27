@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { istFreigabeWirksam } from '../board/freigabeLogic';
 
 function isoFromDate(d: Date): string {
   const y = d.getFullYear();
@@ -37,12 +38,17 @@ export function WallFreigabeControl({
   const [busy, setBusy] = useState(false);
 
   if (freigabeFrei) {
+    const wirksam = istFreigabeWirksam(freigabeFrei, freigabeDatum, defaultDate);
     return (
       <button
         type="button"
-        className="wall-freigabe-btn is-frei"
+        className={`wall-freigabe-btn ${wirksam ? 'is-frei' : 'is-frei-geplant'}`}
         disabled={disabled || busy}
-        title={`Freigabe ${freigabeDatum ?? ''} — tippen zum Zurücksetzen`}
+        title={
+          wirksam
+            ? `Freigabe ${freigabeDatum ?? ''} — tippen zum Zurücksetzen`
+            : `Freigabe ab ${freigabeDatum ?? ''} — tippen zum Zurücksetzen`
+        }
         onClick={() => {
           setBusy(true);
           void onClear(docId).finally(() => setBusy(false));

@@ -36,6 +36,7 @@ import { SchrittBadge } from '../ui/SchrittBadge';
 import { RouteFlow } from '../ui/RouteFlow';
 import { WallCalendarPanel, wallCalendarTabCount } from '../components/WallCalendarPanel';
 import { WallFreigabeControl } from '../components/WallFreigabeControl';
+import { freigabePersonCssClass, istFreigabeWirksam } from '../board/freigabeLogic';
 import { WallUeberfuehrungErledigtBtn } from '../components/WallUeberfuehrungErledigtBtn';
 import { getErledigteZeilen } from '../board/ueberfuehrungErledigt';
 import { toggleUeberfuehrungErledigt } from '../services/ueberfuehrungErledigt';
@@ -395,9 +396,7 @@ export function WallPage() {
                           key={f.docId}
                           className={`wall-extern-person ${
                             externKategorieHatFreigabe(g.typ)
-                              ? f.freigabeFrei
-                                ? 'is-frei-erfasst'
-                                : 'is-nicht-frei'
+                              ? freigabePersonCssClass(f.freigabeFrei, f.freigabeDatum, now)
                               : ''
                           }`}
                         >
@@ -409,7 +408,9 @@ export function WallPage() {
                               {externKategorieHatFreigabe(g.typ) &&
                               f.freigabeFrei &&
                               f.freigabeDatum
-                                ? ` · Freigabe ${f.freigabeDatum}`
+                                ? istFreigabeWirksam(f.freigabeFrei, f.freigabeDatum, now)
+                                  ? ` · Freigabe ${f.freigabeDatum}`
+                                  : ` · Freigabe ab ${f.freigabeDatum}`
                                 : ''}
                             </span>
                           </div>
