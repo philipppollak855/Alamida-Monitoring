@@ -85,6 +85,13 @@ export function addDays(d: Date, n: number): Date {
   return x;
 }
 
+/** Montag der Woche, die das Datum enthält (Mo–So). */
+export function startOfWeekMonday(d: Date): Date {
+  const local = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const daysSinceMonday = (local.getDay() + 6) % 7;
+  return addDays(local, -daysSinceMonday);
+}
+
 export function isNextCalendarDay(aKey: string, bKey: string): boolean {
   const [ay, am, ad] = aKey.split('-').map(Number);
   const next = new Date(ay, am - 1, ad + 1);

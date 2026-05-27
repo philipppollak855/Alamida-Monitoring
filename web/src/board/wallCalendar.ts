@@ -7,6 +7,7 @@ import {
   formatDayLabelDe,
   formatZeitDe,
   parseDatumZeitDe,
+  startOfWeekMonday,
 } from './dateUtils';
 
 export type WallCalendarRange = 7 | 14 | 'month';
@@ -505,6 +506,16 @@ export function isWallCalendarDayInAnchorMonth(dayKey: string, anchor: Date): bo
   return y === anchor.getFullYear() && m - 1 === anchor.getMonth();
 }
 
+function weekSpanFromAnchor(anchor: Date, weeks: 1 | 2): { fromKey: string; toKey: string; count: number } {
+  const monday = startOfWeekMonday(anchor);
+  const count = weeks * 7;
+  return {
+    fromKey: dayKeyFromDate(monday),
+    toKey: dayKeyFromDate(addDays(monday, count - 1)),
+    count,
+  };
+}
+
 export function filterCalendarEntries(
   entries: WallCalendarEntry[],
   range: WallCalendarRange,
@@ -519,10 +530,8 @@ export function filterCalendarEntries(
     fromKey = monthRangeFromKey(anchor, entries);
     toKey = monthRangeToKey(anchor, entries);
   } else {
-    const start = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
-    const end = addDays(start, range - 1);
-    fromKey = dayKeyFromDate(start);
-    toKey = dayKeyFromDate(end);
+    const weeks = range === 14 ? 2 : 1;
+    ({ fromKey, toKey } = weekSpanFromAnchor(anchor, weeks));
   }
 
   return entries.filter((e) => {
@@ -553,8 +562,9 @@ export function buildWallCalendarDays(
       count = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0).getDate();
     }
   } else {
-    cursor = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
-    count = range;
+    const weeks = range === 14 ? 2 : 1;
+    cursor = startOfWeekMonday(anchor);
+    count = weeks * 7;
   }
 
   for (let i = 0; i < count; i++) {

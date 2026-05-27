@@ -133,6 +133,12 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
   const overviewColumns = range === 14 ? 7 : 7;
 
   useEffect(() => {
+    // Beim Öffnen des Kalender-Tabs immer auf "heute" fokussieren.
+    scrollToFocusPending.current = true;
+    setFocusDayKey(todayKey);
+  }, [todayKey, setFocusDayKey]);
+
+  useEffect(() => {
     if (!scrollToFocusPending.current || !focusDayKey || activeArts.size === 0) return;
     const el = document.getElementById(`wall-cal-focus-${focusDayKey}`);
     if (!el) return;
@@ -141,12 +147,12 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
     const t = window.setTimeout(() => {
       el.scrollIntoView({
         behavior: 'smooth',
-        block: 'nearest',
+        block: range === 'month' ? 'center' : 'nearest',
         inline: isNarrow ? 'start' : 'nearest',
       });
     }, 60);
     return () => window.clearTimeout(t);
-  }, [focusDayKey, days.length, isNarrow, activeArts.size]);
+  }, [focusDayKey, days.length, isNarrow, activeArts.size, range]);
 
 
 
@@ -348,29 +354,25 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
 
             </div>
 
-          ) : (
+          ) : range === 14 ? (
 
-            <div
+            <div className="wall-cal-weeks-stack">
 
-              className="wall-cal-strip"
+              {[0, 1].map((weekIdx) => (
 
-              style={{ '--cal-cols': days.length } as React.CSSProperties}
-
-            >
-
-              {days.map((day) => (
-
-                <WallCalendarDaySection
-                  key={day.dayKey}
-                  day={day}
-                  strip
-                  scrollId={day.dayKey}
-                  active={focusDayKey === day.dayKey}
+                <WallCalendarWeekStrip
+                  key={weekIdx}
+                  days={days.slice(weekIdx * 7, weekIdx * 7 + 7)}
+                  focusDayKey={focusDayKey}
                 />
 
               ))}
 
             </div>
+
+          ) : (
+
+            <WallCalendarWeekStrip days={days} focusDayKey={focusDayKey} />
 
           )}
 
@@ -385,6 +387,28 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
 }
 
 
+
+function WallCalendarWeekStrip({
+  days,
+  focusDayKey,
+}: {
+  days: WallCalendarDay[];
+  focusDayKey: string | null;
+}) {
+  return (
+    <div className="wall-cal-strip wall-cal-strip--week">
+      {days.map((day) => (
+        <WallCalendarDaySection
+          key={day.dayKey}
+          day={day}
+          strip
+          scrollId={day.dayKey}
+          active={focusDayKey === day.dayKey}
+        />
+      ))}
+    </div>
+  );
+}
 
 function WallCalendarPeriodRow({
   days,
@@ -525,6 +549,8 @@ function WallCalendarDaySection({
             : day.dayLabel}
 
         </span>
+
+        {day.isToday && <span className="wall-cal-today-pill">Heute</span>}
 
         {strip && day.entries.length > 0 && (
 
