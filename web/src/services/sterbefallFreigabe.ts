@@ -1,7 +1,7 @@
 import { deleteField, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 
-/** Freigabe am Wandmonitor Extern (Krankenhaus, Pflegeheim, Bestattung). */
+/** Freigabe am Wandmonitor (Extern + Kühlraum) — ein Feld pro Sterbefall. */
 export async function setSterbefallFreigabe(docId: string, datum: string): Promise<void> {
   if (!db) throw new Error('Firebase nicht konfiguriert');
 

@@ -331,7 +331,11 @@ export function WallPage() {
               {slots.map((fall, i) => (
                 <div
                   key={i}
-                  className={`wall-cool-tile ${fall ? 'on' : 'off'}`}
+                  className={`wall-cool-tile ${fall ? 'on' : 'off'} ${
+                    fall
+                      ? freigabePersonCssClass(fall.freigabeFrei, fall.freigabeDatum, now)
+                      : ''
+                  }`}
                 >
                   <span className="wall-tile-nr">Platz {i + 1}</span>
                   {fall ? (
@@ -340,11 +344,29 @@ export function WallPage() {
                         {fall.verstorbenerName || fall.sterbefallId}
                       </span>
                       <span className="wall-tile-pos">{fall.aktuellePosition}</span>
-                      <KuehlraumTerminMarker
-                        fall={fall}
-                        now={now}
-                        className="wall-cool-termin-marker"
-                      />
+                      {fall.freigabeFrei && fall.freigabeDatum && (
+                        <span className="wall-tile-freigabe-hint">
+                          {istFreigabeWirksam(fall.freigabeFrei, fall.freigabeDatum, now)
+                            ? `Freigabe ${fall.freigabeDatum}`
+                            : `Freigabe ab ${fall.freigabeDatum}`}
+                        </span>
+                      )}
+                      <div className="wall-cool-tile-footer">
+                        <KuehlraumTerminMarker
+                          fall={fall}
+                          now={now}
+                          className="wall-cool-termin-marker"
+                        />
+                        <WallFreigabeControl
+                          docId={fall.id}
+                          freigabeFrei={fall.freigabeFrei}
+                          freigabeDatum={fall.freigabeDatum}
+                          defaultDate={now}
+                          disabled={freigabePending === fall.id}
+                          onSave={saveFreigabe}
+                          onClear={clearFreigabe}
+                        />
+                      </div>
                     </>
                   ) : (
                     <span className="wall-tile-free">Frei</span>

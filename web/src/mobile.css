@@ -1135,6 +1135,21 @@
     white-space: nowrap;
   }
 
+  .wall-cool-tile-footer {
+    padding-top: 0.15rem;
+    gap: 0.15rem;
+  }
+
+  .wall-cool-tile-footer .wall-freigabe-btn {
+    font-size: 0.5rem;
+    padding: 0.15rem 0.3rem;
+    max-width: 3.5rem;
+  }
+
+  .wall-tile-freigabe-hint {
+    font-size: 0.5rem;
+  }
+
   .wall-tile-free {
     font-size: 0.75rem;
   }
