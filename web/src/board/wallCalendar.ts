@@ -454,10 +454,6 @@ export function buildWallCalendarEntries(sterbefaelle: Sterbefall[]): WallCalend
   return entries.sort((a, b) => a.sortMs - b.sortMs || a.name.localeCompare(b.name, 'de'));
 }
 
-/** Monatsansicht: mindestens so viele Tage vor/nach dem Kalendermonat (auch ohne Termine). */
-const MONTH_MIN_BACKWARD_DAYS = 365;
-const MONTH_MIN_FORWARD_DAYS = 365;
-
 function monthStartKey(anchor: Date): string {
   return dayKeyFromDate(new Date(anchor.getFullYear(), anchor.getMonth(), 1));
 }
@@ -471,7 +467,10 @@ function dateFromDayKey(dayKey: string): Date {
   return new Date(y, m - 1, d);
 }
 
-/** Monatsansicht: auch in die Vergangenheit erweitern (Termine + Mindestfenster). */
+/** Monatsansicht: mindestens so viele Tage vor/nach dem Kalendermonat (auch ohne Termine). */
+const MONTH_MIN_BACKWARD_DAYS = 365;
+const MONTH_MIN_FORWARD_DAYS = 365;
+
 function monthRangeFromKey(anchor: Date, entries: WallCalendarEntry[]): string {
   let fromKey = monthStartKey(anchor);
   const minBackward = dayKeyFromDate(
@@ -485,7 +484,6 @@ function monthRangeFromKey(anchor: Date, entries: WallCalendarEntry[]): string {
   return fromKey;
 }
 
-/** Monatsansicht: durchgehend über Monatsende hinaus (Termine + Mindestfenster). */
 function monthRangeToKey(anchor: Date, entries: WallCalendarEntry[]): string {
   const fromKey = monthStartKey(anchor);
   let toKey = monthEndKey(anchor);

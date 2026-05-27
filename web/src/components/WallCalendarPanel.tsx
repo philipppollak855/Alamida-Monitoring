@@ -62,6 +62,11 @@ const RANGE_OPTIONS: { id: WallCalendarRange; label: string; short: string }[] =
 
 ];
 
+const MONTH_CARD_MIN_WIDTH = 148;
+const MONTH_GRID_GAP_PX = 8;
+const MONTH_OVERSCAN_ROWS = 2;
+const DEFAULT_MONTH_ROW_HEIGHT = 220;
+
 
 
 export function WallCalendarPanel({ sterbefaelle, now }: Props) {
@@ -74,6 +79,13 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
   const { activeArts, toggle, selectAll, isActive } = useCalendarArtFilter();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const scrollToFocusPending = useRef(false);
+  const monthGridRef = useRef<HTMLDivElement | null>(null);
+  const [monthGridMetrics, setMonthGridMetrics] = useState({
+    columns: 1,
+    rowHeight: DEFAULT_MONTH_ROW_HEIGHT,
+    scrollTop: 0,
+    viewportHeight: 0,
+  });
 
   const selectFocusDay = useCallback(
     (dayKey: string) => {
@@ -164,6 +176,87 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
     }, 60);
     return () => window.clearTimeout(t);
   }, [focusDayKey, days.length, isNarrow, activeArts.size, range]);
+
+  useEffect(() => {
+    if (range !== 'month' || isNarrow) return;
+    const grid = monthGridRef.current;
+    if (!grid) return;
+
+    const syncMetrics = () => {
+      const width = grid.clientWidth;
+      const columns = Math.max(
+        1,
+        Math.floor((width + MONTH_GRID_GAP_PX) / (MONTH_CARD_MIN_WIDTH + MONTH_GRID_GAP_PX))
+      );
+      const firstDay = grid.querySelector('.wall-cal-day--month') as HTMLElement | null;
+      const rowHeight =
+        (firstDay?.getBoundingClientRect().height ?? DEFAULT_MONTH_ROW_HEIGHT) + MONTH_GRID_GAP_PX;
+
+      setMonthGridMetrics((prev) => ({
+        columns,
+        rowHeight: Number.isFinite(rowHeight) ? rowHeight : prev.rowHeight,
+        scrollTop: grid.scrollTop,
+        viewportHeight: grid.clientHeight,
+      }));
+    };
+
+    const onScroll = () => {
+      setMonthGridMetrics((prev) => ({ ...prev, scrollTop: grid.scrollTop }));
+    };
+
+    syncMetrics();
+    const ro = new ResizeObserver(syncMetrics);
+    ro.observe(grid);
+    grid.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      grid.removeEventListener('scroll', onScroll);
+      ro.disconnect();
+    };
+  }, [range, isNarrow, days.length]);
+
+  useEffect(() => {
+    if (!scrollToFocusPending.current || range !== 'month' || isNarrow || !focusDayKey) return;
+    const grid = monthGridRef.current;
+    if (!grid) return;
+    const index = days.findIndex((d) => d.dayKey === focusDayKey);
+    if (index < 0) return;
+    const row = Math.floor(index / monthGridMetrics.columns);
+    const targetTop =
+      row * monthGridMetrics.rowHeight -
+      monthGridMetrics.viewportHeight / 2 +
+      monthGridMetrics.rowHeight / 2;
+    if (Number.isFinite(targetTop)) {
+      grid.scrollTop = Math.max(0, targetTop);
+    }
+  }, [focusDayKey, range, isNarrow, days, monthGridMetrics]);
+
+  const monthVirtual = useMemo(() => {
+    if (range !== 'month' || isNarrow) {
+      return { visibleDays: days, topSpacerPx: 0, bottomSpacerPx: 0 };
+    }
+    const columns = Math.max(1, monthGridMetrics.columns);
+    const rowHeight = Math.max(1, monthGridMetrics.rowHeight);
+    const viewportHeight = Math.max(rowHeight, monthGridMetrics.viewportHeight);
+    const totalRows = Math.max(1, Math.ceil(days.length / columns));
+    const startRow = Math.max(
+      0,
+      Math.floor(monthGridMetrics.scrollTop / rowHeight) - MONTH_OVERSCAN_ROWS
+    );
+    const endRow = Math.min(
+      totalRows - 1,
+      Math.ceil((monthGridMetrics.scrollTop + viewportHeight) / rowHeight) + MONTH_OVERSCAN_ROWS
+    );
+    const startIndex = startRow * columns;
+    const endIndex = Math.min(days.length, (endRow + 1) * columns);
+    const topSpacerPx = startRow * rowHeight;
+    const bottomSpacerPx = Math.max(0, (totalRows - endRow - 1) * rowHeight);
+
+    return {
+      visibleDays: days.slice(startIndex, endIndex),
+      topSpacerPx,
+      bottomSpacerPx,
+    };
+  }, [range, isNarrow, days, monthGridMetrics]);
 
 
 
@@ -349,9 +442,17 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
 
           {range === 'month' ? (
 
-            <div className="wall-cal-month-grid">
+            <div className="wall-cal-month-grid" ref={monthGridRef}>
 
-              {days.map((day) => (
+              {monthVirtual.topSpacerPx > 0 && (
+                <div
+                  className="wall-cal-month-spacer"
+                  style={{ height: `${monthVirtual.topSpacerPx}px` }}
+                  aria-hidden
+                />
+              )}
+
+              {monthVirtual.visibleDays.map((day) => (
 
                 <WallCalendarDaySection
                   key={day.dayKey}
@@ -362,6 +463,14 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
                 />
 
               ))}
+
+              {monthVirtual.bottomSpacerPx > 0 && (
+                <div
+                  className="wall-cal-month-spacer"
+                  style={{ height: `${monthVirtual.bottomSpacerPx}px` }}
+                  aria-hidden
+                />
+              )}
 
             </div>
 
