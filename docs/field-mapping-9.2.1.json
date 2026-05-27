@@ -55,6 +55,8 @@
         },
         "trauerfeierdatum": {
           "automationIdContains": [
+            "Field: sfl 2::Termin_Gottesdienst_Datum",
+            "Termin_Gottesdienst_Datum",
             "Field: sfl 2::Termin_Trauerfeier1_Datum",
             "Field: sfl 2::Termin_Trauerfeier_Datum",
             "Termin_Trauerfeier1_Datum",
@@ -63,17 +65,33 @@
             "Trauerfeier_Datum",
             "Trauerfeier_Termin"
           ],
-          "automationIdExcludes": ["Trauerfeier2", "Trauerfeier_2", "Trauerfeier 2"],
+          "automationIdExcludes": [
+            "Trauerfeier2",
+            "Trauerfeier_2",
+            "Trauerfeier 2",
+            "Wochentag",
+            "Trauergespräch",
+            "Verabschiedung",
+            "Rosenkranz"
+          ],
           "controlTypes": ["Calendar", "Edit"]
         },
         "trauerfeierzeit": {
           "automationIdContains": [
+            "Field: sfl 2::Termin_Gottesdienst_Zeit",
+            "Termin_Gottesdienst_Zeit",
             "Termin_Trauerfeier_Zeit",
             "Trauerfeier_Uhrzeit",
             "Trauerfeier_Zeit"
           ],
-          "automationIdExcludes": ["Trauerfeier2", "Trauerfeier_2", "Trauerfeier 2"],
-          "controlTypes": ["Edit", "Text"]
+          "automationIdExcludes": [
+            "Trauerfeier2",
+            "Trauerfeier_2",
+            "Trauerfeier 2",
+            "Trauergespräch",
+            "Verabschiedung"
+          ],
+          "controlTypes": ["Edit", "Text", "ComboBox"]
         },
         "trauerfeier2datum": {
           "automationIdContains": [
@@ -113,15 +131,17 @@
         },
         "imAnschluss": {
           "automationIdContains": [
+            "Field: sfl 2::Termin_Bestattung_Anschließend",
+            "Field: sfl 2::Termin_Bestattung_Anschliessend",
+            "Termin_Bestattung_Anschließend",
+            "Termin_Bestattung_Anschliessend",
             "Field: sfl 2::Termin_Beisetzung_Im_Anschluss",
-            "Field: sfl 2::Termin_Bestattung_Im_Anschluss",
             "Termin_Beisetzung_Im_Anschluss",
-            "Termin_Bestattung_Im_Anschluss",
             "Im_Anschluss",
             "Bestattung_Im_Anschluss",
             "Trauerfeier_Im_Anschluss"
           ],
-          "controlTypes": ["CheckBox"]
+          "controlTypes": ["CheckBox", "Group"]
         },
         "krematoriumOrt": {
           "automationIdContains": ["Krematorium", "Krematorium_Ort", "Feuerbestattung_Ort"],
@@ -264,6 +284,8 @@
       },
       "trauerfeierdatum": {
         "automationIdContains": [
+          "Field: sfl 2::Termin_Gottesdienst_Datum",
+          "Termin_Gottesdienst_Datum",
           "Field: sfl 2::Termin_Trauerfeier1_Datum",
           "Field: sfl 2::Termin_Trauerfeier_Datum",
           "Termin_Trauerfeier1_Datum",
@@ -271,13 +293,25 @@
           "Trauerfeier1_Datum",
           "Trauerfeier_Datum"
         ],
-        "automationIdExcludes": ["Trauerfeier2", "Trauerfeier_2", "Trauerfeier 2"],
+        "automationIdExcludes": [
+          "Trauerfeier2",
+          "Trauerfeier_2",
+          "Trauerfeier 2",
+          "Wochentag",
+          "Trauergespräch",
+          "Verabschiedung"
+        ],
         "controlTypes": ["Calendar", "Edit"]
       },
       "trauerfeierzeit": {
-        "automationIdContains": ["Termin_Trauerfeier_Zeit", "Trauerfeier_Uhrzeit"],
+        "automationIdContains": [
+          "Field: sfl 2::Termin_Gottesdienst_Zeit",
+          "Termin_Gottesdienst_Zeit",
+          "Termin_Trauerfeier_Zeit",
+          "Trauerfeier_Uhrzeit"
+        ],
         "automationIdExcludes": ["Trauerfeier2", "Trauerfeier_2", "Trauerfeier 2"],
-        "controlTypes": ["Edit", "Text"]
+        "controlTypes": ["Edit", "Text", "ComboBox"]
       },
       "trauerfeier2datum": {
         "automationIdContains": ["Termin_Trauerfeier2_Datum", "Trauerfeier2_Datum", "Trauerfeier_2_Datum"],
@@ -301,14 +335,14 @@
       },
       "imAnschluss": {
         "automationIdContains": [
-          "Field: sfl 2::Termin_Beisetzung_Im_Anschluss",
-          "Field: sfl 2::Termin_Bestattung_Im_Anschluss",
-          "Termin_Beisetzung_Im_Anschluss",
-          "Termin_Bestattung_Im_Anschluss",
+          "Field: sfl 2::Termin_Bestattung_Anschließend",
+          "Field: sfl 2::Termin_Bestattung_Anschliessend",
+          "Termin_Bestattung_Anschließend",
+          "Termin_Bestattung_Anschliessend",
           "Im_Anschluss",
           "Bestattung_Im_Anschluss"
         ],
-        "controlTypes": ["CheckBox"]
+        "controlTypes": ["CheckBox", "Group"]
       },
       "krematoriumOrt": {
         "automationIdContains": ["Krematorium", "Krematorium_Ort", "Feuerbestattung_Ort"],

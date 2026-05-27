@@ -40,7 +40,17 @@ internal static class UiaValueReader
         {
             var name = element.Name;
             if (!string.IsNullOrWhiteSpace(name))
+            {
+                var aid = SafeGet(() => element.AutomationId) ?? "";
+                if (aid.Contains("Check Box Set", StringComparison.OrdinalIgnoreCase))
+                {
+                    var m = System.Text.RegularExpressions.Regex.Match(
+                        name, @"Markierungsfeldset\s+(\d+)\s+geprüft", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                    if (m.Success)
+                        return m.Groups[1].Value == "1" ? "1" : "0";
+                }
                 return name.Trim();
+            }
         }
         catch { /* ignore */ }
 
