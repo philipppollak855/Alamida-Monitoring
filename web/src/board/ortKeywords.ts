@@ -1,2 +1,8 @@
 /** Re-Export — Logik liegt in settings/ortMatchers.ts (Firestore-Einstellungen). */
-export { istKrematorium, istKrankenhaus, ortLabel, matchKuehlraumConfig } from '../settings/ortMatchers';
+export {
+  istBestattung,
+  istKrematorium,
+  istKrankenhaus,
+  ortLabel,
+  matchKuehlraumConfig,
+} from '../settings/ortMatchers';

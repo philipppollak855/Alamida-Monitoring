@@ -4,7 +4,7 @@ import { getAbholungSchrittRef, getEffectiveAusstehend } from '../board/ausstehe
 import { isAusstehendHeuteOrGeplant } from '../board/ausstehendStatus';
 import { parseUeberfuehrungRoute } from '../board/routeParse';
 import { getDispositionSettings } from './dispositionSettingsStore';
-import { istKrankenhausOrt, matchEigenerKuehlraumOrt } from './recognitionEngine';
+import { istBestattungOrt, istKrankenhausOrt, matchEigenerKuehlraumOrt } from './recognitionEngine';
 
 function istKrankenhaus(ort?: string): boolean {
   if (!ort?.trim()) return false;
@@ -248,42 +248,71 @@ function zielIstEigenerKuehlraumNach(nach?: string, cfg?: DispositionSettings): 
   return !!matchEigenerKuehlraumOrt(t, cfg ?? getDispositionSettings());
 }
 
-function khVonAusSchrittText(vonRaw?: string): string | null {
+function khVonAusSchrittText(vonRaw?: string, cfg?: DispositionSettings): string | null {
   const raw = vonRaw?.trim();
   if (!raw) return null;
   const { von } = parseUeberfuehrungRoute(raw);
   const candidate = (von || raw).trim();
+  const settings = cfg ?? getDispositionSettings();
+  if (istBestattungOrt(candidate, settings)) return null;
   return istKrankenhaus(candidate) ? candidate : null;
 }
 
-/** Alle Routen-Texte (ausstehend, naechsterSchritt, Verlauf, …). */
-function collectFallRouteTexte(s: Sterbefall): string[] {
+function pushRouteText(seen: Set<string>, out: string[], v?: string) {
+  const t = v?.trim();
+  if (!t) return;
+  const norm = t.toLowerCase();
+  if (seen.has(norm)) return;
+  seen.add(norm);
+  out.push(t);
+}
+
+/** Offene UK/KH→KR-Routen (ohne abgeschlossenen Verlauf). */
+function collectOpenKhRouteTexte(s: Sterbefall, cfg: DispositionSettings): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
-  const push = (v?: string) => {
-    const t = v?.trim();
-    if (!t) return;
-    const norm = t.toLowerCase();
-    if (seen.has(norm)) return;
-    seen.add(norm);
-    out.push(t);
-  };
 
-  push(s.abholort);
-  push(s.aktuellePosition);
-  push(s.naechsterSchrittVon);
-  push(s.naechsterSchrittNach);
-  push(s.naechsteUeberfuehrungVon);
-  push(s.naechsteUeberfuehrungNach);
   for (const a of getEffectiveAusstehend(s)) {
-    push(a.vonOrt);
-    push(a.nachOrt);
+    if (a.status !== 'abholung_noetig' && !isAusstehendHeuteOrGeplant(a)) continue;
+    const von = a.vonOrt?.trim();
+    if (!von) continue;
+    const nach = a.nachOrt?.trim() || parseUeberfuehrungRoute(von).nach?.trim();
+    if (nach && zielIstEigenerKuehlraumNach(nach, cfg)) {
+      pushRouteText(seen, out, von.includes('nach') ? von : `${von} nach ${nach}`);
+    } else {
+      pushRouteText(seen, out, von);
+    }
   }
-  for (const v of s.verlauf ?? []) {
-    push(v.ort);
-    push(v.vonOrt);
-    push(v.nachOrt);
+
+  const nsVon = s.naechsterSchrittVon?.trim();
+  const nsNach = s.naechsterSchrittNach?.trim();
+  if (nsVon) {
+    if (nsNach && zielIstEigenerKuehlraumNach(nsNach, cfg)) {
+      pushRouteText(seen, out, nsVon.includes('nach') ? nsVon : `${nsVon} nach ${nsNach}`);
+    } else {
+      pushRouteText(seen, out, nsVon);
+    }
   }
+
+  const nuVon = s.naechsteUeberfuehrungVon?.trim();
+  const nuNach = s.naechsteUeberfuehrungNach?.trim();
+  if (nuVon) {
+    if (nuNach && zielIstEigenerKuehlraumNach(nuNach, cfg)) {
+      pushRouteText(seen, out, nuVon.includes('nach') ? nuVon : `${nuVon} nach ${nuNach}`);
+    } else {
+      pushRouteText(seen, out, nuVon);
+    }
+  }
+
+  const abhol = s.abholort?.trim();
+  if (abhol) {
+    const route = parseUeberfuehrungRoute(abhol);
+    const nach = route.nach?.trim() || nsNach || nuNach || '';
+    if (nach && zielIstEigenerKuehlraumNach(nach, cfg)) {
+      pushRouteText(seen, out, abhol);
+    }
+  }
+
   return out;
 }
 
@@ -299,7 +328,7 @@ function extractKhVonRouteZuEigeneKr(
   if (!nachZiel || !zielIstEigenerKuehlraumNach(nachZiel, cfg)) return null;
 
   const von = (route.von || trimmed).trim();
-  const khVon = khVonAusSchrittText(von);
+  const khVon = khVonAusSchrittText(von, cfg);
   if (!khVon) return null;
   return resolveBestKrankenhausOrt([khVon], cfg) ?? krankenhausOrtBasis(khVon);
 }
@@ -313,7 +342,7 @@ export function findKhRouteZuEigeneKrInFall(
   settings?: DispositionSettings
 ): string | null {
   const cfg = settings ?? getDispositionSettings();
-  for (const raw of collectFallRouteTexte(s)) {
+  for (const raw of collectOpenKhRouteTexte(s, cfg)) {
     const kh = extractKhVonRouteZuEigeneKr(raw, cfg);
     if (kh) return kh;
   }
@@ -333,7 +362,7 @@ function resolvePendingKhVonForEigeneKr(s: Sterbefall, cfg: DispositionSettings)
     const nachZiel = nachRaw || route.nach || '';
     if (!zielIstEigenerKuehlraumNach(nachZiel, cfg)) continue;
     if (a.status !== 'abholung_noetig' && !isAusstehendHeuteOrGeplant(a)) continue;
-    const khVon = khVonAusSchrittText(vonRaw);
+    const khVon = khVonAusSchrittText(vonRaw, cfg);
     if (!khVon) continue;
     return resolveBestKrankenhausOrt([khVon], cfg) ?? krankenhausOrtBasis(khVon);
   }
@@ -348,9 +377,22 @@ function resolvePendingKhVonForEigeneKr(s: Sterbefall, cfg: DispositionSettings)
     const route = parseUeberfuehrungRoute(vonRaw);
     const nachZiel = nach?.trim() || route.nach || '';
     if (!zielIstEigenerKuehlraumNach(nachZiel, cfg)) continue;
-    const khVon = khVonAusSchrittText(vonRaw);
+    const khVon = khVonAusSchrittText(vonRaw, cfg);
     if (!khVon) continue;
     return resolveBestKrankenhausOrt([khVon], cfg) ?? krankenhausOrtBasis(khVon);
+  }
+
+  if (s.abholortIstKrankenhaus && s.abholort?.trim()) {
+    const nach =
+      s.naechsterSchrittNach?.trim() ||
+      s.naechsteUeberfuehrungNach?.trim() ||
+      parseUeberfuehrungRoute(s.abholort).nach?.trim();
+    if (nach && zielIstEigenerKuehlraumNach(nach, cfg)) {
+      const khVon = khVonAusSchrittText(s.abholort, cfg);
+      if (khVon) {
+        return resolveBestKrankenhausOrt([khVon], cfg) ?? krankenhausOrtBasis(khVon);
+      }
+    }
   }
 
   return null;

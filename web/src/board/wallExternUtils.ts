@@ -11,7 +11,7 @@ import {
   resolveKrankenhausOrtForFall,
 } from '../settings/krankenhausOrt';
 import { parseUeberfuehrungRoute } from './routeParse';
-import { istKrankenhaus, istKrematorium, ortLabel } from './ortKeywords';
+import { istBestattung, istKrankenhaus, istKrematorium, ortLabel } from './ortKeywords';
 import { isAusstehendHeute, isAusstehendHeuteOrGeplant } from './ausstehendStatus';
 import {
   hatAusstehendeUeberfuehrungInsEigeneKr,
@@ -215,6 +215,7 @@ function khVonAusUeberfuehrungstext(vonRaw?: string): string | null {
   if (!raw) return null;
   const { von } = parseUeberfuehrungRoute(raw);
   const candidate = (von || raw).trim();
+  if (istBestattung(candidate)) return null;
   return istKrankenhaus(candidate) ? candidate : null;
 }
 
@@ -229,8 +230,6 @@ function hatOffeneKhUeberfuehrungInsEigeneKr(s: Sterbefall): boolean {
 
 function istExternKrankenhausFall(s: Sterbefall): boolean {
   if (isImEigenenKuehlraum(s) || istAktuellImKrematorium(s)) return false;
-
-  if (hatAusstehendeUeberfuehrungVonExternemOrt(s)) return true;
 
   if (hatOffeneKhUeberfuehrungInsEigeneKr(s)) return true;
 
@@ -296,8 +295,16 @@ function istExternKrankenhausFall(s: Sterbefall): boolean {
 
   if (isAmKrankenhausOderSterbeort(s)) {
     const fallback = s.abholort;
-    if (fallback && istKrankenhaus(fallback)) return true;
+    if (fallback && istKrankenhaus(fallback) && !istBestattung(fallback)) return true;
     if (s.abholortIstKrankenhaus && s.abholort) return true;
+  }
+
+  if (
+    s.abholortIstKrankenhaus &&
+    s.abholort?.trim() &&
+    (hatKhRouteZuEigeneKrInFall(s) || hatOffeneKhUeberfuehrungInsEigeneKr(s))
+  ) {
+    return true;
   }
 
   return false;
@@ -435,6 +442,19 @@ function mergeOrphanGenericKhGruppen(
   return gruppen.filter((g) => !emptyGenericKeys.has(g.key));
 }
 
+/** Bestattung/Pflegeheim/sonstiges Extern → eigenes KR (nicht UK/KH). */
+function resolveNichtKhExternStandort(
+  s: Sterbefall
+): { typ: ExternKartenKategorie; ort: string } | null {
+  if (!hatAusstehendeUeberfuehrungVonExternemOrt(s)) return null;
+
+  const label = resolveExternAbholOrtLabel(s);
+  if (!label?.trim()) return null;
+  if (istKrankenhaus(label)) return null;
+
+  return { typ: classifyExternKartenKategorie(label), ort: label.trim() };
+}
+
 function resolveKremationStandort(
   s: Sterbefall
 ): { typ: 'kremation'; ort: string } | null {
@@ -464,6 +484,9 @@ function resolveExternStandortCore(
 
   const kh = resolveKrankenhausStandort(s, alle);
   if (kh) return kh;
+
+  const nichtKh = resolveNichtKhExternStandort(s);
+  if (nichtKh) return nichtKh;
 
   return null;
 }

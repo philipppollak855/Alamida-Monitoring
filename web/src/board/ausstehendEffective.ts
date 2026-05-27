@@ -59,7 +59,27 @@ export function getEffectiveAusstehend(s: Sterbefall): AusstehendEintrag[] {
 
   const abholort = s.abholort?.trim();
   if (abholort) {
-    candidates.push({ von: abholort, typ: 'abholung' });
+    const route = parseUeberfuehrungRoute(abholort);
+    const nachFromTop =
+      s.naechsterSchrittNach?.trim() ||
+      s.naechsteUeberfuehrungNach?.trim() ||
+      route.nach?.trim();
+    if (nachFromTop && matchEigenerKuehlraum(nachFromTop)) {
+      candidates.push({
+        von: (route.von || abholort).trim(),
+        nach: nachFromTop,
+        typ: s.naechsterSchrittTyp ?? 'abholung',
+        terminAm: s.naechsterSchrittAm ?? s.naechsteUeberfuehrungAm,
+      });
+    } else if (route.nach && matchEigenerKuehlraum(route.nach)) {
+      candidates.push({
+        von: (route.von || abholort).trim(),
+        nach: route.nach.trim(),
+        typ: 'abholung',
+      });
+    } else {
+      candidates.push({ von: abholort, typ: 'abholung' });
+    }
   }
 
   for (const c of candidates) {
