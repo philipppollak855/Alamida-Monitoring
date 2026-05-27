@@ -120,13 +120,17 @@ export function WallPage() {
 
   const { items: sterbefaelleRaw, lastSyncAt, isLive, loading } = useSterbefaelle();
   const calendarDay = useCalendarDay();
+  const calendarAnchorDate = useMemo(() => {
+    const [y, m, d] = calendarDay.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }, [calendarDay]);
   const sterbefaelle = useMemo(
     () => filterAktiveSterbefaelle(sterbefaelleRaw),
     [sterbefaelleRaw]
   );
   const kalenderTermine7d = useMemo(
-    () => wallCalendarTabCount(sterbefaelle, now),
-    [sterbefaelle, now]
+    () => wallCalendarTabCount(sterbefaelle, calendarAnchorDate),
+    [sterbefaelle, calendarAnchorDate]
   );
 
   const { cfg, slots } = useMemo(
@@ -474,7 +478,7 @@ export function WallPage() {
 
         {view === 'kalender' && (
           <div className="wall-cal-stage">
-            <WallCalendarPanel sterbefaelle={sterbefaelle} now={now} />
+            <WallCalendarPanel sterbefaelle={sterbefaelle} now={calendarAnchorDate} />
           </div>
         )}
 

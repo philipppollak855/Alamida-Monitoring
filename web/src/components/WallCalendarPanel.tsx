@@ -83,6 +83,17 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
     [setFocusDayKey]
   );
 
+  const changeRange = useCallback(
+    (next: WallCalendarRange) => {
+      // Beim Umschalten (z. B. auf Monat) den Fokus aktiv auf heute setzen
+      // und Scroll in der Eintragsansicht erzwingen.
+      scrollToFocusPending.current = true;
+      setFocusDayKey(todayKey);
+      setRange(next);
+    },
+    [setFocusDayKey, setRange, todayKey]
+  );
+
   const allEntries = useMemo(() => buildWallCalendarEntries(sterbefaelle), [sterbefaelle]);
 
   const scoped = useMemo(() => {
@@ -223,7 +234,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
 
                 className={`wall-cal-range-btn ${range === opt.id ? 'active' : ''}`}
 
-                onClick={() => setRange(opt.id)}
+                onClick={() => changeRange(opt.id)}
 
               >
 
