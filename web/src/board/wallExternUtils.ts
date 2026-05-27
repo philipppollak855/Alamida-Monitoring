@@ -228,6 +228,19 @@ function hatOffeneKhUeberfuehrungInsEigeneKr(s: Sterbefall): boolean {
   });
 }
 
+/** Fallback: UK/KH→Firmen-KR kommt manchmal nur noch im `verlauf[]` vor. */
+function hatKhRouteInVerlaufZuEigeneKr(s: Sterbefall): boolean {
+  for (const v of s.verlauf ?? []) {
+    const von = v.vonOrt?.trim() || v.ort?.trim();
+    const nach = v.nachOrt?.trim() || v.ort?.trim();
+    if (!von || !nach) continue;
+    if (!khVonAusUeberfuehrungstext(von)) continue;
+    if (!zielIstEigenerKuehlraum(nach)) continue;
+    return true;
+  }
+  return false;
+}
+
 function istExternKrankenhausFall(s: Sterbefall): boolean {
   if (isImEigenenKuehlraum(s) || istAktuellImKrematorium(s)) return false;
 
@@ -306,6 +319,8 @@ function istExternKrankenhausFall(s: Sterbefall): boolean {
   ) {
     return true;
   }
+
+  if (hatKhRouteInVerlaufZuEigeneKr(s)) return true;
 
   return false;
 }

@@ -74,4 +74,33 @@ describe('buildExternGruppen', () => {
 
     expect(gruppen.some((g) => g.typ === 'krankenhaus' && g.faelle.length > 0)).toBe(true);
   });
+
+  it('erkennt UK→Kühl nur aus Verlauf (ohne ausstehend/naechsterSchritt)', () => {
+    const gruppen = buildExternGruppen([
+      baseFall({
+        id: 't3',
+        verstorbenerName: 'Touahria',
+        sterbefallId: '260100',
+        ausstehend: [],
+        abholort: '',
+        naechsterSchrittVon: '',
+        naechsterSchrittNach: '',
+        naechsterSchrittTyp: undefined,
+        verlauf: [
+          {
+            nummer: 1,
+            typ: 'abholung',
+            vonOrt: 'UK - Wiener Neustadt',
+            nachOrt: 'Kühl. Grafenbach',
+            ort: 'Kühl. Grafenbach',
+            terminAm: '',
+          },
+        ],
+      }),
+    ]);
+
+    const kh = gruppen.find((g) => g.typ === 'krankenhaus');
+    expect(kh).toBeDefined();
+    expect(kh!.faelle.some((f) => f.name.includes('Touahria'))).toBe(true);
+  });
 });
