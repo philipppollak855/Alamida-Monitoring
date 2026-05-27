@@ -103,4 +103,35 @@ describe('buildExternGruppen', () => {
     expect(kh).toBeDefined();
     expect(kh!.faelle.some((f) => f.name.includes('Touahria'))).toBe(true);
   });
+
+  it('zeigt Fall gleichzeitig in Krankenhaus und Kremation bei offenen Schritten', () => {
+    const gruppen = buildExternGruppen([
+      baseFall({
+        id: 't4',
+        verstorbenerName: 'Gertraud Touahria',
+        sterbefallId: '260100',
+        ausstehend: [
+          {
+            zeile: 1,
+            schrittTyp: 'abholung',
+            vonOrt: 'UK - Wiener Neustadt',
+            nachOrt: 'Kühl. Grafenbach',
+            status: 'geplant',
+          },
+          {
+            zeile: 2,
+            schrittTyp: 'kremation',
+            vonOrt: 'Kühl. Grafenbach',
+            nachOrt: 'Innermanzing',
+            status: 'geplant',
+          },
+        ],
+      }),
+    ]);
+
+    const kh = gruppen.find((g) => g.typ === 'krankenhaus' && /neustadt/i.test(g.ort));
+    const krem = gruppen.find((g) => g.typ === 'kremation');
+    expect(kh?.faelle.some((f) => f.name.includes('Touahria'))).toBe(true);
+    expect(krem?.faelle.some((f) => f.name.includes('Touahria'))).toBe(true);
+  });
 });

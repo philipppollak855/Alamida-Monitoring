@@ -485,92 +485,96 @@ function resolveKremationStandort(
  * Ermittelt externen Standort (Krankenhaus oder Krematorium), sofern der Verstorbene
  * nicht im eigenen Kühlraum liegt.
  */
-function resolveExternStandortCore(
+function resolveExternStandorteCore(
   s: Sterbefall,
   alle: Sterbefall[]
-): { typ: ExternKartenKategorie; ort: string } | null {
-  if (!isAktiv(s)) return null;
-  if (istInUrnenBereich(s)) return null;
+): { typ: ExternKartenKategorie; ort: string }[] {
+  if (!isAktiv(s) || istInUrnenBereich(s)) return [];
 
+  const out: { typ: ExternKartenKategorie; ort: string }[] = [];
   const krem = resolveKremationStandort(s);
-  if (krem) return krem;
+  if (krem) out.push(krem);
 
-  if (isImEigenenKuehlraum(s)) return null;
+  if (!isImEigenenKuehlraum(s)) {
+    const kh = resolveKrankenhausStandort(s, alle);
+    if (kh) {
+      out.push(kh);
+    } else {
+      const nichtKh = resolveNichtKhExternStandort(s);
+      if (nichtKh) out.push(nichtKh);
+    }
+  }
 
-  const kh = resolveKrankenhausStandort(s, alle);
-  if (kh) return kh;
-
-  const nichtKh = resolveNichtKhExternStandort(s);
-  if (nichtKh) return nichtKh;
-
-  return null;
+  return out;
 }
 
 export function resolveExternStandort(
   s: Sterbefall
 ): { typ: ExternKartenKategorie; ort: string } | null {
-  return resolveExternStandortCore(s, [s]);
+  return resolveExternStandorteCore(s, [s])[0] ?? null;
 }
 
-function resolveExternStandortWithAlle(
+function resolveExternStandorteWithAlle(
   s: Sterbefall,
   alle: Sterbefall[]
-): { typ: ExternKartenKategorie; ort: string } | null {
-  return resolveExternStandortCore(s, alle);
+): { typ: ExternKartenKategorie; ort: string }[] {
+  return resolveExternStandorteCore(s, alle);
 }
 
 export function buildExternGruppen(sterbefaelle: Sterbefall[]): ExternOrtGruppe[] {
   const map = new Map<string, ExternOrtGruppe>();
 
   for (const s of sterbefaelle) {
-    const standort = resolveExternStandortWithAlle(s, sterbefaelle);
-    if (!standort) continue;
+    const standorte = resolveExternStandorteWithAlle(s, sterbefaelle);
+    if (standorte.length === 0) continue;
 
-    const key =
-      standort.typ === 'krankenhaus'
-        ? `krankenhaus:${krankenhausOrtKey(standort.ort)}`
-        : externKategorieGruppenKey(standort.typ, standort.ort);
-    const id = s.sterbefallId ?? s.id;
-    const name = s.verstorbenerName ?? id;
-    const kremSchritt =
-      standort.typ === 'kremation' ? findeKremationSchritt(s) : undefined;
-    const n =
-      standort.typ === 'kremation'
-        ? kremSchritt
-        : naechsterNichtKremationSchritt(s) ?? naechsterSchritt(s);
-
-    const displayOrt =
-      standort.typ === 'krankenhaus'
-        ? externOrtAnzeigeLabel(standort.ort)
-        : ortLabel(standort.ort);
-
-    const existing = map.get(key);
-    if (!existing) {
-      map.set(key, {
-        key,
-        typ: standort.typ,
-        ort: displayOrt,
-        faelle: [],
-      });
-    } else if (standort.typ === 'krankenhaus') {
-      existing.ort = externOrtAnzeigeLabel(standort.ort);
-    }
-
-    map.get(key)!.faelle.push({
-      docId: s.id,
-      sterbefallId: id,
-      name,
-      hinweis: hinweisFuerFall(s, standort.typ),
-      terminAm:
+    for (const standort of standorte) {
+      const key =
+        standort.typ === 'krankenhaus'
+          ? `krankenhaus:${krankenhausOrtKey(standort.ort)}`
+          : externKategorieGruppenKey(standort.typ, standort.ort);
+      const id = s.sterbefallId ?? s.id;
+      const name = s.verstorbenerName ?? id;
+      const kremSchritt =
+        standort.typ === 'kremation' ? findeKremationSchritt(s) : undefined;
+      const n =
         standort.typ === 'kremation'
-          ? terminFuerSchritt(kremSchritt)
-          : terminFuerSchritt(n) ?? s.naechsterSchrittAm,
-      kremationOrt: standort.typ === 'kremation' ? displayOrt : undefined,
-      kremationRetourErlaubt:
-        standort.typ === 'kremation' ? istAktuellImKrematorium(s) : undefined,
-      freigabeFrei: s.freigabeFrei === true,
-      freigabeDatum: s.freigabeDatum?.trim() || undefined,
-    });
+          ? kremSchritt
+          : naechsterNichtKremationSchritt(s) ?? naechsterSchritt(s);
+
+      const displayOrt =
+        standort.typ === 'krankenhaus'
+          ? externOrtAnzeigeLabel(standort.ort)
+          : ortLabel(standort.ort);
+
+      const existing = map.get(key);
+      if (!existing) {
+        map.set(key, {
+          key,
+          typ: standort.typ,
+          ort: displayOrt,
+          faelle: [],
+        });
+      } else if (standort.typ === 'krankenhaus') {
+        existing.ort = externOrtAnzeigeLabel(standort.ort);
+      }
+
+      map.get(key)!.faelle.push({
+        docId: s.id,
+        sterbefallId: id,
+        name,
+        hinweis: hinweisFuerFall(s, standort.typ),
+        terminAm:
+          standort.typ === 'kremation'
+            ? terminFuerSchritt(kremSchritt)
+            : terminFuerSchritt(n) ?? s.naechsterSchrittAm,
+        kremationOrt: standort.typ === 'kremation' ? displayOrt : undefined,
+        kremationRetourErlaubt:
+          standort.typ === 'kremation' ? istAktuellImKrematorium(s) : undefined,
+        freigabeFrei: s.freigabeFrei === true,
+        freigabeDatum: s.freigabeDatum?.trim() || undefined,
+      });
+    }
   }
 
   let gruppen = [...map.values()];
