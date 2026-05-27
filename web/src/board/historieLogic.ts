@@ -4,7 +4,7 @@ function hatGueltigesDatum(raw?: string): boolean {
   return !!raw?.trim() && /\d{1,2}\.\d{1,2}\.\d{4}/.test(raw.trim());
 }
 
-function istImAnschluss(raw?: boolean | string): boolean {
+export function istImAnschluss(raw?: boolean | string): boolean {
   if (raw === true) return true;
   if (!raw) return false;
   const t = String(raw).trim().toLowerCase();

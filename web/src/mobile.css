@@ -1130,9 +1130,9 @@
     font-size: 0.5rem;
     padding: 0.12rem 0.25rem;
     line-height: 1.2;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
   }
 
   .wall-cool-tile-footer {

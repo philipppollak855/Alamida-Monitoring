@@ -504,6 +504,15 @@ public sealed class FirestoreSyncService : IAsyncDisposable
         if (snapshot.Ausstehend.Count > 0)
             payload["ausstehend"] = BuildAusstehendPayload(snapshot.Ausstehend);
 
+        AddStringIfPresent(payload, "beisetzungsdatum", snapshot.BeisetzungsDatum);
+        AddStringIfPresent(payload, "beisetzungszeit", snapshot.BeisetzungsZeit);
+        AddStringIfPresent(payload, "trauerfeierdatum", snapshot.TrauerfeierDatum);
+        AddStringIfPresent(payload, "trauerfeierzeit", snapshot.TrauerfeierZeit);
+        AddStringIfPresent(payload, "trauerfeier2datum", snapshot.Trauerfeier2Datum);
+        AddStringIfPresent(payload, "trauerfeier2zeit", snapshot.Trauerfeier2Zeit);
+        if (snapshot.ImAnschluss)
+            payload["imAnschluss"] = true;
+
         return payload;
     }
 

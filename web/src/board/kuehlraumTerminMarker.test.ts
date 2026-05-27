@@ -44,4 +44,18 @@ describe('buildKuehlraumTerminMarkers', () => {
 
     expect(markers.some((m) => m.label.includes('im Anschluss'))).toBe(true);
   });
+
+  it('parst Alamida-Datumstext mit Wochentag', () => {
+    const markers = buildKuehlraumTerminMarkers(
+      fall({
+        trauerfeierdatum: 'Montag, 08.06.2026',
+        beisetzungsdatum: 'Montag, 08.06.2026',
+        endzielTyp: 'kremation',
+      }),
+      now
+    );
+
+    expect(markers.some((m) => m.kind === 'trauerfeier')).toBe(true);
+    expect(markers.some((m) => m.kind === 'beisetzung')).toBe(true);
+  });
 });

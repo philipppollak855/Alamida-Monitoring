@@ -19,6 +19,7 @@ import { useAuth } from '../auth/AuthContext';
 import { isFirestoreAuthError, normalizeFirestoreError } from '../auth/firestoreErrors';
 import { ensureFreshIdToken } from '../auth/sessionRefresh';
 import { db } from '../firebase';
+import { istImAnschluss } from '../board/historieLogic';
 import type { Sterbefall } from '../types';
 
 const COLLECTION = 'sterbefaelle';
@@ -81,7 +82,19 @@ export function SterbefaelleProvider({ children }: { children: ReactNode }) {
       q,
       { includeMetadataChanges: false },
       (snap) => {
-        setItems(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Sterbefall));
+        setItems(
+          snap.docs.map((d) => {
+            const raw = d.data();
+            return {
+              id: d.id,
+              ...raw,
+              imAnschluss:
+                typeof raw.imAnschluss === 'boolean'
+                  ? raw.imAnschluss
+                  : istImAnschluss(String(raw.imAnschluss ?? '')),
+            } as Sterbefall;
+          })
+        );
         setLastSyncAt(new Date());
         setLoading(false);
         setError(null);

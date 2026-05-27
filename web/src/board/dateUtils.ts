@@ -5,10 +5,21 @@ export function parseDatumDe(s?: string): number {
   return new Date(+m[3], +m[2] - 1, +m[1]).getTime();
 }
 
-/** dd.MM.yyyy → lokales Datum Mitternacht, sonst null */
-export function parseDatumDeToDate(s?: string): Date | null {
+/** dd.MM.yyyy aus beliebigem Text (z. B. „Montag, 08.06.2026 13:00“). */
+export function extractDeDatum(s?: string): string | null {
   if (!s?.trim()) return null;
   const m = s.trim().match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+  if (!m) return null;
+  const day = m[1].padStart(2, '0');
+  const month = m[2].padStart(2, '0');
+  return `${day}.${month}.${m[3]}`;
+}
+
+/** dd.MM.yyyy → lokales Datum Mitternacht, sonst null */
+export function parseDatumDeToDate(s?: string): Date | null {
+  const norm = extractDeDatum(s);
+  if (!norm) return null;
+  const m = norm.match(/(\d{2})\.(\d{2})\.(\d{4})/);
   if (!m) return null;
   const d = new Date(+m[3], +m[2] - 1, +m[1]);
   return Number.isNaN(d.getTime()) ? null : d;

@@ -1,4 +1,5 @@
 using FlaUI.Core.AutomationElements;
+using FlaUI.Core.Definitions;
 
 namespace Alamida.Monitoring.Watcher;
 
@@ -6,6 +7,16 @@ internal static class UiaValueReader
 {
     public static string? Read(AutomationElement element)
     {
+        try
+        {
+            if (element.Patterns.Toggle.IsSupported)
+            {
+                var state = element.Patterns.Toggle.Pattern.ToggleState.Value;
+                return state == ToggleState.On ? "1" : "0";
+            }
+        }
+        catch { /* ignore */ }
+
         try
         {
             if (element.Patterns.Value.IsSupported)

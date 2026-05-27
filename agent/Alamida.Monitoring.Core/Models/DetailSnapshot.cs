@@ -3,7 +3,7 @@ namespace Alamida.Monitoring.Core.Models;
 public sealed record DetailSnapshot
 {
     /// <summary>Erhöhen erzwingt einmalig volle Firestore-Synchronisation nach Agent-Update.</summary>
-    public const int SyncPayloadVersion = 2;
+    public const int SyncPayloadVersion = 3;
 
     public string? SterbefallId { get; init; }
     public string? VerstorbenerName { get; init; }

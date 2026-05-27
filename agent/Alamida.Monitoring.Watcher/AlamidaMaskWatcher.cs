@@ -54,6 +54,7 @@ public sealed class AlamidaMaskWatcher
         {
             var detailMask = _profile.Detailmaske.Ueberfuehrung;
             var fields = UiaFieldExtractor.ExtractFields(window, detailMask.Fields);
+            NormalizeTerminFelder(fields);
             debugLog = FormatDebug(MaskKind.DetailUeberfuehrung, fields);
 
             var header = fields.GetValueOrDefault("sterbefallHeader");
@@ -95,6 +96,15 @@ public sealed class AlamidaMaskWatcher
         }
 
         return null;
+    }
+
+    private static void NormalizeTerminFelder(Dictionary<string, string?> fields)
+    {
+        foreach (var key in fields.Keys.ToList())
+        {
+            if (!key.EndsWith("datum", StringComparison.OrdinalIgnoreCase)) continue;
+            fields[key] = AlamidaFieldNormalizer.NormalizeDatum(fields.GetValueOrDefault(key));
+        }
     }
 
     private static string FormatDebug(MaskKind maske, Dictionary<string, string?> fields) =>

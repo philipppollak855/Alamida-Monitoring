@@ -1,6 +1,7 @@
 import type { Sterbefall } from '../types';
 import { isAusstehendHeuteOrGeplant } from './ausstehendStatus';
-import { parseDatumDeToDate } from './dateUtils';
+import { extractDeDatum, parseDatumDeToDate } from './dateUtils';
+import { istImAnschluss } from './historieLogic';
 import { istKrematorium } from './ortKeywords';
 
 export type KuehlraumTerminMarkerKind = 'kremation' | 'beisetzung' | 'trauerfeier';
@@ -51,15 +52,21 @@ function findeKremationTermin(s: Sterbefall): string | undefined {
 function findeTrauerfeierDaten(s: Sterbefall): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
-  for (const raw of [s.trauerfeierdatum, s.trauerfeier2datum]) {
-    const d = raw?.trim();
-    if (!d || !parseDatumDeToDate(d)) continue;
+  const add = (raw?: string) => {
+    const d = extractDeDatum(raw);
+    if (!d) return;
     const key = d.toLowerCase();
-    if (seen.has(key)) continue;
+    if (seen.has(key)) return;
     seen.add(key);
     out.push(d);
-  }
+  };
+  add(s.trauerfeierdatum);
+  add(s.trauerfeier2datum);
   return out;
+}
+
+function findeBeisetzungsDatum(s: Sterbefall): string | undefined {
+  return extractDeDatum(s.beisetzungsdatum) ?? undefined;
 }
 
 export function relativeTerminLabel(datum: string, now: Date): string {
@@ -118,11 +125,11 @@ export function buildKuehlraumTerminMarkers(
     if (kr) markers.push(kr);
   }
 
-  const beisetzung = s.beisetzungsdatum?.trim();
-  if (beisetzung && parseDatumDeToDate(beisetzung)) {
+  const beisetzung = findeBeisetzungsDatum(s);
+  if (beisetzung) {
     const b = formatMarkerLabel('beisetzung', beisetzung, now);
     if (b) markers.push(b);
-  } else if (s.imAnschluss && findeTrauerfeierDaten(s).length > 0) {
+  } else if (istImAnschluss(s.imAnschluss)) {
     const b = formatMarkerLabel('beisetzung', undefined, now, 'Beisetzung im Anschluss');
     if (b) markers.push(b);
   }
