@@ -356,16 +356,22 @@
 /* ─── Kühlraum ─── */
 [data-theme='alamida'] .cool-cell.free,
 [data-theme='alamida'] .wall-cool-tile.off {
-  background: rgba(34, 197, 94, 0.12);
-  border-style: solid;
-  border-color: rgba(34, 197, 94, 0.45);
+  background: rgba(255, 255, 255, 0.4);
+  border-style: dashed;
+  border-color: rgba(120, 158, 162, 0.4);
 }
 
 [data-theme='alamida'] .cool-cell.occupied,
-[data-theme='alamida'] .wall-cool-tile.on {
+[data-theme='alamida'] .wall-cool-tile.on.is-nicht-frei {
   background: rgba(248, 113, 113, 0.1);
   border-color: rgba(248, 113, 113, 0.5);
   box-shadow: 0 4px 16px rgba(248, 113, 113, 0.08);
+}
+
+[data-theme='alamida'] .wall-cool-tile.on.is-frei-erfasst {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.45);
+  box-shadow: 0 4px 16px rgba(34, 197, 94, 0.1);
 }
 
 [data-theme='alamida'] .wall-big-row.is-erledigt {

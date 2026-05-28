@@ -1551,6 +1551,7 @@ code {
 }
 
 .wall-cool-tile {
+  background: var(--surface);
   border: 2px solid var(--border);
   border-radius: var(--radius);
   padding: 0.65rem 0.8rem;
@@ -1561,21 +1562,17 @@ code {
   backdrop-filter: blur(8px);
 }
 
-/* Platz frei = grün, belegt = rot */
-.wall-cool-tile.off {
-  background: rgba(34, 197, 94, 0.14);
-  border-color: rgba(34, 197, 94, 0.55);
-  box-shadow: 0 0 28px rgba(34, 197, 94, 0.1);
-}
-
-.wall-cool-tile.on {
-  background: rgba(248, 113, 113, 0.14);
+/* Belegter Platz: rot = keine wirksame Freigabe, grün = Freigabe erfasst/wirksam */
+.wall-cool-tile.on.is-nicht-frei {
   border-color: rgba(248, 113, 113, 0.65);
-  box-shadow: 0 0 24px rgba(248, 113, 113, 0.12);
+  background: rgba(248, 113, 113, 0.14);
+  box-shadow: 0 0 24px rgba(248, 113, 113, 0.15);
 }
 
 .wall-cool-tile.on.is-frei-erfasst {
-  border-left: 4px solid rgba(34, 197, 94, 0.85);
+  border-color: rgba(34, 197, 94, 0.65);
+  background: rgba(34, 197, 94, 0.14);
+  box-shadow: 0 0 32px rgba(34, 197, 94, 0.14);
 }
 
 .wall-cool-tile-footer {
@@ -1627,8 +1624,8 @@ code {
 
 .wall-tile-free {
   font-size: 1.25rem;
-  font-weight: 700;
-  color: #15803d;
+  color: var(--muted);
+  opacity: 0.5;
 }
 
 .wall-stage-sub {
