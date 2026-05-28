@@ -648,18 +648,15 @@ function WallCalendarDaySection({
   active?: boolean;
 
 }) {
-  const MAX_STRIP_ENTRIES = 3;
-  const visibleEntries = strip ? day.entries.slice(0, MAX_STRIP_ENTRIES) : day.entries;
-  const hiddenStripEntries = strip ? Math.max(0, day.entries.length - visibleEntries.length) : 0;
-
   const mod = strip ? 'strip' : compact ? 'month' : '';
+  const isEmpty = day.entries.length === 0;
 
   return (
 
     <section
 
       id={scrollId ? `wall-cal-focus-${scrollId}` : undefined}
-      className={`wall-cal-day wall-cal-day--${mod} ${day.isToday ? 'is-today' : ''} ${active ? 'is-active' : ''} ${day.isWeekend ? 'is-weekend' : ''} ${day.entries.length === 0 && compact ? 'is-empty' : ''}`}
+      className={`wall-cal-day wall-cal-day--${mod} ${day.isToday ? 'is-today' : ''} ${active ? 'is-active' : ''} ${day.isWeekend ? 'is-weekend' : ''} ${isEmpty ? 'is-empty' : ''}`}
 
     >
 
@@ -695,7 +692,7 @@ function WallCalendarDaySection({
 
         ) : (
 
-          visibleEntries.map((e) => (
+          day.entries.map((e) => (
 
             <li key={e.id} className={`wall-cal-event ${e.grouped ? 'is-grouped' : ''}`}>
 
@@ -705,9 +702,6 @@ function WallCalendarDaySection({
 
           ))
 
-        )}
-        {hiddenStripEntries > 0 && (
-          <li className="wall-cal-day-more">+{hiddenStripEntries} weitere</li>
         )}
 
       </ul>
@@ -792,7 +786,7 @@ function WallCalendarEventCard({
           {stripTypes && <span className="wall-cal-strip-types">{stripTypes}</span>}
         </div>
         <span className="wall-cal-name">{entry.name}</span>
-        {stripMeta && <span className="wall-cal-strip-meta">{stripMeta}</span>}
+        {stripMeta ? <span className="wall-cal-strip-meta">{stripMeta}</span> : null}
       </article>
     );
   }
