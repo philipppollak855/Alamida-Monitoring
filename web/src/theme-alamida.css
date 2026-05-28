@@ -573,6 +573,29 @@
   color: var(--accent);
 }
 
+[data-theme='alamida'] .wall-cal-period-cell {
+  background: rgba(255, 255, 255, 0.95);
+  color: #2a4048;
+}
+
+[data-theme='alamida'] .wall-cal-period-cell.is-today {
+  background: #bfdbfe;
+  border-color: #1d4ed8;
+  color: #1e3a8a;
+}
+
+[data-theme='alamida'] .wall-cal-period-cell.is-today .wall-cal-period-wd,
+[data-theme='alamida'] .wall-cal-period-cell.is-today .wall-cal-period-num,
+[data-theme='alamida'] .wall-cal-period-cell.is-today .wall-cal-period-badge {
+  color: #1e40af;
+}
+
+[data-theme='alamida'] .wall-cal-period-cell.is-selected {
+  background: rgba(90, 154, 170, 0.22);
+  border-color: #4a8a9a;
+  color: #1e3a4a;
+}
+
 @media (max-width: 768px) {
   [data-theme='alamida'] .wall-topbar {
     border-radius: 0;

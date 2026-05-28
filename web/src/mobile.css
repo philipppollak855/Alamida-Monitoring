@@ -1009,8 +1009,14 @@
     border-left: 4px solid #059669;
   }
 
-  [data-theme='alamida'] .wall-cal-period-cell {
-    background: #fff;
+  [data-theme='alamida'] .wall-cal-period-cell.is-today {
+    background: #bfdbfe;
+    border-color: #1d4ed8;
+  }
+
+  [data-theme='alamida'] .wall-cal-period-cell.is-today .wall-cal-period-num {
+    color: #1e40af;
+    font-weight: 800;
   }
 
   .wall-cal--narrow .wall-cal-month {
