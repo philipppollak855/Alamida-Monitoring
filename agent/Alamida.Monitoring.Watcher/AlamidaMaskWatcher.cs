@@ -123,6 +123,9 @@ public sealed class AlamidaMaskWatcher
                 fields[key] = AlamidaFieldNormalizer.NormalizeZeit(fields.GetValueOrDefault(key));
             }
         }
+
+        if (SterbefallHistorieResolver.IstImAnschluss(fields.GetValueOrDefault("beisetzungszeit")))
+            fields["imAnschluss"] = "ja";
     }
 
     private static string FormatDebug(MaskKind maske, Dictionary<string, string?> fields) =>

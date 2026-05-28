@@ -40,11 +40,9 @@ describe('buildWallCalendarEntries Feiertermine', () => {
         endziel: 'Friedhof',
       },
     ]);
-    const arts = entries.flatMap((e) => e.arts);
-    expect(arts).toContain('trauerfeier');
-    expect(arts).toContain('beisetzung');
-    const tf = entries.find((e) => e.arts.includes('trauerfeier'));
-    expect(tf?.timeLabel).toBe('10:00');
+    const block = entries.find((e) => e.grouped && e.dayKey === '2026-06-08');
+    expect(block?.arts).toEqual(expect.arrayContaining(['trauerfeier', 'beisetzung']));
+    expect(block?.timeLabel).toBe('10:00–14:00');
   });
 
   it('Verabschiedung nur bei Rosenkranz am selben Tag', () => {
@@ -60,6 +58,20 @@ describe('buildWallCalendarEntries Feiertermine', () => {
     expect(entries.some((e) => e.arts.includes('verabschiedung'))).toBe(false);
     expect(entries.some((e) => e.arts.includes('trauerfeier'))).toBe(true);
     expect(entries.some((e) => e.arts.includes('rosenkranz'))).toBe(true);
+  });
+
+  it('Beisetzung im Anschluss ohne eigenes Datum nutzt Trauerfeier-Tag', () => {
+    const entries = buildWallCalendarEntries([
+      {
+        ...base,
+        trauerfeierdatum: '28.05.2026',
+        trauerfeierzeit: '14:00',
+        beisetzungszeit: 'Im Anschluss',
+        imAnschluss: false,
+      },
+    ]);
+    expect(entries.some((e) => e.arts.includes('beisetzung'))).toBe(true);
+    expect(entries.some((e) => e.arts.includes('trauerfeier'))).toBe(true);
   });
 
   it('gruppiert Verabschiedung mit Rosenkranz am selben Tag', () => {

@@ -1,4 +1,5 @@
 import type { Sterbefall } from '../types';
+import { extractDeDatum } from './dateUtils';
 
 function hatGueltigesDatum(raw?: string): boolean {
   return !!raw?.trim() && /\d{1,2}\.\d{1,2}\.\d{4}/.test(raw.trim());
@@ -17,6 +18,29 @@ export function istImAnschluss(raw?: boolean | string): boolean {
     t.includes('im anschluss') ||
     t.includes('im anschluß')
   );
+}
+
+/** Checkbox oder Beisetzungszeit „Im Anschluss“ (Alamida). */
+export function sterbefallImAnschluss(s: Sterbefall): boolean {
+  return istImAnschluss(s.imAnschluss) || istImAnschluss(s.beisetzungszeit);
+}
+
+export function hatFeierterminInDaten(s: Sterbefall): boolean {
+  return Boolean(
+    extractDeDatum(s.trauerfeierdatum) ||
+      extractDeDatum(s.trauerfeier2datum) ||
+      extractDeDatum(s.beisetzungsdatum) ||
+      extractDeDatum(s.rosenkranzdatum)
+  );
+}
+
+/** Kalender: auch archivierte Fälle mit Feierterminen (Wall-Tabs nutzen weiter filterAktive). */
+export function filterSterbefaelleFuerKalender(sterbefaelle: Sterbefall[]): Sterbefall[] {
+  return sterbefaelle.filter((s) => {
+    if (s.historieGrund === 'manuell_entfernt') return false;
+    if (!istInHistory(s)) return true;
+    return hatFeierterminInDaten(s);
+  });
 }
 
 function parseDatumZeitDe(datum?: string, zeit?: string, endOfDayIfNoTime = false): number | null {
@@ -50,7 +74,7 @@ export function istNachBeisetzungOderTrauerfeierAbgelaufen(s: Sterbefall): boole
     return true;
   }
 
-  if (istImAnschluss(s.imAnschluss) && hatGueltigesDatum(s.trauerfeierdatum)) {
+  if (sterbefallImAnschluss(s) && hatGueltigesDatum(s.trauerfeierdatum)) {
     const trauerfeier = parseDatumZeitDe(s.trauerfeierdatum, s.trauerfeierzeit);
     if (trauerfeier != null && jetzt >= trauerfeier + 2 * 60 * 60 * 1000) return true;
   }

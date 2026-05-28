@@ -8,7 +8,7 @@ import { useSterbefaelle } from '../hooks/useSterbefaelle';
 import { firebaseConfigured } from '../firebase';
 import { buildPrimaerKuehlraumSlots, flattenOffene } from '../board/boardUtils';
 import { useDispositionSettings } from '../settings/SettingsProvider';
-import { filterAktiveSterbefaelle } from '../board/historieLogic';
+import { filterAktiveSterbefaelle, filterSterbefaelleFuerKalender } from '../board/historieLogic';
 import {
   buildExternGruppen,
   externGesamt,
@@ -140,9 +140,13 @@ export function WallPage({
     () => filterAktiveSterbefaelle(sterbefaelleRaw),
     [sterbefaelleRaw]
   );
+  const sterbefaelleKalender = useMemo(
+    () => filterSterbefaelleFuerKalender(sterbefaelleRaw),
+    [sterbefaelleRaw]
+  );
   const kalenderTermine7d = useMemo(
-    () => wallCalendarTabCount(sterbefaelle, calendarAnchorDate),
-    [sterbefaelle, calendarAnchorDate]
+    () => wallCalendarTabCount(sterbefaelleKalender, calendarAnchorDate),
+    [sterbefaelleKalender, calendarAnchorDate]
   );
 
   const { cfg, slots } = useMemo(
@@ -496,7 +500,7 @@ export function WallPage({
 
         {view === 'kalender' && (
           <div className="wall-cal-stage">
-            <WallCalendarPanel sterbefaelle={sterbefaelle} now={calendarAnchorDate} />
+            <WallCalendarPanel sterbefaelle={sterbefaelleKalender} now={calendarAnchorDate} />
           </div>
         )}
 

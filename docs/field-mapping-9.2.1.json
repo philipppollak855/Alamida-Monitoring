@@ -80,6 +80,8 @@
           "automationIdContains": [
             "Field: sfl 2::Termin_Gottesdienst_Zeit",
             "Termin_Gottesdienst_Zeit",
+            "Field: sfl 2::Termin_Trauerfeier1_Zeit",
+            "Termin_Trauerfeier1_Zeit",
             "Termin_Trauerfeier_Zeit",
             "Trauerfeier_Uhrzeit",
             "Trauerfeier_Zeit"
@@ -278,7 +280,8 @@
         "automationIdContains": [
           "Termin_Bestattung_Zeit",
           "Beisetzung_Uhrzeit",
-          "Bestattung_Uhrzeit"
+          "Bestattung_Uhrzeit",
+          "Termin_Beisetzung_Zeit"
         ],
         "controlTypes": ["Edit", "Text"]
       },
@@ -307,6 +310,8 @@
         "automationIdContains": [
           "Field: sfl 2::Termin_Gottesdienst_Zeit",
           "Termin_Gottesdienst_Zeit",
+          "Field: sfl 2::Termin_Trauerfeier1_Zeit",
+          "Termin_Trauerfeier1_Zeit",
           "Termin_Trauerfeier_Zeit",
           "Trauerfeier_Uhrzeit"
         ],
@@ -339,6 +344,8 @@
           "Field: sfl 2::Termin_Bestattung_Anschliessend",
           "Termin_Bestattung_Anschließend",
           "Termin_Bestattung_Anschliessend",
+          "Field: sfl 2::Termin_Beisetzung_Im_Anschluss",
+          "Termin_Beisetzung_Im_Anschluss",
           "Im_Anschluss",
           "Bestattung_Im_Anschluss"
         ],

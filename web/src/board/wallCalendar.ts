@@ -11,6 +11,7 @@ import {
   parseDatumZeitDe,
   startOfWeekMonday,
 } from './dateUtils';
+import { filterSterbefaelleFuerKalender, sterbefallImAnschluss } from './historieLogic';
 
 export type WallCalendarRange = 7 | 14 | 'month';
 
@@ -130,21 +131,6 @@ function fallName(s: Sterbefall): string {
   );
 }
 
-function istImAnschluss(raw?: boolean | string): boolean {
-  if (raw === true) return true;
-  if (!raw) return false;
-  const t = String(raw).trim().toLowerCase();
-  return (
-    t === '1' ||
-    t === 'ja' ||
-    t === 'yes' ||
-    t === 'true' ||
-    t === 'x' ||
-    t.includes('im anschluss') ||
-    t.includes('im anschluß')
-  );
-}
-
 function pushAtomic(
   list: AtomicTermin[],
   s: Sterbefall,
@@ -233,8 +219,16 @@ function collectAtomics(s: Sterbefall): AtomicTermin[] {
     add('trauerfeier2', 'Trauerfeier 2', s.trauerfeier2datum, s.trauerfeier2zeit, s.trauerfeier2ort ?? ortTf);
   }
 
-  if (s.beisetzungsdatum?.trim()) {
+  if (extractDeDatum(s.beisetzungsdatum)) {
     add('beisetzung', 'Beisetzung', s.beisetzungsdatum, s.beisetzungszeit, ortBeisetzung);
+  } else if (sterbefallImAnschluss(s) && extractDeDatum(s.trauerfeierdatum)) {
+    add(
+      'beisetzung',
+      'Beisetzung (im Anschluss)',
+      s.trauerfeierdatum,
+      undefined,
+      ortBeisetzung
+    );
   }
 
   for (const a of s.ausstehend ?? []) {
@@ -376,7 +370,7 @@ function collectTrauerblockEntries(
   atoms: AtomicTermin[],
   used: Set<string>
 ): WallCalendarEntry[] {
-  const imAnschluss = istImAnschluss(s.imAnschluss);
+  const imAnschluss = sterbefallImAnschluss(s);
   const byDay = new Map<string, AtomicTermin[]>();
 
   for (const a of atoms) {
@@ -409,7 +403,7 @@ function collectTrauerblockEntries(
     const groupParts: AtomicTermin[] = [];
     if (rosen) groupParts.push(rosen);
     groupParts.push(trauerfeier);
-    if (beisetzung && beisetzung.dayKey === dayKey && (imAnschluss || rosen)) {
+    if (beisetzung && beisetzung.dayKey === dayKey) {
       groupParts.push(beisetzung);
     }
 
@@ -448,8 +442,7 @@ function atomicToEntry(s: Sterbefall, a: AtomicTermin): WallCalendarEntry {
 export function buildWallCalendarEntries(sterbefaelle: Sterbefall[]): WallCalendarEntry[] {
   const entries: WallCalendarEntry[] = [];
 
-  for (const s of sterbefaelle) {
-    if (s.historieGrund === 'manuell_entfernt') continue;
+  for (const s of filterSterbefaelleFuerKalender(sterbefaelle)) {
 
     const atoms = collectAtomics(s);
     const used = new Set<string>();
