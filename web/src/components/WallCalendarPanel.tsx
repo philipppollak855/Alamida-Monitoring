@@ -36,6 +36,7 @@ import {
   type WallCalendarRange,
 
 } from '../board/wallCalendar';
+import { calendarDayLayout, calendarEventFlexClass } from '../board/wallCalendarLayout';
 
 import { WallCalendarPeriodOverview } from './WallCalendarPeriodOverview';
 import { WallCalendarTerminShare } from './WallCalendarTerminShare';
@@ -650,13 +651,19 @@ function WallCalendarDaySection({
 }) {
   const mod = strip ? 'strip' : compact ? 'month' : '';
   const isEmpty = day.entries.length === 0;
+  const { densityScale, slotWeight } = calendarDayLayout(day.entries);
+  const densityStyle =
+    slotWeight > 0
+      ? ({ '--cal-density': densityScale } as React.CSSProperties)
+      : undefined;
 
   return (
 
     <section
 
       id={scrollId ? `wall-cal-focus-${scrollId}` : undefined}
-      className={`wall-cal-day wall-cal-day--${mod} ${day.isToday ? 'is-today' : ''} ${active ? 'is-active' : ''} ${day.isWeekend ? 'is-weekend' : ''} ${isEmpty ? 'is-empty' : ''}`}
+      className={`wall-cal-day wall-cal-day--${mod} ${day.isToday ? 'is-today' : ''} ${active ? 'is-active' : ''} ${day.isWeekend ? 'is-weekend' : ''} ${isEmpty ? 'is-empty' : ''} ${slotWeight > 4 ? 'is-dense' : ''}`}
+      style={strip || compact ? densityStyle : undefined}
 
     >
 
@@ -684,7 +691,7 @@ function WallCalendarDaySection({
 
       </header>
 
-      <ul className="wall-cal-day-list">
+      <ul className="wall-cal-day-list" style={densityStyle}>
 
         {day.entries.length === 0 ? (
 
@@ -694,7 +701,10 @@ function WallCalendarDaySection({
 
           day.entries.map((e) => (
 
-            <li key={e.id} className={`wall-cal-event ${e.grouped ? 'is-grouped' : ''}`}>
+            <li
+              key={e.id}
+              className={`wall-cal-event ${calendarEventFlexClass(e)} ${e.grouped ? 'is-grouped' : ''}`}
+            >
 
               <WallCalendarEventCard entry={e} compact={compact || strip} strip={strip} />
 
