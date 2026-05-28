@@ -13,6 +13,7 @@ import { InstallPwa } from './components/InstallPwa';
 import { useWidgetBadge } from './hooks/useWidgetBadge';
 import { WidgetPage } from './pages/WidgetPage';
 import { WidgetsHubPage } from './pages/WidgetsHubPage';
+import { PUBLIC_TV_WALL_PATH } from './config/publicWall';
 
 function AppBadgeSync() {
   useWidgetBadge();
@@ -30,10 +31,10 @@ export function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/pending" element={<PendingPage />} />
         <Route
-          path="/wall/open"
+          path={PUBLIC_TV_WALL_PATH}
           element={
             <SettingsProvider>
-              <WallPage publicAccess />
+              <WallPage publicAccess legacyMode />
             </SettingsProvider>
           }
         />

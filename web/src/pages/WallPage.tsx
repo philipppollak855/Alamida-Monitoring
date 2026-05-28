@@ -52,12 +52,12 @@ const WALL_TAB_LABELS: Record<WallView, string> = {
   offen: 'Offen',
 };
 
-function useClock() {
+function useClock(tickMs = 1000) {
   const [now, setNow] = useState(new Date());
   useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 1000);
+    const t = setInterval(() => setNow(new Date()), tickMs);
     return () => clearInterval(t);
-  }, []);
+  }, [tickMs]);
   return now;
 }
 
@@ -97,11 +97,17 @@ function formatWallTabLabel(
   }
 }
 
-export function WallPage({ publicAccess = false }: { publicAccess?: boolean }) {
+export function WallPage({
+  publicAccess = false,
+  legacyMode = false,
+}: {
+  publicAccess?: boolean;
+  legacyMode?: boolean;
+}) {
   const { settings } = useDispositionSettings();
   const { signOut } = useAuth();
   const isNarrow = useNarrowViewport();
-  const now = useClock();
+  const now = useClock(legacyMode ? 30_000 : 1000);
   const [rotationPaused, setRotationPaused] = useState(false);
   const [urnenPending, setUrnenPending] = useState<string | null>(null);
   const [freigabePending, setFreigabePending] = useState<string | null>(null);
@@ -238,7 +244,7 @@ export function WallPage({ publicAccess = false }: { publicAccess?: boolean }) {
   const timeStr = now.toLocaleTimeString('de-AT', {
     hour: '2-digit',
     minute: '2-digit',
-    second: '2-digit',
+    ...(legacyMode ? {} : { second: '2-digit' }),
   });
   const dateStr = now.toLocaleDateString('de-AT', {
     weekday: 'long',
@@ -247,7 +253,7 @@ export function WallPage({ publicAccess = false }: { publicAccess?: boolean }) {
   });
 
   return (
-    <div className="wall">
+    <div className={`wall ${legacyMode ? 'wall--legacy' : ''}`}>
       <div className="wall-bg" aria-hidden />
       <header className="wall-topbar">
         <div className="wall-brand" aria-label="Alamida Monitoring">
@@ -264,7 +270,7 @@ export function WallPage({ publicAccess = false }: { publicAccess?: boolean }) {
           <span className="wall-date">{dateStr}</span>
         </div>
         <div className="wall-topbar-end">
-          <ThemeSwitch />
+          {!legacyMode && <ThemeSwitch />}
           <LiveIndicator
             isLive={isLive}
             lastSyncAt={lastSyncAt}
@@ -272,7 +278,7 @@ export function WallPage({ publicAccess = false }: { publicAccess?: boolean }) {
             label="Live"
             hideSyncAge
           />
-          {!rotationOff && !isNarrow && (
+          {!legacyMode && !rotationOff && !isNarrow && (
             <span className="wall-tab-countdown wall-tab-countdown--desktop" title="Zeit bis zum nächsten Tab">
               Tabwechsel in {secondsLeft}s
             </span>

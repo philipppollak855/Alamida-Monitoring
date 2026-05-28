@@ -21,6 +21,7 @@ import { ensureFreshIdToken } from '../auth/sessionRefresh';
 import { db } from '../firebase';
 import { istImAnschluss } from '../board/historieLogic';
 import type { Sterbefall } from '../types';
+import { isPublicWallPath } from '../config/publicWall';
 
 const COLLECTION = 'sterbefaelle';
 const ORDER_FIELD = 'lastSeenAt';
@@ -40,7 +41,7 @@ const SterbefaelleContext = createContext<SterbefaelleContextValue | null>(null)
 export function SterbefaelleProvider({ children }: { children: ReactNode }) {
   const { status } = useAuth();
   const isPublicWallRoute =
-    typeof window !== 'undefined' && window.location.pathname.startsWith('/wall/open');
+    typeof window !== 'undefined' && isPublicWallPath(window.location.pathname);
   const canRead = status === 'activated' || isPublicWallRoute;
   const [items, setItems] = useState<Sterbefall[]>([]);
   const [loading, setLoading] = useState(true);

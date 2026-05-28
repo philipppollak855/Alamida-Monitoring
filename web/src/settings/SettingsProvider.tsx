@@ -14,6 +14,7 @@ import { ensureFreshIdToken } from '../auth/sessionRefresh';
 import { db } from '../firebase';
 import { DEFAULT_DISPOSITION_SETTINGS } from '../config/defaultDispositionSettings';
 import type { DispositionSettings } from '../types/dispositionSettings';
+import { isPublicWallPath } from '../config/publicWall';
 import {
   mergeDispositionSettings,
   setDispositionSettings,
@@ -36,7 +37,7 @@ const SettingsContext = createContext<SettingsContextValue | null>(null);
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const { status } = useAuth();
   const isPublicWallRoute =
-    typeof window !== 'undefined' && window.location.pathname.startsWith('/wall/open');
+    typeof window !== 'undefined' && isPublicWallPath(window.location.pathname);
   const canRead = status === 'activated' || isPublicWallRoute;
   const [settings, setSettings] = useState<DispositionSettings>(DEFAULT_DISPOSITION_SETTINGS);
   const [loading, setLoading] = useState(true);

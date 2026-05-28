@@ -1325,6 +1325,11 @@ code {
   overflow: hidden;
 }
 
+.wall--legacy * {
+  animation: none !important;
+  transition: none !important;
+}
+
 .wall-bg {
   position: fixed;
   inset: 0;
