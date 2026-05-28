@@ -25,6 +25,13 @@ export const DEFAULT_DISPOSITION_SETTINGS: DispositionSettings = {
     abholungen: 18,
     offen: 18,
   },
+  wallTabRotationEnabled: {
+    kuehlraum: true,
+    extern: true,
+    kalender: true,
+    abholungen: true,
+    offen: true,
+  },
   eigeneKuehlraeume: [
     {
       id: 'grafenbach',

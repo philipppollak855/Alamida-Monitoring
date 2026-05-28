@@ -317,6 +317,41 @@ export function DispositionSettingsPanel({ defaultOpen = false }: { defaultOpen?
                     </label>
                   ))}
                 </div>
+                <p className="settings-hint" style={{ marginTop: '0.6rem' }}>
+                  Tabs in der Rotation anzeigen
+                </p>
+                <div className="settings-wall-tabs-grid">
+                  {(
+                    [
+                      ['kuehlraum', 'Kühlraum'],
+                      ['extern', 'Extern'],
+                      ['kalender', 'Kalender'],
+                      ['abholungen', 'Heute'],
+                      ['offen', 'Offen'],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <label key={`enabled-${key}`} className="settings-wall-tab-field">
+                      <input
+                        type="checkbox"
+                        checked={draft.wallTabRotationEnabled?.[key] ?? true}
+                        onChange={(e) =>
+                          setDraft((d) => ({
+                            ...d,
+                            wallTabRotationEnabled: {
+                              kuehlraum: d.wallTabRotationEnabled?.kuehlraum ?? true,
+                              extern: d.wallTabRotationEnabled?.extern ?? true,
+                              kalender: d.wallTabRotationEnabled?.kalender ?? true,
+                              abholungen: d.wallTabRotationEnabled?.abholungen ?? true,
+                              offen: d.wallTabRotationEnabled?.offen ?? true,
+                              [key]: e.target.checked,
+                            },
+                          }))
+                        }
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
               </div>
 
               <KeywordSection

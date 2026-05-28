@@ -111,10 +111,16 @@ export function WallPage() {
     () => wallDurationsFromSettings(settings.wallTabWechselSekunden),
     [settings.wallTabWechselSekunden]
   );
+  const activeViews = useMemo(() => {
+    const enabled = settings.wallTabRotationEnabled;
+    const selected = WALL_VIEWS.filter((v) => enabled?.[v] ?? true);
+    return selected.length > 0 ? selected : [WALL_VIEWS[0]];
+  }, [settings.wallTabRotationEnabled]);
   const { slide, view, secondsLeft, goToSlide, rotationOff } = useWallTabRotation(
     tabDurations,
     rotationPaused,
-    !isNarrow
+    !isNarrow,
+    activeViews
   );
   const edgeSwipe = useWallEdgeSwipe(isNarrow, slide, goToSlide);
 
@@ -284,7 +290,7 @@ export function WallPage() {
       </header>
 
       <div className={`wall-view-tabs ${isNarrow ? 'wall-view-tabs--one-row' : ''}`}>
-        {WALL_VIEWS.map((v, i) => (
+        {activeViews.map((v, i) => (
           <button
             key={v}
             type="button"
@@ -544,7 +550,7 @@ export function WallPage() {
 
       <footer className="wall-footer">
         <div className="wall-progress">
-          {WALL_VIEWS.map((_, i) => (
+          {activeViews.map((_, i) => (
             <span key={i} className={`wall-progress-dot ${slide === i ? 'on' : ''}`} />
           ))}
         </div>
@@ -562,7 +568,7 @@ export function WallPage() {
               <span className="wall-rotate-hint">
                 {rotationPaused
                   ? 'Automatischer Wechsel pausiert · Tabs manuell wählbar'
-                  : `${WALL_TAB_LABELS[view]}: ${tabDurations[view]}s · als Nächstes ${WALL_TAB_LABELS[WALL_VIEWS[(slide + 1) % WALL_VIEWS.length]]}`}
+                  : `${WALL_TAB_LABELS[view]}: ${tabDurations[view]}s · als Nächstes ${WALL_TAB_LABELS[activeViews[(slide + 1) % activeViews.length]]}`}
               </span>
             </>
           ) : (

@@ -1,6 +1,7 @@
 import type {
   DispositionSettings,
   EigenerKuehlraumConfig,
+  WallTabRotationEnabled,
   WallTabWechselSekunden,
 } from '../types/dispositionSettings';
 import { wallDurationsFromSettings } from '../hooks/useWallTabRotation';
@@ -38,6 +39,14 @@ export function normalizeDispositionSettings(
     kalender: wallDurations.kalender,
     abholungen: wallDurations.abholungen,
     offen: wallDurations.offen,
+  };
+  const wallRotationRaw = raw.wallTabRotationEnabled;
+  const wallTabRotationEnabled: WallTabRotationEnabled = {
+    kuehlraum: wallRotationRaw?.kuehlraum ?? true,
+    extern: wallRotationRaw?.extern ?? true,
+    kalender: wallRotationRaw?.kalender ?? true,
+    abholungen: wallRotationRaw?.abholungen ?? true,
+    offen: wallRotationRaw?.offen ?? true,
   };
 
   return {
@@ -83,6 +92,7 @@ export function normalizeDispositionSettings(
     ),
     eigeneKuehlraeume,
     wallTabWechselSekunden,
+    wallTabRotationEnabled,
     updatedAt: raw.updatedAt,
   };
 }

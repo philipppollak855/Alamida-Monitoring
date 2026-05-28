@@ -31,34 +31,47 @@ export function useWallTabRotation(
   durations: Record<WallView, number>,
   rotationPaused: boolean,
   /** z. B. Mobil: kein automatischer Tabwechsel */
-  autoRotateEnabled = true
+  autoRotateEnabled = true,
+  views: WallView[] = WALL_VIEWS
 ) {
+  const activeViews = views.length > 0 ? views : [WALL_VIEWS[0]];
   const [slide, setSlide] = useState(0);
-  const [view, setView] = useState<WallView>(WALL_VIEWS[0]);
-  const [secondsLeft, setSecondsLeft] = useState(durations[WALL_VIEWS[0]]);
+  const [view, setView] = useState<WallView>(activeViews[0]);
+  const [secondsLeft, setSecondsLeft] = useState(durations[activeViews[0]]);
   const rotationOff = rotationPaused || !autoRotateEnabled;
 
   const goToSlide = useCallback(
     (index: number) => {
-      const i = ((index % WALL_VIEWS.length) + WALL_VIEWS.length) % WALL_VIEWS.length;
+      const i = ((index % activeViews.length) + activeViews.length) % activeViews.length;
       setSlide(i);
-      setView(WALL_VIEWS[i]);
-      setSecondsLeft(durations[WALL_VIEWS[i]]);
+      setView(activeViews[i]);
+      setSecondsLeft(durations[activeViews[i]]);
     },
-    [durations]
+    [durations, activeViews]
   );
 
   useEffect(() => {
+    if (slide >= activeViews.length) {
+      setSlide(0);
+      setView(activeViews[0]);
+      setSecondsLeft(durations[activeViews[0]]);
+      return;
+    }
+    setView(activeViews[slide]);
+    setSecondsLeft(durations[activeViews[slide]]);
+  }, [activeViews, slide, durations]);
+
+  useEffect(() => {
     if (rotationOff) return;
-    const current = WALL_VIEWS[slide];
+    const current = activeViews[slide];
     setSecondsLeft(durations[current]);
 
     const id = window.setInterval(() => {
       setSecondsLeft((prev) => {
         if (prev > 1) return prev - 1;
         setSlide((s) => {
-          const next = (s + 1) % WALL_VIEWS.length;
-          setView(WALL_VIEWS[next]);
+          const next = (s + 1) % activeViews.length;
+          setView(activeViews[next]);
           return next;
         });
         return 0;
@@ -66,7 +79,7 @@ export function useWallTabRotation(
     }, 1000);
 
     return () => window.clearInterval(id);
-  }, [slide, rotationOff, durations]);
+  }, [slide, rotationOff, durations, activeViews]);
 
   return { slide, view, secondsLeft, goToSlide, setView, setSlide, rotationOff };
 }

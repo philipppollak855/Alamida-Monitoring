@@ -17,6 +17,15 @@ export interface WallTabWechselSekunden {
   offen: number;
 }
 
+/** Aktiviert Tabs für den automatischen Rotationslauf am Wandmonitor. */
+export interface WallTabRotationEnabled {
+  kuehlraum: boolean;
+  extern: boolean;
+  kalender: boolean;
+  abholungen: boolean;
+  offen: boolean;
+}
+
 export interface DispositionSettings {
   kremationPrefixe: string[];
   kremationKeywords: string[];
@@ -31,6 +40,8 @@ export interface DispositionSettings {
   eigeneKuehlraeume: EigenerKuehlraumConfig[];
   /** Wandmonitor: Sekunden pro Tab bis zum nächsten Übergang */
   wallTabWechselSekunden?: WallTabWechselSekunden;
+  /** Wandmonitor: welche Tabs in der Rotation angezeigt werden */
+  wallTabRotationEnabled?: WallTabRotationEnabled;
   updatedAt?: { seconds: number };
   /** Änderungszähler für Agent-Reload */
   settingsVersion?: number;

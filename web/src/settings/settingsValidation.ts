@@ -34,6 +34,18 @@ export function validateDispositionSettings(s: DispositionSettings): SettingsVal
       }
     }
   }
+  const enabled = s.wallTabRotationEnabled;
+  if (enabled) {
+    const hasAny =
+      enabled.kuehlraum ||
+      enabled.extern ||
+      enabled.kalender ||
+      enabled.abholungen ||
+      enabled.offen;
+    if (!hasAny) {
+      errors.push('Wandmonitor: Mindestens ein Tab muss in der Rotation aktiviert sein.');
+    }
+  }
 
   for (const kr of s.eigeneKuehlraeume) {
     if (!kr.label.trim()) errors.push('Kühlraum ohne Bezeichnung.');
@@ -75,6 +87,7 @@ function normalizeForCompare(s: DispositionSettings) {
     bestattungPrefixe: [...s.bestattungPrefixe].sort(),
     bestattungKeywords: [...s.bestattungKeywords].sort(),
     wallTabWechselSekunden: s.wallTabWechselSekunden,
+    wallTabRotationEnabled: s.wallTabRotationEnabled,
     eigeneKuehlraeume: s.eigeneKuehlraeume.map((k) => ({
       id: k.id,
       label: k.label,
