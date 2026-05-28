@@ -647,6 +647,9 @@ function WallCalendarDaySection({
   active?: boolean;
 
 }) {
+  const MAX_STRIP_ENTRIES = 3;
+  const visibleEntries = strip ? day.entries.slice(0, MAX_STRIP_ENTRIES) : day.entries;
+  const hiddenStripEntries = strip ? Math.max(0, day.entries.length - visibleEntries.length) : 0;
 
   const mod = strip ? 'strip' : compact ? 'month' : '';
 
@@ -683,7 +686,7 @@ function WallCalendarDaySection({
 
       </header>
 
-      <ul className={`wall-cal-day-list ${strip ? 'scroll' : ''}`}>
+      <ul className="wall-cal-day-list">
 
         {day.entries.length === 0 ? (
 
@@ -691,7 +694,7 @@ function WallCalendarDaySection({
 
         ) : (
 
-          day.entries.map((e) => (
+          visibleEntries.map((e) => (
 
             <li key={e.id} className={`wall-cal-event ${e.grouped ? 'is-grouped' : ''}`}>
 
@@ -701,6 +704,9 @@ function WallCalendarDaySection({
 
           ))
 
+        )}
+        {hiddenStripEntries > 0 && (
+          <li className="wall-cal-day-more">+{hiddenStripEntries} weitere</li>
         )}
 
       </ul>

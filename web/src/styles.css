@@ -1470,7 +1470,7 @@ code {
 .wall-cool-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
+  gap: 0.7rem;
   flex: 1;
   min-height: 0;
 }
@@ -1478,8 +1478,8 @@ code {
 .wall-urnen-section {
   flex-shrink: 0;
   border-top: 2px solid rgba(77, 159, 255, 0.25);
-  padding-top: 1rem;
-  margin-top: 0.25rem;
+  padding-top: 0.65rem;
+  margin-top: 0.1rem;
 }
 
 .wall-urnen-title {
@@ -1549,8 +1549,8 @@ code {
   background: var(--surface);
   border: 2px solid var(--border);
   border-radius: var(--radius);
-  padding: 1.25rem 1.5rem;
-  min-height: 140px;
+  padding: 0.95rem 1.1rem;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -2271,7 +2271,7 @@ code {
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  padding-bottom: 0.35rem;
+  padding-bottom: 0.2rem;
   border-bottom: 1px solid var(--border);
 }
 
@@ -2310,8 +2310,8 @@ code {
   flex-shrink: 0;
   display: grid;
   grid-template-columns: repeat(var(--cal-overview-cols, 7), minmax(0, 1fr));
-  gap: 0.35rem;
-  padding-bottom: 0.35rem;
+  gap: 0.25rem;
+  padding-bottom: 0.2rem;
   border-bottom: 1px solid var(--border);
 }
 
@@ -2334,8 +2334,8 @@ code {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 2.5rem;
-  padding: 0.25rem 0.15rem;
+  min-height: 2.1rem;
+  padding: 0.16rem 0.12rem;
   border-radius: 8px;
   background: var(--surface-solid);
   border: 1px solid var(--border);
@@ -2376,7 +2376,7 @@ code {
 }
 
 .wall-cal-period-wd {
-  font-size: 0.62rem;
+  font-size: 0.56rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -2385,16 +2385,16 @@ code {
 }
 
 .wall-cal-period-num {
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 600;
   line-height: 1.2;
 }
 
 .wall-cal-period-badge {
-  font-size: 0.58rem;
+  font-size: 0.54rem;
   font-weight: 700;
   color: var(--accent);
-  margin-top: 0.1rem;
+  margin-top: 0.06rem;
 }
 
 .wall-cal-strip {
@@ -2417,7 +2417,7 @@ code {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0.3rem;
   overflow: hidden;
 }
 
@@ -2510,8 +2510,8 @@ code {
 }
 
 .wall-cal-day--strip .wall-cal-day-list {
-  padding: 0.25rem;
-  gap: 0.25rem;
+  padding: 0.2rem;
+  gap: 0.18rem;
 }
 
 .wall-cal-day-wd {
@@ -2714,21 +2714,32 @@ code {
 }
 
 .wall-cal-day--strip .wall-cal-card {
-  padding: 0.32rem 0.38rem;
+  padding: 0.25rem 0.32rem;
 }
 
 .wall-cal-day--strip .wall-cal-time {
-  font-size: 0.68rem;
+  font-size: 0.64rem;
 }
 
 .wall-cal-day--strip .wall-cal-meta {
-  font-size: 0.65rem;
-  margin-top: 0.1rem;
+  display: none;
 }
 
 .wall-cal-day--strip .wall-cal-badge {
   font-size: 0.54rem;
   padding: 0.08rem 0.22rem;
+}
+
+.wall-cal-day--strip .wall-cal-name {
+  font-size: 0.72rem;
+  line-height: 1.15;
+}
+
+.wall-cal-day-more {
+  font-size: 0.62rem;
+  color: var(--muted);
+  text-align: center;
+  padding: 0.12rem 0.2rem;
 }
 
 .wall-cal-empty {
