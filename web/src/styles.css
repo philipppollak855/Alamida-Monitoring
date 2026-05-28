@@ -1062,6 +1062,13 @@ code {
   border-left-color: #059669;
 }
 
+.cool-termin-marker--verabschiedung {
+  color: #047857;
+  background: rgba(16, 185, 129, 0.16);
+  border-color: rgba(5, 150, 105, 0.45);
+  border-left-color: #10b981;
+}
+
 .wall-cool-termin-marker.cool-termin-markers {
   margin-top: 0.5rem;
   gap: 0.28rem;
@@ -1083,6 +1090,10 @@ code {
 
 .wall-cool-tile .cool-termin-marker--trauerfeier {
   border-left-color: #059669;
+}
+
+.wall-cool-tile .cool-termin-marker--verabschiedung {
+  border-left-color: #10b981;
 }
 
 .wall-cool-tile .cool-termin-marker--beisetzung {
@@ -2756,27 +2767,6 @@ code {
   font-size: 0.65rem;
   color: var(--muted);
   margin-top: 0.2rem;
-}
-
-.wall-cal-share-link {
-  display: inline-flex;
-  align-items: center;
-  margin-top: 0.35rem;
-  font-size: 0.68rem;
-  font-weight: 600;
-  color: #25d366;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  cursor: pointer;
-}
-
-.wall-cal-share-link:hover {
-  color: #1ebe57;
-}
-
-.wall-cal-share-link--compact {
-  margin-top: 0.2rem;
-  font-size: 0.62rem;
 }
 
 .wall-cal-card--compact .wall-cal-name {

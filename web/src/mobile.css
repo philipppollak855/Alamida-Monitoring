@@ -979,14 +979,6 @@
     background: rgba(52, 211, 153, 0.18);
   }
 
-  .wall-cal-card--mobile .wall-cal-share-link {
-    margin-top: 0.25rem;
-    min-height: 32px;
-    align-self: flex-start;
-    font-size: 0.65rem;
-    padding: 0.15rem 0;
-  }
-
   [data-theme='alamida'] .wall-cal-card--mobile {
     box-shadow: 0 1px 4px rgba(42, 72, 78, 0.1);
   }

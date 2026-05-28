@@ -9,11 +9,13 @@ function fall(overrides: Partial<Sterbefall>): Sterbefall {
 }
 
 describe('buildKuehlraumTerminMarkers', () => {
-  it('zeigt Trauerfeier, Kremation und Beisetzung parallel', () => {
+  it('zeigt Trauerfeier, Kremation und Beisetzung parallel bei getrennter Beisetzung', () => {
     const markers = buildKuehlraumTerminMarkers(
       fall({
         trauerfeierdatum: '08.06.2026',
         beisetzungsdatum: '08.06.2026',
+        beisetzungszeit: '12:00',
+        trauerfeierzeit: '10:00',
         endzielTyp: 'kremation',
         ausstehend: [
           {
@@ -33,16 +35,49 @@ describe('buildKuehlraumTerminMarkers', () => {
     expect(kinds).toContain('beisetzung');
   });
 
-  it('zeigt Beisetzung im Anschluss ohne eigenes Datum', () => {
+  it('nur Trauerfeier bei Im Anschluss am selben Tag', () => {
     const markers = buildKuehlraumTerminMarkers(
       fall({
-        trauerfeierdatum: '08.06.2026',
+        trauerfeierdatum: '03.06.2026',
+        beisetzungsdatum: '03.06.2026',
+        beisetzungszeit: 'Im Anschluss',
         imAnschluss: true,
       }),
       now
     );
 
-    expect(markers.some((m) => m.label.includes('im Anschluss'))).toBe(true);
+    expect(markers.filter((m) => m.kind === 'trauerfeier')).toHaveLength(1);
+    expect(markers.some((m) => m.kind === 'beisetzung')).toBe(false);
+  });
+
+  it('nur Trauerfeier bei gleicher Uhrzeit', () => {
+    const markers = buildKuehlraumTerminMarkers(
+      fall({
+        trauerfeierdatum: '03.06.2026',
+        trauerfeierzeit: '14:00',
+        beisetzungsdatum: '03.06.2026',
+        beisetzungszeit: '14:00',
+      }),
+      now
+    );
+
+    expect(markers.filter((m) => m.kind === 'trauerfeier')).toHaveLength(1);
+    expect(markers.some((m) => m.kind === 'beisetzung')).toBe(false);
+  });
+
+  it('Verabschiedung und Beisetzung bei Rosenkranz und getrennter Beisetzung', () => {
+    const markers = buildKuehlraumTerminMarkers(
+      fall({
+        rosenkranzdatum: '08.06.2026',
+        trauerfeierdatum: '08.06.2026',
+        beisetzungsdatum: '09.06.2026',
+      }),
+      now
+    );
+
+    expect(markers.some((m) => m.kind === 'verabschiedung')).toBe(true);
+    expect(markers.some((m) => m.kind === 'beisetzung')).toBe(true);
+    expect(markers.some((m) => m.kind === 'trauerfeier')).toBe(false);
   });
 
   it('parst Alamida-Datumstext mit Wochentag', () => {
@@ -50,6 +85,8 @@ describe('buildKuehlraumTerminMarkers', () => {
       fall({
         trauerfeierdatum: 'Montag, 08.06.2026',
         beisetzungsdatum: 'Montag, 08.06.2026',
+        beisetzungszeit: '12:00',
+        trauerfeierzeit: '10:00',
         endzielTyp: 'kremation',
       }),
       now

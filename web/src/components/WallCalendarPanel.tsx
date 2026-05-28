@@ -39,7 +39,6 @@ import {
 import { calendarDayLayout, calendarEventFlexClass } from '../board/wallCalendarLayout';
 
 import { WallCalendarPeriodOverview } from './WallCalendarPeriodOverview';
-import { WallCalendarTerminShare } from './WallCalendarTerminShare';
 
 
 
@@ -783,8 +782,6 @@ function WallCalendarEventCard({
 
           </span>
 
-          <WallCalendarTerminShare entry={entry} compact />
-
         </div>
 
       </article>
@@ -837,8 +834,6 @@ function WallCalendarEventCard({
       <span className="wall-cal-name">{entry.name}</span>
 
       <span className="wall-cal-meta">{entry.subtitle || entry.title}</span>
-
-      <WallCalendarTerminShare entry={entry} compact={compact} />
 
       {!compact && entry.grouped && (
 

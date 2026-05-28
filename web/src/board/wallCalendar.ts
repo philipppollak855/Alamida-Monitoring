@@ -12,10 +12,10 @@ import {
   startOfWeekMonday,
 } from './dateUtils';
 import {
-  filterSterbefaelleFuerKalender,
-  istImAnschluss,
-  sterbefallImAnschluss,
-} from './historieLogic';
+  beisetzungImAnschlussAmTrauerfeierTag,
+  rosenkranzUndTrauerfeier1AmSelbenTag,
+} from './feierterminLogic';
+import { filterSterbefaelleFuerKalender, sterbefallImAnschluss } from './historieLogic';
 
 export type WallCalendarRange = 7 | 14 | 'month';
 
@@ -135,31 +135,6 @@ function fallName(s: Sterbefall): string {
   );
 }
 
-function beisetzungZeitGleichTrauerfeier(s: Sterbefall): boolean {
-  const tf = extractZeitDe(s.trauerfeierdatum, s.trauerfeierzeit);
-  const bs = extractZeitDe(s.beisetzungsdatum, s.beisetzungszeit);
-  return Boolean(tf && bs && tf === bs);
-}
-
-/** Beisetzung mit abweichender Uhrzeit (nicht Im Anschluss, nicht gleiche Zeit wie Trauerfeier). */
-function beisetzungHatEigeneUhrzeit(s: Sterbefall): boolean {
-  if (istImAnschluss(s.beisetzungszeit)) return false;
-  const bs = extractZeitDe(s.beisetzungsdatum, s.beisetzungszeit);
-  if (!bs) return false;
-  if (beisetzungZeitGleichTrauerfeier(s)) return false;
-  return true;
-}
-
-/** Ein Kalendertermin Trauerfeier: Im Anschluss oder gleiche Uhrzeit am Trauerfeier-Tag. */
-function beisetzungImAnschlussAmTrauerfeierTag(s: Sterbefall): boolean {
-  if (beisetzungHatEigeneUhrzeit(s)) return false;
-  const tfDay = dayKeyFromDeDatum(s.trauerfeierdatum);
-  if (!tfDay) return false;
-  const bsDay = dayKeyFromDeDatum(s.beisetzungsdatum);
-  if (bsDay && bsDay !== tfDay) return false;
-  return sterbefallImAnschluss(s) || beisetzungZeitGleichTrauerfeier(s);
-}
-
 function pushAtomic(
   list: AtomicTermin[],
   s: Sterbefall,
@@ -236,9 +211,7 @@ function collectAtomics(s: Sterbefall): AtomicTermin[] {
   }
 
   if (s.trauerfeierdatum?.trim()) {
-    const rkDay = dayKeyFromDeDatum(s.rosenkranzdatum);
-    const tfDay = dayKeyFromDeDatum(s.trauerfeierdatum);
-    const verabschiedungAmSelbenTag = Boolean(rkDay && tfDay && rkDay === tfDay);
+    const verabschiedungAmSelbenTag = rosenkranzUndTrauerfeier1AmSelbenTag(s);
     const label = verabschiedungAmSelbenTag ? 'Verabschiedung' : 'Trauerfeier';
     const art: CalendarTerminArt = verabschiedungAmSelbenTag ? 'verabschiedung' : 'trauerfeier';
     add(art, label, s.trauerfeierdatum, s.trauerfeierzeit, ortTf);
