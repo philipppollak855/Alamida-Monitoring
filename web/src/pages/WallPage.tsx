@@ -97,7 +97,7 @@ function formatWallTabLabel(
   }
 }
 
-export function WallPage() {
+export function WallPage({ publicAccess = false }: { publicAccess?: boolean }) {
   const { settings } = useDispositionSettings();
   const { signOut } = useAuth();
   const isNarrow = useNarrowViewport();
@@ -277,15 +277,19 @@ export function WallPage() {
               Tabwechsel in {secondsLeft}s
             </span>
           )}
-          <Link
-            to="/disposition"
-            className={`wall-link ${isNarrow ? 'wall-link--dispo' : ''}`}
-          >
-            {isNarrow ? 'Dispo' : 'Disposition'}
-          </Link>
-          <button type="button" className="btn-ghost btn-small" onClick={() => signOut()}>
-            Abmelden
-          </button>
+          {!publicAccess && (
+            <Link
+              to="/disposition"
+              className={`wall-link ${isNarrow ? 'wall-link--dispo' : ''}`}
+            >
+              {isNarrow ? 'Dispo' : 'Disposition'}
+            </Link>
+          )}
+          {!publicAccess && (
+            <button type="button" className="btn-ghost btn-small" onClick={() => signOut()}>
+              Abmelden
+            </button>
+          )}
         </div>
       </header>
 

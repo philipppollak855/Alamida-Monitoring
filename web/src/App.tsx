@@ -29,6 +29,14 @@ export function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/pending" element={<PendingPage />} />
+        <Route
+          path="/wall/open"
+          element={
+            <SettingsProvider>
+              <WallPage publicAccess />
+            </SettingsProvider>
+          }
+        />
         <Route element={<ProtectedRoute />}>
           <Route
             element={

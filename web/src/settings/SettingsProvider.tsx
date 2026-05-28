@@ -35,6 +35,9 @@ const SettingsContext = createContext<SettingsContextValue | null>(null);
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const { status } = useAuth();
+  const isPublicWallRoute =
+    typeof window !== 'undefined' && window.location.pathname.startsWith('/wall/open');
+  const canRead = status === 'activated' || isPublicWallRoute;
   const [settings, setSettings] = useState<DispositionSettings>(DEFAULT_DISPOSITION_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -52,9 +55,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   }, [status]);
 
   useEffect(() => {
-    if (status !== 'activated' || !db) {
-      setLoading(status === 'loading');
-      if (status !== 'activated') {
+    if (!canRead || !db) {
+      setLoading(status === 'loading' && !isPublicWallRoute);
+      if (!canRead) {
         setDispositionSettings(DEFAULT_DISPOSITION_SETTINGS);
         setSettings(DEFAULT_DISPOSITION_SETTINGS);
       }
@@ -75,7 +78,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setError(null);
       },
       (err) => {
-        if (isFirestoreAuthError(err)) {
+        if (!isPublicWallRoute && isFirestoreAuthError(err)) {
           setError(normalizeFirestoreError(err));
           void ensureFreshIdToken(true).then((ok) => {
             if (ok) setAuthReconnectTick((t) => t + 1);
@@ -87,7 +90,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       }
     );
     return () => unsub();
-  }, [status, authReconnectTick]);
+  }, [status, authReconnectTick, canRead, isPublicWallRoute]);
 
   const saveSettings = useCallback(async (next: DispositionSettings) => {
     if (!db) throw new Error('Firebase nicht konfiguriert');

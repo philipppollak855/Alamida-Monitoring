@@ -39,6 +39,9 @@ const SterbefaelleContext = createContext<SterbefaelleContextValue | null>(null)
 /** Ein gemeinsamer onSnapshot für alle Seiten — vermeidet parallele Listener. */
 export function SterbefaelleProvider({ children }: { children: ReactNode }) {
   const { status } = useAuth();
+  const isPublicWallRoute =
+    typeof window !== 'undefined' && window.location.pathname.startsWith('/wall/open');
+  const canRead = status === 'activated' || isPublicWallRoute;
   const [items, setItems] = useState<Sterbefall[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,7 +59,7 @@ export function SterbefaelleProvider({ children }: { children: ReactNode }) {
   }, [status]);
 
   useEffect(() => {
-    if (status !== 'activated') {
+    if (!canRead) {
       setItems([]);
       setLoading(status === 'loading');
       setLastSyncAt(null);
@@ -113,7 +116,7 @@ export function SterbefaelleProvider({ children }: { children: ReactNode }) {
     );
 
     return () => unsub();
-  }, [status, authReconnectTick]);
+  }, [status, authReconnectTick, canRead]);
 
   const value = useMemo(
     (): SterbefaelleContextValue => ({
@@ -121,9 +124,9 @@ export function SterbefaelleProvider({ children }: { children: ReactNode }) {
       loading,
       error,
       lastSyncAt,
-      isLive: status === 'activated' && lastSyncAt != null && !error,
+      isLive: canRead && lastSyncAt != null && !error,
     }),
-    [items, loading, error, lastSyncAt, status]
+    [items, loading, error, lastSyncAt, canRead]
   );
 
   return (

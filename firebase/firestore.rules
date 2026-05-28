@@ -14,6 +14,11 @@ service cloud.firestore {
         && userDoc().data.activated == true;
     }
 
+    // Öffentlicher Wandmonitor-Link ohne Login.
+    function isPublicWallRead() {
+      return true;
+    }
+
     match /users/{userId} {
       allow read: if isSignedIn() && request.auth.uid == userId;
       allow create: if isSignedIn()
@@ -80,7 +85,7 @@ service cloud.firestore {
     }
 
     match /sterbefaelle/{id} {
-      allow read: if isActivatedUser();
+      allow read: if isActivatedUser() || isPublicWallRead();
       allow update: if isActivatedUser()
         && (
           (sterbefallUrnenUpdateOnly() && (sterbefallUrnenSet() || sterbefallUrnenClear()))
@@ -104,7 +109,7 @@ service cloud.firestore {
     }
 
     match /settings/{docId} {
-      allow read: if isActivatedUser();
+      allow read: if isActivatedUser() || isPublicWallRead();
       allow write: if isActivatedUser();
     }
   }
