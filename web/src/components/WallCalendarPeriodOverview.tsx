@@ -21,10 +21,11 @@ export function WallCalendarPeriodOverview({
   onDaySelect,
 }: Props) {
   const interactive = Boolean(onDaySelect);
+  const evenCells = denseMonth || !compact;
 
   return (
     <div
-      className={`wall-cal-period-overview ${compact ? 'wall-cal-period-overview--compact' : ''} ${denseMonth ? 'wall-cal-period-overview--dense-month' : ''} wall-cal-period-overview--even ${interactive ? 'wall-cal-period-overview--interactive' : ''}`}
+      className={`wall-cal-period-overview ${compact ? 'wall-cal-period-overview--compact' : ''} ${denseMonth ? 'wall-cal-period-overview--dense-month' : ''} ${evenCells ? 'wall-cal-period-overview--even' : ''} ${interactive ? 'wall-cal-period-overview--interactive' : ''}`}
       style={{ '--cal-overview-cols': columns } as React.CSSProperties}
       aria-label="Zeitraumübersicht"
     >
