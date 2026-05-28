@@ -435,6 +435,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
             <WallCalendarPeriodRow
               days={overviewDays}
               columns={overviewColumns}
+              compact={range !== 'month'}
               selectedDayKey={focusDayKey}
               onDaySelect={selectFocusDay}
               onToday={() => selectFocusDay(onToday)}
@@ -698,7 +699,7 @@ function WallCalendarDaySection({
 
             <li key={e.id} className={`wall-cal-event ${e.grouped ? 'is-grouped' : ''}`}>
 
-              <WallCalendarEventCard entry={e} compact={compact || strip} />
+              <WallCalendarEventCard entry={e} compact={compact || strip} strip={strip} />
 
             </li>
 
@@ -724,6 +725,7 @@ function WallCalendarEventCard({
   entry,
 
   compact = false,
+  strip = false,
 
   mobile = false,
 
@@ -732,6 +734,7 @@ function WallCalendarEventCard({
   entry: WallCalendarEntry;
 
   compact?: boolean;
+  strip?: boolean;
 
   mobile?: boolean;
 
@@ -777,6 +780,15 @@ function WallCalendarEventCard({
 
     );
 
+  }
+
+  if (strip) {
+    return (
+      <article className={`wall-cal-card wall-cal-card--strip ${colorClass}`}>
+        <time className="wall-cal-time">{entry.timeLabel}</time>
+        <span className="wall-cal-name">{entry.name}</span>
+      </article>
+    );
   }
 
 
