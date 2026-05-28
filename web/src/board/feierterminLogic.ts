@@ -154,3 +154,14 @@ export function rosenkranzUndTrauerfeier1AmSelbenTag(s: Sterbefall): boolean {
   const tfDay = dayKeyFromDeDatum(s.trauerfeierdatum);
   return Boolean(rkDay && tfDay && rkDay === tfDay);
 }
+
+/**
+ * Erster Feiertermin: „Verabschiedung“ bei Rosenkranz am selben Tag oder Urnenweg
+ * (Kremation/Beisetzung später, noch kein eigener Beisetzungstermin).
+ */
+export function trauerfeier1AlsVerabschiedung(s: Sterbefall): boolean {
+  if (!extractDeDatum(s.trauerfeierdatum)) return false;
+  if (rosenkranzUndTrauerfeier1AmSelbenTag(s)) return true;
+  if (!hatKremationImSterbefall(s)) return false;
+  return !beisetzungAlsEigenerTermin(s);
+}

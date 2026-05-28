@@ -709,16 +709,37 @@
     gap: 0.15rem;
   }
 
-  .wall-cal--narrow .wall-cal-period-row .wall-cal-period-overview--dense-month {
+  .wall-cal--narrow .wall-cal-period-row .wall-cal-period-overview--dense-month:not(.wall-cal-period-overview--month-grid) {
     max-height: 5.35rem;
     min-height: 0;
     overflow: hidden;
   }
 
-  .wall-cal--narrow .wall-cal-period-overview--dense-month .wall-cal-period-cell {
+  .wall-cal--narrow .wall-cal-period-overview--dense-month:not(.wall-cal-period-overview--month-grid) .wall-cal-period-cell {
     height: 1.05rem;
     min-height: 1.05rem;
     max-height: 1.05rem;
+  }
+
+  .wall-cal--narrow .wall-cal-period-overview--month-grid {
+    max-height: none;
+    gap: 0.12rem;
+  }
+
+  .wall-cal--narrow .wall-cal-period-overview--month-grid .wall-cal-period-weekday {
+    min-height: 0.9rem;
+    font-size: 0.48rem;
+  }
+
+  .wall-cal--narrow .wall-cal-period-overview--month-grid .wall-cal-period-cell:not(.is-pad) {
+    height: auto;
+    min-height: 1.35rem;
+    max-height: none;
+    aspect-ratio: 1;
+  }
+
+  .wall-cal--narrow .wall-cal-period-overview--month-grid .wall-cal-period-cell.is-pad {
+    min-height: 1.35rem;
   }
 
   .wall-cal--narrow .wall-cal-period-overview--even .wall-cal-period-num {

@@ -30,3 +30,15 @@ export function calendarDayLayout(
   const densityScale = Math.min(1, Math.max(minScale, target / slotWeight));
   return { densityScale, slotWeight };
 }
+
+/** Scroll-Offset für Monatsraster: Fokustag mittig im sichtbaren Bereich. */
+export function monthGridScrollTop(
+  dayIndex: number,
+  columns: number,
+  rowHeight: number,
+  viewportHeight: number
+): number | null {
+  if (dayIndex < 0 || columns < 1 || rowHeight < 1 || viewportHeight < 1) return null;
+  const row = Math.floor(dayIndex / columns);
+  return Math.max(0, row * rowHeight - viewportHeight / 2 + rowHeight / 2);
+}

@@ -320,10 +320,27 @@
   max-height: none;
 }
 
+.wall--mobile .wall-cal--mobile-month .wall-cal-day--month.is-summary-only {
+  min-height: 3.75rem;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-day-summary-total {
+  font-size: 0.66rem;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-day-summary-ueb {
+  font-size: 0.6rem;
+}
+
 .wall--mobile .wall-cal--mobile-month .wall-cal-day-list {
   max-height: 4.5rem;
   overflow-y: auto;
   scrollbar-width: thin;
+}
+
+.wall--mobile .wall-cal-day-dialog-root {
+  padding: 0;
+  align-items: flex-end;
 }
 
 .wall--mobile .wall-cal--mobile-month .wall-cal-card--compact {

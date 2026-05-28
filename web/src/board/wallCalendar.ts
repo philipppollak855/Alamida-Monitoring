@@ -15,7 +15,7 @@ import {
   beisetzungImAnschlussAmTrauerfeierTag,
   calendarBestattungsMarker,
   type BestattungsMarker,
-  rosenkranzUndTrauerfeier1AmSelbenTag,
+  trauerfeier1AlsVerabschiedung,
 } from './feierterminLogic';
 import { filterSterbefaelleFuerKalender, sterbefallImAnschluss } from './historieLogic';
 
@@ -215,9 +215,9 @@ function collectAtomics(s: Sterbefall): AtomicTermin[] {
   }
 
   if (s.trauerfeierdatum?.trim()) {
-    const verabschiedungAmSelbenTag = rosenkranzUndTrauerfeier1AmSelbenTag(s);
-    const label = verabschiedungAmSelbenTag ? 'Verabschiedung' : 'Trauerfeier';
-    const art: CalendarTerminArt = verabschiedungAmSelbenTag ? 'verabschiedung' : 'trauerfeier';
+    const alsVerabschiedung = trauerfeier1AlsVerabschiedung(s);
+    const label = alsVerabschiedung ? 'Verabschiedung' : 'Trauerfeier';
+    const art: CalendarTerminArt = alsVerabschiedung ? 'verabschiedung' : 'trauerfeier';
     add(art, label, s.trauerfeierdatum, s.trauerfeierzeit, ortTf);
   }
 
@@ -463,6 +463,21 @@ function isUeberfuehrungCalendarArt(art: CalendarTerminArt): boolean {
   return art === 'ueberfuehrung' || art === 'ueberfuehrung_kremation';
 }
 
+export function isUeberfuehrungCalendarEntry(entry: WallCalendarEntry): boolean {
+  return entry.arts.some((a) => isUeberfuehrungCalendarArt(a));
+}
+
+export function summarizeWallCalendarDay(entries: readonly WallCalendarEntry[]): {
+  total: number;
+  ueberfuehrungen: number;
+} {
+  let ueberfuehrungen = 0;
+  for (const e of entries) {
+    if (isUeberfuehrungCalendarEntry(e)) ueberfuehrungen++;
+  }
+  return { total: entries.length, ueberfuehrungen };
+}
+
 /** Kalendereintrag ist kein reiner Überführungstermin (für Tab „Heute“ neben flattenOffene). */
 export function isFeierCalendarEntry(entry: WallCalendarEntry): boolean {
   return entry.arts.some((a) => !isUeberfuehrungCalendarArt(a));
@@ -551,6 +566,54 @@ function monthRangeToKey(anchor: Date, entries: WallCalendarEntry[]): string {
 export function isWallCalendarDayInAnchorMonth(dayKey: string, anchor: Date): boolean {
   const [y, m] = dayKey.split('-').map(Number);
   return y === anchor.getFullYear() && m - 1 === anchor.getMonth();
+}
+
+export const MONTH_OVERVIEW_WEEKDAY_LABELS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'] as const;
+
+export type MonthOverviewCell = WallCalendarDay | null;
+
+export interface MonthOverviewGrid {
+  weekdayLabels: readonly string[];
+  cells: MonthOverviewCell[];
+}
+
+function wallCalendarDayForDate(d: Date, todayKey: string, entries: WallCalendarDay['entries'] = []): WallCalendarDay {
+  const dayKey = dayKeyFromDate(d);
+  return {
+    dayKey,
+    dayLabel: formatDayLabelDe(dayKey),
+    weekdayShort: d.toLocaleDateString('de-AT', { weekday: 'short' }),
+    isToday: dayKey === todayKey,
+    isWeekend: d.getDay() === 0 || d.getDay() === 6,
+    entries,
+  };
+}
+
+/** Monatsübersicht Mo–So mit leeren Zellen vor/nach dem Monat. */
+export function buildMonthOverviewGrid(
+  monthDays: WallCalendarDay[],
+  anchor: Date,
+  todayKey: string
+): MonthOverviewGrid {
+  const y = anchor.getFullYear();
+  const m = anchor.getMonth();
+  const offset = (new Date(y, m, 1).getDay() + 6) % 7;
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const total = Math.ceil((offset + daysInMonth) / 7) * 7;
+  const byKey = new Map(monthDays.map((d) => [d.dayKey, d]));
+  const cells: MonthOverviewCell[] = [];
+
+  for (let i = 0; i < total; i++) {
+    const dom = i - offset + 1;
+    if (dom < 1 || dom > daysInMonth) {
+      cells.push(null);
+      continue;
+    }
+    const dayKey = dayKeyFromDate(new Date(y, m, dom));
+    cells.push(byKey.get(dayKey) ?? wallCalendarDayForDate(new Date(y, m, dom), todayKey));
+  }
+
+  return { weekdayLabels: MONTH_OVERVIEW_WEEKDAY_LABELS, cells };
 }
 
 function weekSpanFromAnchor(anchor: Date, weeks: 1 | 2): { fromKey: string; toKey: string; count: number } {

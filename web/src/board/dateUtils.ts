@@ -32,6 +32,11 @@ export function dayKeyFromDate(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+/** Kalendertag 1–31 aus yyyy-MM-dd. */
+export function dayOfMonthFromDayKey(dayKey: string): number {
+  return Number(dayKey.split('-')[2]);
+}
+
 export function dayKeyFromDeDatum(datum?: string): string | null {
   const d = parseDatumDeToDate(datum);
   return d ? dayKeyFromDate(d) : null;

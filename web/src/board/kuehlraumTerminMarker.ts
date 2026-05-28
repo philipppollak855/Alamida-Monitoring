@@ -7,7 +7,7 @@ import {
   findeKremationTermin,
   hatKremationImSterbefall,
   kuehlraumBestattungsMarker,
-  rosenkranzUndTrauerfeier1AmSelbenTag,
+  trauerfeier1AlsVerabschiedung,
 } from './feierterminLogic';
 
 export type KuehlraumTerminMarkerKind =
@@ -48,9 +48,7 @@ function hatKremationImAblauf(s: Sterbefall): boolean {
 }
 
 function feierMarkerKindTf1(s: Sterbefall): KuehlraumTerminMarkerKind {
-  if (!beisetzungAlsEigenerTermin(s)) return 'trauerfeier';
-  if (rosenkranzUndTrauerfeier1AmSelbenTag(s)) return 'verabschiedung';
-  return 'trauerfeier';
+  return trauerfeier1AlsVerabschiedung(s) ? 'verabschiedung' : 'trauerfeier';
 }
 
 function feierMarkerKindTf2(s: Sterbefall): KuehlraumTerminMarkerKind {

@@ -2433,6 +2433,36 @@ code {
   display: none;
 }
 
+.wall-cal-period-overview--month-grid {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  width: 100%;
+}
+
+.wall-cal-period-weekday {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.05rem;
+  font-size: 0.52rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  line-height: 1.1;
+}
+
+.wall-cal-period-overview--month-grid .wall-cal-period-cell.is-pad {
+  visibility: visible;
+  background: transparent;
+  border-color: transparent;
+  pointer-events: none;
+  min-height: 1.55rem;
+}
+
+.wall-cal-period-overview--month-grid .wall-cal-period-cell:not(.is-pad) {
+  aspect-ratio: 1;
+}
+
 .wall-cal-period-cell {
   display: flex;
   flex-direction: column;
@@ -3046,6 +3076,173 @@ code {
 
 .wall-cal-day--month.is-dense .wall-cal-badge {
   font-size: calc(0.52rem * var(--cal-density));
+}
+
+.wall-cal-day.is-clickable {
+  cursor: pointer;
+}
+
+.wall-cal-day.is-clickable:hover {
+  border-color: var(--accent);
+}
+
+.wall-cal-day-open {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wall-cal-day-open:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.wall-cal-day.is-summary-only .wall-cal-day-list {
+  display: none;
+}
+
+.wall-cal-day-summary {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  padding: 0.35rem 0.3rem;
+  min-height: 2.5rem;
+  text-align: center;
+}
+
+.wall-cal-day-summary-total {
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.wall-cal-day-summary-ueb {
+  font-size: 0.64rem;
+  font-weight: 600;
+  color: var(--muted);
+  line-height: 1.2;
+}
+
+.wall-cal-day-summary-none {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.wall-cal-day-dialog-root {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+.wall-cal-day-dialog-backdrop {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: rgba(15, 23, 42, 0.5);
+  cursor: pointer;
+}
+
+.wall-cal-day-dialog {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: min(36rem, 100%);
+  max-height: min(88vh, 720px);
+  background: var(--surface-solid);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+}
+
+.wall-cal-day-dialog--mobile {
+  width: 100%;
+  max-height: min(92vh, 100%);
+  align-self: flex-end;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.wall-cal-day-dialog-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+
+.wall-cal-day-dialog-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.wall-cal-day-dialog-stats {
+  margin: 0.25rem 0 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.wall-cal-day-dialog-close {
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-solid);
+  color: var(--text);
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.wall-cal-day-dialog-close:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.wall-cal-day-dialog-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.65rem 0.75rem 1rem;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.wall-cal-day-dialog-empty {
+  margin: 0;
+  padding: 1.25rem 1rem;
+  color: var(--muted);
+  text-align: center;
 }
 
 .wall-cal-empty {

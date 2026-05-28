@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { calendarDayLayout, calendarEventFlexClass } from './wallCalendarLayout';
+import {
+  calendarDayLayout,
+  calendarEventFlexClass,
+  monthGridScrollTop,
+} from './wallCalendarLayout';
 import type { WallCalendarEntry } from './wallCalendar';
 
 function entry(arts: WallCalendarEntry['arts']): WallCalendarEntry {
@@ -47,5 +51,14 @@ describe('wallCalendarLayout', () => {
     const compact = calendarDayLayout(many, 'stripCompact');
     expect(compact.densityScale).toBeLessThan(densityScale);
     expect(compact.densityScale).toBeGreaterThanOrEqual(0.32);
+  });
+
+  it('berechnet Monats-Scroll so dass der Fokustag zentriert wird', () => {
+    const columns = 7;
+    const rowHeight = 200;
+    const viewportHeight = 400;
+    const index = 14;
+    const top = monthGridScrollTop(index, columns, rowHeight, viewportHeight);
+    expect(top).toBe(2 * rowHeight - viewportHeight / 2 + rowHeight / 2);
   });
 });

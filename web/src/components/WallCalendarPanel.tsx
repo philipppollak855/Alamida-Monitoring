@@ -17,9 +17,8 @@ import {
 
   CALENDAR_TERMIN_ART_LABELS,
 
-  calendarColorGroupFromArts,
-
   countCalendarEntries,
+  summarizeWallCalendarDay,
 
   filterCalendarEntries,
 
@@ -31,14 +30,18 @@ import {
 
   type WallCalendarDay,
 
-  type WallCalendarEntry,
-
   type WallCalendarRange,
 
 } from '../board/wallCalendar';
-import { calendarDayLayout, calendarEventFlexClass } from '../board/wallCalendarLayout';
+import {
+  calendarDayLayout,
+  calendarEventFlexClass,
+  monthGridScrollTop,
+} from '../board/wallCalendarLayout';
 
-import { WallCalBestattungsBadge } from './WallCalBestattungsBadge';
+import { WallCalendarDayDialog } from './WallCalendarDayDialog';
+import { WallCalendarEventCard } from './WallCalendarEventCard';
+import { WallCalendarMonthOverview } from './WallCalendarMonthOverview';
 import { WallCalendarPeriodOverview } from './WallCalendarPeriodOverview';
 
 
@@ -80,6 +83,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
 
   const { activeArts, toggle, selectAll, isActive } = useCalendarArtFilter();
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [dialogDayKey, setDialogDayKey] = useState<string | null>(null);
   const scrollToFocusPending = useRef(false);
   const monthGridRef = useRef<HTMLDivElement | null>(null);
   const [monthGridMetrics, setMonthGridMetrics] = useState({
@@ -95,6 +99,25 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
       setFocusDayKey(dayKey);
     },
     [setFocusDayKey]
+  );
+
+  const openDayDialog = useCallback(
+    (dayKey: string) => {
+      setDialogDayKey(dayKey);
+      setFocusDayKey(dayKey);
+    },
+    [setFocusDayKey]
+  );
+
+  const handleDaySelect = useCallback(
+    (dayKey: string) => {
+      if (range === 'month') {
+        openDayDialog(dayKey);
+        return;
+      }
+      selectFocusDay(dayKey);
+    },
+    [range, openDayDialog, selectFocusDay]
   );
 
   const changeRange = useCallback(
@@ -135,7 +158,12 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
     [days, range, now]
   );
 
+  const dialogDay = useMemo(
+    () => (dialogDayKey ? (days.find((d) => d.dayKey === dialogDayKey) ?? null) : null),
+    [dialogDayKey, days]
+  );
 
+  const monthSummaryOnly = isNarrow && range === 'month';
 
   const totalInRange = filtered.length;
 
@@ -168,7 +196,8 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
 
   useEffect(() => {
     if (!scrollToFocusPending.current || !focusDayKey || activeArts.size === 0) return;
-    if (range === 'month' && mobileUsesAgenda) return;
+    // Monatsraster: eigenes vertikales Scrollen (virtuelles Raster, kein scrollIntoView).
+    if (range === 'month') return;
     const el = document.getElementById(`wall-cal-focus-${focusDayKey}`);
     if (!el) return;
 
@@ -181,7 +210,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
       });
     }, 60);
     return () => window.clearTimeout(t);
-  }, [focusDayKey, days.length, isNarrow, activeArts.size, range, mobileUsesAgenda]);
+  }, [focusDayKey, days.length, isNarrow, activeArts.size, range]);
 
   useEffect(() => {
     if (range !== 'month') return;
@@ -225,18 +254,48 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
     if (!scrollToFocusPending.current || range !== 'month' || !focusDayKey) return;
     const grid = monthGridRef.current;
     if (!grid) return;
-    const index = days.findIndex((d) => d.dayKey === focusDayKey);
-    if (index < 0) return;
-    const row = Math.floor(index / monthGridMetrics.columns);
-    const targetTop =
-      row * monthGridMetrics.rowHeight -
-      monthGridMetrics.viewportHeight / 2 +
-      monthGridMetrics.rowHeight / 2;
-    if (Number.isFinite(targetTop)) {
-      grid.scrollTop = Math.max(0, targetTop);
-      scrollToFocusPending.current = false;
-    }
+
+    const applyScroll = (rowHeight: number, viewportHeight: number) => {
+      const index = days.findIndex((d) => d.dayKey === focusDayKey);
+      const top = monthGridScrollTop(
+        index,
+        monthGridMetrics.columns,
+        rowHeight,
+        viewportHeight
+      );
+      if (top === null) return false;
+      grid.scrollTop = top;
+      return true;
+    };
+
+    const viewportHeight = monthGridMetrics.viewportHeight || grid.clientHeight;
+    if (viewportHeight <= 0) return;
+
+    if (!applyScroll(monthGridMetrics.rowHeight, viewportHeight)) return;
+
+    scrollToFocusPending.current = false;
+
+    const raf = requestAnimationFrame(() => {
+      const firstDay = grid.querySelector('.wall-cal-day--month') as HTMLElement | null;
+      const measuredRow =
+        (firstDay?.getBoundingClientRect().height ?? 0) + MONTH_GRID_GAP_PX;
+      const vh = grid.clientHeight;
+      if (measuredRow > 1 && vh > 0) {
+        applyScroll(measuredRow, vh);
+      }
+    });
+    return () => cancelAnimationFrame(raf);
   }, [focusDayKey, range, days, monthGridMetrics]);
+
+  useEffect(() => {
+    if (range !== 'month') return;
+    scrollToFocusPending.current = true;
+    setFocusDayKey(todayKey);
+  }, [range, todayKey, setFocusDayKey]);
+
+  useEffect(() => {
+    if (range !== 'month') setDialogDayKey(null);
+  }, [range]);
 
   const monthVirtual = useMemo(() => {
     if (range !== 'month') {
@@ -419,9 +478,10 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
               days={overviewDays}
               columns={overviewColumns}
               compact
-              denseMonth={range === 'month'}
+              monthAnchor={range === 'month' ? now : undefined}
+              todayKey={todayKey}
               selectedDayKey={focusDayKey}
-              onDaySelect={selectFocusDay}
+              onDaySelect={handleDaySelect}
               onToday={() => selectFocusDay(onToday)}
               todayDisabled={focusIsToday}
             />
@@ -444,8 +504,10 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
               days={overviewDays}
               columns={overviewColumns}
               compact={range !== 'month'}
+              monthAnchor={range === 'month' ? now : undefined}
+              todayKey={todayKey}
               selectedDayKey={focusDayKey}
-              onDaySelect={selectFocusDay}
+              onDaySelect={handleDaySelect}
               onToday={() => selectFocusDay(onToday)}
               todayDisabled={focusIsToday}
             />
@@ -471,6 +533,8 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
                   compact
                   scrollId={day.dayKey}
                   active={focusDayKey === day.dayKey}
+                  onOpenDay={openDayDialog}
+                  summaryOnly={monthSummaryOnly}
                 />
 
               ))}
@@ -512,6 +576,14 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
 
       )}
 
+      {dialogDay && (
+        <WallCalendarDayDialog
+          day={dialogDay}
+          mobile={isNarrow}
+          onClose={() => setDialogDayKey(null)}
+        />
+      )}
+
     </div>
 
   );
@@ -550,7 +622,8 @@ function WallCalendarPeriodRow({
   days,
   columns,
   compact,
-  denseMonth,
+  monthAnchor,
+  todayKey,
   selectedDayKey,
   onDaySelect,
   onToday,
@@ -559,7 +632,8 @@ function WallCalendarPeriodRow({
   days: WallCalendarDay[];
   columns: number;
   compact?: boolean;
-  denseMonth?: boolean;
+  monthAnchor?: Date;
+  todayKey: string;
   selectedDayKey?: string | null;
   onDaySelect: (dayKey: string) => void;
   onToday: () => void;
@@ -567,14 +641,23 @@ function WallCalendarPeriodRow({
 }) {
   return (
     <div className="wall-cal-period-row">
-      <WallCalendarPeriodOverview
-        days={days}
-        columns={columns}
-        compact={compact}
-        denseMonth={denseMonth}
-        selectedDayKey={selectedDayKey}
-        onDaySelect={onDaySelect}
-      />
+      {monthAnchor ? (
+        <WallCalendarMonthOverview
+          monthDays={days}
+          anchor={monthAnchor}
+          todayKey={todayKey}
+          selectedDayKey={selectedDayKey}
+          onDaySelect={onDaySelect}
+        />
+      ) : (
+        <WallCalendarPeriodOverview
+          days={days}
+          columns={columns}
+          compact={compact}
+          selectedDayKey={selectedDayKey}
+          onDaySelect={onDaySelect}
+        />
+      )}
       <button
         type="button"
         className="wall-cal-today-btn"
@@ -648,6 +731,8 @@ function WallCalendarDaySection({
 
   scrollId,
   active = false,
+  onOpenDay,
+  summaryOnly = false,
 
 }: {
 
@@ -660,6 +745,8 @@ function WallCalendarDaySection({
 
   scrollId?: string;
   active?: boolean;
+  onOpenDay?: (dayKey: string) => void;
+  summaryOnly?: boolean;
 
 }) {
   const mod = strip ? 'strip' : compact ? 'month' : '';
@@ -668,197 +755,101 @@ function WallCalendarDaySection({
   const { densityScale, slotWeight } = calendarDayLayout(day.entries, densityMode);
   const densityStyle = { '--cal-density': densityScale } as React.CSSProperties;
   const denseThreshold = weeksStack ? 3 : 4;
+  const summary = summarizeWallCalendarDay(day.entries);
+  const clickable = Boolean(onOpenDay);
 
-  return (
-
-    <section
-
-      id={scrollId ? `wall-cal-focus-${scrollId}` : undefined}
-      className={`wall-cal-day wall-cal-day--${mod} ${weeksStack ? 'is-strip-compact' : ''} ${day.isToday ? 'is-today' : ''} ${active ? 'is-active' : ''} ${day.isWeekend ? 'is-weekend' : ''} ${isEmpty ? 'is-empty' : ''} ${slotWeight > denseThreshold ? 'is-dense' : ''}`}
-      style={strip || compact ? densityStyle : undefined}
-
-    >
-
-      <header className="wall-cal-day-head">
-
-        <span className="wall-cal-day-wd">{day.weekdayShort}</span>
-
-        <span className="wall-cal-day-num">
-
-          {compact
-
-            ? (day.dayLabel.split(',')[1]?.trim() ?? day.dayLabel)
-
-            : day.dayLabel}
-
-        </span>
-
-        {day.isToday && <span className="wall-cal-today-pill">Heute</span>}
-
-        {strip && day.entries.length > 0 && (
-
-          <span className="wall-cal-day-badge">{day.entries.length}</span>
-
-        )}
-
-      </header>
-
-      <ul className="wall-cal-day-list" style={densityStyle}>
-
-        {day.entries.length === 0 ? (
-
-          <li className="wall-cal-day-none">—</li>
-
-        ) : (
-
-          day.entries.map((e) => (
-
-            <li
-              key={e.id}
-              className={`wall-cal-event ${calendarEventFlexClass(e)} ${e.grouped ? 'is-grouped' : ''}`}
-            >
-
-              <WallCalendarEventCard entry={e} compact={compact || strip} strip={strip} />
-
-            </li>
-
-          ))
-
-        )}
-
-      </ul>
-
-    </section>
-
-  );
-
-}
-
-
-
-function WallCalendarEventCard({
-
-  entry,
-
-  compact = false,
-  strip = false,
-
-  mobile = false,
-
-}: {
-
-  entry: WallCalendarEntry;
-
-  compact?: boolean;
-  strip?: boolean;
-
-  mobile?: boolean;
-
-}) {
-
-  const colorClass = `wall-cal-card--color-${calendarColorGroupFromArts(entry.arts)}`;
-  const bestattungsBadge = entry.bestattungsMarker ? (
-    <WallCalBestattungsBadge marker={entry.bestattungsMarker} />
-  ) : null;
-
-  if (mobile) {
-
-    return (
-
-      <article
-
-        className={`wall-cal-card wall-cal-card--mobile ${colorClass} ${entry.grouped ? 'is-grouped' : ''}`}
-
-      >
-
-        <div className="wall-cal-card-headline">
-          {bestattungsBadge}
-          <time className="wall-cal-time">{entry.timeLabel}</time>
-        </div>
-
-        <div className="wall-cal-mobile-body">
-
-          <span className="wall-cal-name">{entry.name}</span>
-
-          <span className="wall-cal-mobile-line">
-
-            <span className="wall-cal-mobile-types">{entry.badges.join(' · ')}</span>
-
-            {(entry.subtitle || entry.title) && (
-
-              <span className="wall-cal-meta">{entry.subtitle || entry.title}</span>
-
-            )}
-
+  const body = summaryOnly ? (
+    <div className="wall-cal-day-summary">
+      {summary.total === 0 ? (
+        <span className="wall-cal-day-summary-none">—</span>
+      ) : (
+        <>
+          <span className="wall-cal-day-summary-total">
+            {summary.total} Termin{summary.total === 1 ? '' : 'e'}
           </span>
-
-        </div>
-
-      </article>
-
-    );
-
-  }
-
-  if (strip) {
-    const stripMeta = entry.subtitle || entry.title;
-    const stripTypes = entry.badges.join(' · ');
-    return (
-      <article className={`wall-cal-card wall-cal-card--strip ${colorClass}`}>
-        <div className="wall-cal-strip-top">
-          {bestattungsBadge}
-          <time className="wall-cal-time">{entry.timeLabel}</time>
-          {stripTypes && <span className="wall-cal-strip-types">{stripTypes}</span>}
-        </div>
-        <span className="wall-cal-name">{entry.name}</span>
-        {stripMeta ? <span className="wall-cal-strip-meta">{stripMeta}</span> : null}
-      </article>
-    );
-  }
-
-
-
-  return (
-
-    <article className={`wall-cal-card ${compact ? 'wall-cal-card--compact' : ''} ${colorClass}`}>
-
-      <div className="wall-cal-card-top">
-
-        <div className="wall-cal-card-headline">
-          {bestattungsBadge}
-          <time className="wall-cal-time">{entry.timeLabel}</time>
-        </div>
-
-        <div className="wall-cal-badges">
-
-          {entry.badges.map((b) => (
-
-            <span key={b} className="wall-cal-badge">
-
-              {b}
-
+          {summary.ueberfuehrungen > 0 && (
+            <span className="wall-cal-day-summary-ueb">
+              {summary.ueberfuehrungen} Überführung{summary.ueberfuehrungen === 1 ? '' : 'en'}
             </span>
-
-          ))}
-
-        </div>
-
-      </div>
-
-      <span className="wall-cal-name">{entry.name}</span>
-
-      <span className="wall-cal-meta">{entry.subtitle || entry.title}</span>
-
-      {!compact && entry.grouped && (
-
-        <span className="wall-cal-group-hint">Trauerblock · {entry.sterbefallId}</span>
-
+          )}
+        </>
       )}
-
-    </article>
-
+    </div>
+  ) : (
+    <ul className="wall-cal-day-list" style={densityStyle}>
+      {day.entries.length === 0 ? (
+        <li className="wall-cal-day-none">—</li>
+      ) : (
+        day.entries.map((e) => (
+          <li
+            key={e.id}
+            className={`wall-cal-event ${calendarEventFlexClass(e)} ${e.grouped ? 'is-grouped' : ''}`}
+          >
+            <WallCalendarEventCard entry={e} compact={compact || strip} strip={strip} />
+          </li>
+        ))
+      )}
+    </ul>
   );
 
+  const className = [
+    'wall-cal-day',
+    mod ? `wall-cal-day--${mod}` : '',
+    weeksStack ? 'is-strip-compact' : '',
+    day.isToday ? 'is-today' : '',
+    active ? 'is-active' : '',
+    day.isWeekend ? 'is-weekend' : '',
+    isEmpty ? 'is-empty' : '',
+    slotWeight > denseThreshold ? 'is-dense' : '',
+    clickable ? 'is-clickable' : '',
+    summaryOnly ? 'is-summary-only' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  const head = (
+    <header className="wall-cal-day-head">
+      <span className="wall-cal-day-wd">{day.weekdayShort}</span>
+      <span className="wall-cal-day-num">
+        {compact ? (day.dayLabel.split(',')[1]?.trim() ?? day.dayLabel) : day.dayLabel}
+      </span>
+      {day.isToday && <span className="wall-cal-today-pill">Heute</span>}
+      {strip && day.entries.length > 0 && (
+        <span className="wall-cal-day-badge">{day.entries.length}</span>
+      )}
+    </header>
+  );
+
+  if (!clickable) {
+    return (
+      <section
+        id={scrollId ? `wall-cal-focus-${scrollId}` : undefined}
+        className={className}
+        style={strip || compact ? densityStyle : undefined}
+      >
+        {head}
+        {body}
+      </section>
+    );
+  }
+
+  return (
+    <section
+      id={scrollId ? `wall-cal-focus-${scrollId}` : undefined}
+      className={className}
+      style={strip || compact ? densityStyle : undefined}
+    >
+      <button
+        type="button"
+        className="wall-cal-day-open"
+        onClick={() => onOpenDay!(day.dayKey)}
+        aria-label={`Termine am ${day.dayLabel}${summary.total > 0 ? `, ${summary.total} Termine` : ''}`}
+      >
+        {head}
+        {body}
+      </button>
+    </section>
+  );
 }
 
 

@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { calendarBestattungsMarker, hatKremationImSterbefall } from './feierterminLogic';
+import {
+  calendarBestattungsMarker,
+  hatKremationImSterbefall,
+  trauerfeier1AlsVerabschiedung,
+} from './feierterminLogic';
 import { buildKuehlraumTerminMarkers } from './kuehlraumTerminMarker';
 import {
   buildWallCalendarEntries,
@@ -217,7 +221,7 @@ describe('integration S/U markers', () => {
     expect(heute[0]?.bestattungsMarker).toBe('S');
   });
 
-  it('Kühlraum: Trauerfeier-Chip mit S bei Kremation ohne Termin', () => {
+  it('Kühlraum: Verabschiedung-Chip mit S bei Kremation ohne Termin', () => {
     const markers = buildKuehlraumTerminMarkers(
       {
         ...base,
@@ -227,8 +231,8 @@ describe('integration S/U markers', () => {
       },
       new Date(2026, 4, 27)
     );
-    const tf = markers.find((m) => m.kind === 'trauerfeier');
-    expect(tf?.bestattungsMarker).toBe('S');
+    const feier = markers.find((m) => m.kind === 'verabschiedung');
+    expect(feier?.bestattungsMarker).toBe('S');
     expect(markers.some((m) => m.kind === 'kremation' && m.label.includes('Termin offen'))).toBe(
       true
     );
@@ -247,7 +251,7 @@ describe('integration S/U markers', () => {
     expect(tf?.bestattungsMarker).toBe('U');
   });
 
-  it('Kühlraum: Bernhard-Bock-Fall — TF mit S, Kremation offen', () => {
+  it('Kühlraum: Bernhard-Bock-Fall — Verabschiedung mit S, Kremation offen', () => {
     const markers = buildKuehlraumTerminMarkers(
       {
         ...base,
@@ -272,7 +276,15 @@ describe('integration S/U markers', () => {
       },
       new Date(2026, 4, 28)
     );
-    const tf = markers.find((m) => m.kind === 'trauerfeier');
-    expect(tf?.bestattungsMarker).toBe('S');
+    const feier = markers.find((m) => m.kind === 'verabschiedung');
+    expect(feier?.label).toContain('Verabschiedung');
+    expect(feier?.bestattungsMarker).toBe('S');
+    expect(markers.some((m) => m.kind === 'trauerfeier')).toBe(false);
+    expect(trauerfeier1AlsVerabschiedung({
+      ...base,
+      trauerfeierdatum: '29.05.2026',
+      endzielTyp: 'kremation',
+      ausstehend: [{ schrittTyp: 'kremation', status: 'geplant' }],
+    })).toBe(true);
   });
 });
