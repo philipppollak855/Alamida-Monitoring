@@ -354,20 +354,105 @@
 }
 
 .wall--mobile .wall-cal--mobile-month .wall-cal-day--month {
+  display: flex;
+  flex-direction: column;
   min-height: 5.5rem;
   max-height: none;
+  overflow: hidden;
 }
 
 .wall--mobile .wall-cal--mobile-month .wall-cal-day--month.is-summary-only {
-  min-height: 3.75rem;
+  min-height: 4.25rem;
 }
 
-.wall--mobile .wall-cal--mobile-month .wall-cal-day-summary-total {
-  font-size: 0.66rem;
+.wall--mobile .wall-cal--mobile-month .wall-cal-day--month.has-events {
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-day--month.has-events .wall-cal-day-head {
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface-solid));
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-day--month.has-events.is-today {
+  background: #dbeafe;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.4);
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-day--month.has-events.is-today .wall-cal-day-head {
+  background: #bfdbfe;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-day-open {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-height: 100%;
+  width: 100%;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-day-head {
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+  gap: 0.2rem;
+  padding: 0.28rem 0.32rem;
+  min-height: 0;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-day-wd {
+  font-size: 0.58rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-day-num {
+  font-size: 0.58rem;
+  font-weight: 700;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.1;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-today-pill--mini {
+  font-size: 0.5rem;
+  padding: 0.1rem 0.22rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-day-summary {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.12rem;
+  padding: 0.22rem 0.2rem 0.28rem;
+  min-height: 2rem;
+  box-sizing: border-box;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-day-summary-total,
+.wall--mobile .wall-cal--mobile-month .wall-cal-day-summary-ueb {
+  display: block;
+  width: 100%;
+  font-size: 0.58rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  word-break: break-word;
 }
 
 .wall--mobile .wall-cal--mobile-month .wall-cal-day-summary-ueb {
-  font-size: 0.6rem;
+  font-size: 0.54rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-day-summary-none {
+  font-size: 0.62rem;
 }
 
 .wall--mobile .wall-cal--mobile-month .wall-cal-day-list {

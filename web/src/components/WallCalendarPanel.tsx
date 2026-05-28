@@ -33,6 +33,7 @@ import {
   type WallCalendarRange,
 
 } from '../board/wallCalendar';
+import { dayOfMonthFromDayKey } from '../board/dateUtils';
 import {
   calendarDayLayout,
   calendarEventFlexClass,
@@ -794,7 +795,7 @@ function WallCalendarDaySection({
           </span>
           {summary.ueberfuehrungen > 0 && (
             <span className="wall-cal-day-summary-ueb">
-              {summary.ueberfuehrungen} Überführung{summary.ueberfuehrungen === 1 ? '' : 'en'}
+              {summary.ueberfuehrungen} Überf.
             </span>
           )}
         </>
@@ -824,7 +825,7 @@ function WallCalendarDaySection({
     day.isToday ? 'is-today' : '',
     active ? 'is-active' : '',
     day.isWeekend ? 'is-weekend' : '',
-    isEmpty ? 'is-empty' : '',
+    isEmpty ? 'is-empty' : 'has-events',
     slotWeight > denseThreshold ? 'is-dense' : '',
     clickable ? 'is-clickable' : '',
     summaryOnly ? 'is-summary-only' : '',
@@ -836,9 +837,17 @@ function WallCalendarDaySection({
     <header className="wall-cal-day-head">
       <span className="wall-cal-day-wd">{day.weekdayShort}</span>
       <span className="wall-cal-day-num">
-        {compact ? (day.dayLabel.split(',')[1]?.trim() ?? day.dayLabel) : day.dayLabel}
+        {summaryOnly
+          ? String(dayOfMonthFromDayKey(day.dayKey))
+          : compact
+            ? (day.dayLabel.split(',')[1]?.trim() ?? day.dayLabel)
+            : day.dayLabel}
       </span>
-      {day.isToday && <span className="wall-cal-today-pill">Heute</span>}
+      {day.isToday && (
+        <span className={`wall-cal-today-pill ${summaryOnly ? 'wall-cal-today-pill--mini' : ''}`}>
+          {summaryOnly ? '●' : 'Heute'}
+        </span>
+      )}
       {strip && day.entries.length > 0 && (
         <span className="wall-cal-day-badge">{day.entries.length}</span>
       )}

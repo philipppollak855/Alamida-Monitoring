@@ -3194,6 +3194,12 @@ code {
   gap: 0.15rem;
 }
 
+.wall-cal-today-pill--mini {
+  font-size: 0.55rem;
+  padding: 0.08rem 0.25rem;
+  line-height: 1;
+}
+
 .wall-cal-day-dialog-root {
   position: fixed;
   inset: 0;
