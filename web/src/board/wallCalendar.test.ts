@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
+import { currentWeekDayRange } from './monthScrollWindow';
 import {
   buildMonthOverviewGrid,
-  buildWallCalendarDays,
-  filterCalendarEntries,
+  buildWallCalendarDaysInRange,
+  filterEntriesInDayRange,
   summarizeWallCalendarDay,
   type WallCalendarEntry,
 } from './wallCalendar';
@@ -38,15 +39,16 @@ describe('summarizeWallCalendarDay', () => {
 });
 
 describe('Monats-Eintragsraster', () => {
-  it('beginnt bei heute minus einer Woche, nicht beim frühesten Termin', () => {
+  it('zeigt nur Tage im geladenen Fenster', () => {
     const anchor = new Date(2026, 4, 28);
+    const week = currentWeekDayRange(anchor);
     const entries: WallCalendarEntry[] = [
       { ...entry(['trauerfeier']), id: 'jan', dayKey: '2026-01-01' },
       { ...entry(['trauerfeier']), id: 'today', dayKey: '2026-05-28' },
     ];
-    const filtered = filterCalendarEntries(entries, 'month', anchor, '');
-    const days = buildWallCalendarDays(filtered, 'month', anchor);
-    expect(days[0]?.dayKey).toBe('2026-05-21');
+    const filtered = filterEntriesInDayRange(entries, week.fromKey, week.toKey);
+    const days = buildWallCalendarDaysInRange(filtered, anchor, week.fromKey, week.toKey);
+    expect(days).toHaveLength(7);
     expect(days.some((d) => d.dayKey === '2026-01-01')).toBe(false);
     expect(days.some((d) => d.dayKey === '2026-05-28')).toBe(true);
   });

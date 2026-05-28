@@ -293,27 +293,27 @@
 }
 
 .wall--mobile .wall-cal--mobile-month .wall-cal-period-overview--month-grid .wall-cal-period-weekday {
-  min-height: 0.5rem;
-  font-size: 0.38rem;
+  min-height: 0.72rem;
+  font-size: 0.42rem;
   letter-spacing: 0;
 }
 
 .wall--mobile .wall-cal--mobile-month .wall-cal-period-overview--month-grid .wall-cal-period-cell:not(.is-pad),
 .wall--mobile .wall-cal--mobile-month .wall-cal-period-overview--month-grid .wall-cal-period-cell.is-pad {
   aspect-ratio: unset;
-  min-height: 0.68rem;
-  max-height: 0.76rem;
-  padding: 0;
+  min-height: 0.88rem;
+  max-height: 1rem;
+  padding: 0.04rem;
   border-radius: 4px;
 }
 
 .wall--mobile .wall-cal--mobile-month .wall-cal-period-overview--month-grid .wall-cal-period-num {
-  font-size: 0.48rem;
-  line-height: 1;
+  font-size: 0.52rem;
+  line-height: 1.1;
 }
 
 .wall--mobile .wall-cal--mobile-month .wall-cal-period-overview--month-grid .wall-cal-period-badge {
-  font-size: 0.34rem;
+  font-size: 0.38rem;
   line-height: 1;
   margin-top: 0;
   padding: 0;

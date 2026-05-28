@@ -531,44 +531,81 @@ function dateFromDayKey(dayKey: string): Date {
   return new Date(y, m - 1, d);
 }
 
-/** Puffer um den Ankermonat; Eintragsraster startet nicht vor „heute − 1 Woche“. */
-const MONTH_PAD_DAYS = 7;
-
-function monthAnchorDate(anchor: Date): Date {
-  return new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
+function monthRangeFromKey(anchor: Date): string {
+  return monthStartKey(anchor);
 }
 
-function monthRangeFromKey(anchor: Date, entries: WallCalendarEntry[]): string {
-  const monthStart = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
-  const monthEnd = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
-  const rangeStart = dayKeyFromDate(addDays(monthStart, -MONTH_PAD_DAYS));
-  const rangeEnd = dayKeyFromDate(addDays(monthEnd, MONTH_PAD_DAYS));
-
-  let fromKey = rangeStart;
-  const notBefore = dayKeyFromDate(addDays(monthAnchorDate(anchor), -MONTH_PAD_DAYS));
-  if (notBefore > fromKey) fromKey = notBefore;
-
-  for (const e of entries) {
-    if (e.dayKey >= rangeStart && e.dayKey <= rangeEnd && e.dayKey < fromKey) {
-      fromKey = e.dayKey;
-    }
-  }
-  return fromKey;
+function monthRangeToKey(anchor: Date): string {
+  return monthEndKey(anchor);
 }
 
-function monthRangeToKey(anchor: Date, entries: WallCalendarEntry[]): string {
-  const monthStart = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
-  const monthEnd = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
-  const rangeStart = dayKeyFromDate(addDays(monthStart, -MONTH_PAD_DAYS));
-  const rangeEnd = dayKeyFromDate(addDays(monthEnd, MONTH_PAD_DAYS));
+export function filterEntriesForAnchorMonth(
+  entries: WallCalendarEntry[],
+  anchor: Date
+): WallCalendarEntry[] {
+  const fromKey = monthStartKey(anchor);
+  const toKey = monthEndKey(anchor);
+  return entries.filter((e) => e.dayKey >= fromKey && e.dayKey <= toKey);
+}
 
-  let toKey = rangeEnd;
-  for (const e of entries) {
-    if (e.dayKey >= rangeStart && e.dayKey <= rangeEnd && e.dayKey > toKey) {
-      toKey = e.dayKey;
-    }
+export function filterEntriesInDayRange(
+  entries: WallCalendarEntry[],
+  fromKey: string,
+  toKey: string
+): WallCalendarEntry[] {
+  return entries.filter((e) => e.dayKey >= fromKey && e.dayKey <= toKey);
+}
+
+export function buildWallCalendarDaysInRange(
+  entries: WallCalendarEntry[],
+  anchor: Date,
+  fromKey: string,
+  toKey: string
+): WallCalendarDay[] {
+  const todayKey = dayKeyFromDate(anchor);
+  const entriesByDay = new Map<string, WallCalendarEntry[]>();
+
+  for (const entry of entries) {
+    if (entry.dayKey < fromKey || entry.dayKey > toKey) continue;
+    const list = entriesByDay.get(entry.dayKey);
+    if (list) list.push(entry);
+    else entriesByDay.set(entry.dayKey, [entry]);
   }
-  return toKey;
+
+  for (const list of entriesByDay.values()) {
+    list.sort((a, b) => a.sortMs - b.sortMs || a.name.localeCompare(b.name, 'de'));
+  }
+
+  const days: WallCalendarDay[] = [];
+  let cursor = dateFromDayKey(fromKey);
+  const end = dateFromDayKey(toKey);
+  while (cursor.getTime() <= end.getTime()) {
+    const dayKey = dayKeyFromDate(cursor);
+    const dayEntries = entriesByDay.get(dayKey) ?? [];
+    days.push({
+      dayKey,
+      dayLabel: formatDayLabelDe(dayKey),
+      weekdayShort: cursor.toLocaleDateString('de-AT', { weekday: 'short' }),
+      isToday: dayKey === todayKey,
+      isWeekend: cursor.getDay() === 0 || cursor.getDay() === 6,
+      entries: dayEntries,
+    });
+    cursor = addDays(cursor, 1);
+  }
+
+  return days;
+}
+
+export function buildWallCalendarDaysForAnchorMonth(
+  entries: WallCalendarEntry[],
+  anchor: Date
+): WallCalendarDay[] {
+  return buildWallCalendarDaysInRange(
+    entries,
+    anchor,
+    monthStartKey(anchor),
+    monthEndKey(anchor)
+  );
 }
 
 export function isWallCalendarDayInAnchorMonth(dayKey: string, anchor: Date): boolean {
@@ -645,8 +682,8 @@ export function filterCalendarEntries(
   let toKey: string;
 
   if (range === 'month') {
-    fromKey = monthRangeFromKey(anchor, entries);
-    toKey = monthRangeToKey(anchor, entries);
+    fromKey = monthRangeFromKey(anchor);
+    toKey = monthRangeToKey(anchor);
   } else {
     const weeks = range === 14 ? 2 : 1;
     ({ fromKey, toKey } = weekSpanFromAnchor(anchor, weeks));
@@ -685,19 +722,14 @@ export function buildWallCalendarDays(
   let count: number;
 
   if (range === 'month') {
-    const fromKey = monthRangeFromKey(anchor, entries);
-    const toKey = monthRangeToKey(anchor, entries);
-    cursor = dateFromDayKey(fromKey);
-    const endExtended = dateFromDayKey(toKey);
-    count = Math.floor((endExtended.getTime() - cursor.getTime()) / 86400000) + 1;
-    if (!Number.isFinite(count) || count < 1) {
-      count = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0).getDate();
-    }
-  } else {
-    const weeks = range === 14 ? 2 : 1;
-    cursor = startOfWeekMonday(anchor);
-    count = weeks * 7;
+    const fromKey = monthRangeFromKey(anchor);
+    const toKey = monthRangeToKey(anchor);
+    return buildWallCalendarDaysInRange(entries, anchor, fromKey, toKey);
   }
+
+  const weeks = range === 14 ? 2 : 1;
+  cursor = startOfWeekMonday(anchor);
+  count = weeks * 7;
 
   for (let i = 0; i < count; i++) {
     const d = addDays(cursor, i);

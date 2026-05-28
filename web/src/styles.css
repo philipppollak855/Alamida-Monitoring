@@ -2465,21 +2465,21 @@ code {
 
 @media (min-width: 769px) {
   .wall-cal-desktop-body .wall-cal-period-overview--month-grid {
-    gap: 0.1rem;
-    padding-bottom: 0.3rem;
+    gap: 0.12rem;
+    padding-bottom: 0.35rem;
   }
 
   .wall-cal-desktop-body .wall-cal-period-overview--month-grid .wall-cal-period-weekday {
-    min-height: 0.65rem;
-    font-size: 0.44rem;
+    min-height: 0.85rem;
+    font-size: 0.48rem;
   }
 
   .wall-cal-desktop-body .wall-cal-period-overview--month-grid .wall-cal-period-cell:not(.is-pad),
   .wall-cal-desktop-body .wall-cal-period-overview--month-grid .wall-cal-period-cell.is-pad {
     aspect-ratio: unset;
-    min-height: 0.9rem;
-    max-height: 1.1rem;
-    padding: 0.04rem 0.06rem;
+    min-height: 1.05rem;
+    max-height: 1.28rem;
+    padding: 0.06rem 0.08rem;
   }
 
   .wall-cal-desktop-body .wall-cal-period-overview--month-grid .wall-cal-period-num {
