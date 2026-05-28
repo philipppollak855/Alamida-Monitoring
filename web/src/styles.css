@@ -2512,6 +2512,7 @@ code {
 .wall-cal-day--strip .wall-cal-day-list {
   padding: 0.14rem;
   gap: 0.12rem;
+  min-height: 2.1rem;
 }
 
 .wall-cal-day-wd {
@@ -3139,7 +3140,7 @@ code {
   }
 
   .wall {
-    padding: 1.5rem 2.5rem;
+    padding: 1rem 1.5rem 0.75rem;
   }
 
   .wall-extern-grid {
@@ -3156,14 +3157,15 @@ code {
   }
 
   .wall-cool-grid {
-    max-width: 1400px;
-    margin: 0 auto;
+    max-width: none;
+    margin: 0;
     width: 100%;
-    gap: 1.25rem;
+    gap: 0.5rem;
   }
 
   .wall-cool-tile {
-    min-height: 160px;
+    min-height: 0;
+    padding: 0.65rem 0.8rem;
   }
 
   .wall-time {
