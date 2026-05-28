@@ -207,7 +207,7 @@ function collectAtomics(s: Sterbefall): AtomicTermin[] {
     seen.add(key);
     pushAtomic(atoms, s, art, label, rawDatum, rawZeit, ort, route);
   };
-  const ortTf = s.endziel?.trim() || undefined;
+  const ortTf = s.trauerfeierort?.trim() || s.endziel?.trim() || undefined;
   const ortBeisetzung = s.endziel?.trim() || undefined;
 
   if (s.rosenkranzdatum?.trim()) {
@@ -287,6 +287,7 @@ function buildSearchText(s: Sterbefall, parts: AtomicTermin[]): string {
     s.abholort,
     s.bestattungsart,
     s.endziel,
+    s.trauerfeierort,
     s.kuehlraumId,
     s.kuehlplatz,
     ...parts.map((p) => [p.label, p.ort, p.route, p.zeit, p.dayKey].filter(Boolean).join(' ')),

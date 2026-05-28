@@ -45,8 +45,10 @@ public static class UiaFieldExtractor
 
         return fieldKey switch
         {
-            "trauerfeierdatum" or "trauerfeierzeit" => !IsTrauerfeier2AutomationId(automationId),
-            "trauerfeier2datum" or "trauerfeier2zeit" => IsTrauerfeier2AutomationId(automationId),
+            "trauerfeierdatum" or "trauerfeierzeit" or "trauerfeierort" or "trauerfeierortZusatz" =>
+                !IsTrauerfeier2AutomationId(automationId),
+            "trauerfeier2datum" or "trauerfeier2zeit" or "trauerfeier2ort" or "trauerfeier2ortZusatz" =>
+                IsTrauerfeier2AutomationId(automationId),
             _ => true,
         };
     }

@@ -38,9 +38,13 @@ public static class UeberfuehrungSnapshotBuilder
 
         string? trauerfeierZeit,
 
+        string? trauerfeierOrt,
+
         string? trauerfeier2Datum,
 
         string? trauerfeier2Zeit,
+
+        string? trauerfeier2Ort,
 
         string? rosenkranzDatum,
 
@@ -199,9 +203,13 @@ public static class UeberfuehrungSnapshotBuilder
 
             TrauerfeierZeit = trauerfeierZeit,
 
+            TrauerfeierOrt = trauerfeierOrt,
+
             Trauerfeier2Datum = trauerfeier2Datum,
 
             Trauerfeier2Zeit = trauerfeier2Zeit,
+
+            Trauerfeier2Ort = trauerfeier2Ort,
 
             RosenkranzDatum = rosenkranzDatum,
 

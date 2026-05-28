@@ -3,7 +3,7 @@ namespace Alamida.Monitoring.Core.Models;
 public sealed record DetailSnapshot
 {
     /// <summary>Erhöhen erzwingt einmalig volle Firestore-Synchronisation nach Agent-Update.</summary>
-    public const int SyncPayloadVersion = 3;
+    public const int SyncPayloadVersion = 4;
 
     public string? SterbefallId { get; init; }
     public string? VerstorbenerName { get; init; }
@@ -20,8 +20,10 @@ public sealed record DetailSnapshot
     public string? BeisetzungsZeit { get; init; }
     public string? TrauerfeierDatum { get; init; }
     public string? TrauerfeierZeit { get; init; }
+    public string? TrauerfeierOrt { get; init; }
     public string? Trauerfeier2Datum { get; init; }
     public string? Trauerfeier2Zeit { get; init; }
+    public string? Trauerfeier2Ort { get; init; }
     public string? RosenkranzDatum { get; init; }
     public string? RosenkranzZeit { get; init; }
     public string? RosenkranzOrt { get; init; }
@@ -82,8 +84,10 @@ public sealed record DetailSnapshot
             BeisetzungsZeit ?? "",
             TrauerfeierDatum ?? "",
             TrauerfeierZeit ?? "",
+            TrauerfeierOrt ?? "",
             Trauerfeier2Datum ?? "",
             Trauerfeier2Zeit ?? "",
+            Trauerfeier2Ort ?? "",
             RosenkranzDatum ?? "",
             RosenkranzZeit ?? "",
             RosenkranzOrt ?? "",

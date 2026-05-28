@@ -37,10 +37,12 @@ c:\Users\offic\Alamida-Monitoring\scripts\inspect.bat
 
 | Art | Endziel in Monitoring |
 |-----|------------------------|
-| Erdbestattung | `Termin_Bestattung_Ort` (Beisetzungsort) |
+| Erdbestattung | `Termin_Bestattung_Ort` + Zusatz → z. B. „Friedhof Ternitz“ |
+| Trauerfeier / Verabschiedung | `Termin_Gottesdienst_Ort` + Zusatz → z. B. „Kirche St.Valentin“ |
+| Rosenkranz | `Termin_Rosenkranz_Ort` + Zusatz |
 | Urne / Feuerbestattung | Krematorium (z. B. Innermanzing, Feba) |
 
-Felder: `bestattungsart`, `beisetzungsort`, `krematoriumOrt` — ggf. Tab **Verstorbener** / **Sterbefalldaten** per Inspector ergänzen.
+Felder: `bestattungsart`, `beisetzungsort`/`beisetzungsortZusatz`, `trauerfeierort`/`trauerfeierortZusatz`, `rosenkranzort`/`rosenkranzortZusatz`, `krematoriumOrt` — bei abweichenden AutomationIds Inspector-Dump prüfen.
 
 ## Erkennung & Kühlraum (Disposition)
 

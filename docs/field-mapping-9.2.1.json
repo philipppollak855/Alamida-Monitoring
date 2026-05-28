@@ -29,7 +29,56 @@
           "controlTypes": ["ComboBox", "Edit", "Text"]
         },
         "beisetzungsort": {
-          "automationIdContains": ["Termin_Bestattung_Ort"],
+          "automationIdContains": ["Termin_Bestattung_Ort", "Termin_Beisetzung_Ort", "Beisetzungsort"],
+          "automationIdExcludes": ["Zusatz", "_Zusatz"],
+          "controlTypes": ["ComboBox", "Edit"]
+        },
+        "beisetzungsortZusatz": {
+          "automationIdContains": [
+            "Termin_Bestattung_Ort_Zusatz",
+            "Termin_Bestattung_Zusatz",
+            "Termin_Beisetzung_Ort_Zusatz",
+            "Termin_Beisetzung_Zusatz"
+          ],
+          "controlTypes": ["ComboBox", "Edit"]
+        },
+        "trauerfeierort": {
+          "automationIdContains": [
+            "Termin_Gottesdienst_Ort",
+            "Termin_Trauerfeier1_Ort",
+            "Termin_Trauerfeier_Ort"
+          ],
+          "automationIdExcludes": ["Trauerfeier2", "Trauerfeier_2", "Trauerfeier 2", "Zusatz", "_Zusatz"],
+          "controlTypes": ["ComboBox", "Edit"]
+        },
+        "trauerfeierortZusatz": {
+          "automationIdContains": [
+            "Termin_Gottesdienst_Ort_Zusatz",
+            "Termin_Gottesdienst_Zusatz",
+            "Termin_Trauerfeier1_Ort_Zusatz",
+            "Termin_Trauerfeier1_Zusatz",
+            "Termin_Trauerfeier_Ort_Zusatz",
+            "Termin_Trauerfeier_Zusatz"
+          ],
+          "automationIdExcludes": ["Trauerfeier2", "Trauerfeier_2", "Trauerfeier 2"],
+          "controlTypes": ["ComboBox", "Edit"]
+        },
+        "trauerfeier2ort": {
+          "automationIdContains": [
+            "Termin_Trauerfeier2_Ort",
+            "Trauerfeier2_Ort",
+            "Trauerfeier_2_Ort"
+          ],
+          "automationIdExcludes": ["Zusatz", "_Zusatz"],
+          "controlTypes": ["ComboBox", "Edit"]
+        },
+        "trauerfeier2ortZusatz": {
+          "automationIdContains": [
+            "Termin_Trauerfeier2_Ort_Zusatz",
+            "Termin_Trauerfeier2_Zusatz",
+            "Trauerfeier2_Ort_Zusatz",
+            "Trauerfeier_2_Zusatz"
+          ],
           "controlTypes": ["ComboBox", "Edit"]
         },
         "beisetzungsdatum": {
@@ -129,6 +178,16 @@
         },
         "rosenkranzort": {
           "automationIdContains": ["Termin_Rosenkranz_Ort", "Rosenkranz_Ort"],
+          "automationIdExcludes": ["Zusatz", "_Zusatz"],
+          "controlTypes": ["ComboBox", "Edit"]
+        },
+        "rosenkranzortZusatz": {
+          "automationIdContains": [
+            "Termin_Rosenkranz_Ort_Zusatz",
+            "Termin_Rosenkranz_Zusatz",
+            "Rosenkranz_Ort_Zusatz",
+            "Rosenkranz_Zusatz"
+          ],
           "controlTypes": ["ComboBox", "Edit"]
         },
         "imAnschluss": {
@@ -261,7 +320,56 @@
         "controlTypes": ["ComboBox", "Edit", "Text"]
       },
       "beisetzungsort": {
-        "automationIdContains": ["Termin_Bestattung_Ort", "Beisetzungsort"],
+        "automationIdContains": ["Termin_Bestattung_Ort", "Termin_Beisetzung_Ort", "Beisetzungsort"],
+        "automationIdExcludes": ["Zusatz", "_Zusatz"],
+        "controlTypes": ["ComboBox", "Edit"]
+      },
+      "beisetzungsortZusatz": {
+        "automationIdContains": [
+          "Termin_Bestattung_Ort_Zusatz",
+          "Termin_Bestattung_Zusatz",
+          "Termin_Beisetzung_Ort_Zusatz",
+          "Termin_Beisetzung_Zusatz"
+        ],
+        "controlTypes": ["ComboBox", "Edit"]
+      },
+      "trauerfeierort": {
+        "automationIdContains": [
+          "Termin_Gottesdienst_Ort",
+          "Termin_Trauerfeier1_Ort",
+          "Termin_Trauerfeier_Ort"
+        ],
+        "automationIdExcludes": ["Trauerfeier2", "Trauerfeier_2", "Trauerfeier 2", "Zusatz", "_Zusatz"],
+        "controlTypes": ["ComboBox", "Edit"]
+      },
+      "trauerfeierortZusatz": {
+        "automationIdContains": [
+          "Termin_Gottesdienst_Ort_Zusatz",
+          "Termin_Gottesdienst_Zusatz",
+          "Termin_Trauerfeier1_Ort_Zusatz",
+          "Termin_Trauerfeier1_Zusatz",
+          "Termin_Trauerfeier_Ort_Zusatz",
+          "Termin_Trauerfeier_Zusatz"
+        ],
+        "automationIdExcludes": ["Trauerfeier2", "Trauerfeier_2", "Trauerfeier 2"],
+        "controlTypes": ["ComboBox", "Edit"]
+      },
+      "trauerfeier2ort": {
+        "automationIdContains": [
+          "Termin_Trauerfeier2_Ort",
+          "Trauerfeier2_Ort",
+          "Trauerfeier_2_Ort"
+        ],
+        "automationIdExcludes": ["Zusatz", "_Zusatz"],
+        "controlTypes": ["ComboBox", "Edit"]
+      },
+      "trauerfeier2ortZusatz": {
+        "automationIdContains": [
+          "Termin_Trauerfeier2_Ort_Zusatz",
+          "Termin_Trauerfeier2_Zusatz",
+          "Trauerfeier2_Ort_Zusatz",
+          "Trauerfeier_2_Zusatz"
+        ],
         "controlTypes": ["ComboBox", "Edit"]
       },
       "beisetzungsdatum": {
@@ -336,6 +444,16 @@
       },
       "rosenkranzort": {
         "automationIdContains": ["Termin_Rosenkranz_Ort", "Rosenkranz_Ort"],
+        "automationIdExcludes": ["Zusatz", "_Zusatz"],
+        "controlTypes": ["ComboBox", "Edit"]
+      },
+      "rosenkranzortZusatz": {
+        "automationIdContains": [
+          "Termin_Rosenkranz_Ort_Zusatz",
+          "Termin_Rosenkranz_Zusatz",
+          "Rosenkranz_Ort_Zusatz",
+          "Rosenkranz_Zusatz"
+        ],
         "controlTypes": ["ComboBox", "Edit"]
       },
       "imAnschluss": {

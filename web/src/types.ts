@@ -41,6 +41,7 @@ export interface Sterbefall {
   beisetzungszeit?: string;
   trauerfeierdatum?: string;
   trauerfeierzeit?: string;
+  trauerfeierort?: string;
   trauerfeier2datum?: string;
   trauerfeier2zeit?: string;
   trauerfeier2ort?: string;

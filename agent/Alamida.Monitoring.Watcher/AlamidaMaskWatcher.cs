@@ -42,6 +42,7 @@ public sealed class AlamidaMaskWatcher
         if (maske == MaskKind.NeuerSterbefall && _profile.NeuerSterbefall.Fields.Count > 0)
         {
             var fields = UiaFieldExtractor.ExtractFields(window, _profile.NeuerSterbefall.Fields);
+            TerminOrtFields.MergeOrtUndZusatz(fields);
             debugLog = FormatDebug(maske, fields);
             var maxZeilen = _profile.Detailmaske.Ueberfuehrung.MaxEtappen > 0
                 ? _profile.Detailmaske.Ueberfuehrung.MaxEtappen
@@ -55,6 +56,7 @@ public sealed class AlamidaMaskWatcher
             var detailMask = _profile.Detailmaske.Ueberfuehrung;
             var fields = UiaFieldExtractor.ExtractFields(window, detailMask.Fields);
             NormalizeTerminFelder(fields);
+            TerminOrtFields.MergeOrtUndZusatz(fields);
             debugLog = FormatDebug(MaskKind.DetailUeberfuehrung, fields);
 
             var header = fields.GetValueOrDefault("sterbefallHeader");
@@ -78,8 +80,10 @@ public sealed class AlamidaMaskWatcher
                 fields.GetValueOrDefault("beisetzungszeit"),
                 fields.GetValueOrDefault("trauerfeierdatum"),
                 fields.GetValueOrDefault("trauerfeierzeit"),
+                fields.GetValueOrDefault("trauerfeierort"),
                 fields.GetValueOrDefault("trauerfeier2datum"),
                 fields.GetValueOrDefault("trauerfeier2zeit"),
+                fields.GetValueOrDefault("trauerfeier2ort"),
                 fields.GetValueOrDefault("rosenkranzdatum"),
                 fields.GetValueOrDefault("rosenkranzzeit"),
                 fields.GetValueOrDefault("rosenkranzort"),

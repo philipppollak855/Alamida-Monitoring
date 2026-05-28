@@ -176,8 +176,10 @@ public sealed class FirestoreSyncService : IAsyncDisposable
             ["beisetzungszeit"] = snapshot.BeisetzungsZeit ?? "",
             ["trauerfeierdatum"] = snapshot.TrauerfeierDatum ?? "",
             ["trauerfeierzeit"] = snapshot.TrauerfeierZeit ?? "",
+            ["trauerfeierort"] = snapshot.TrauerfeierOrt ?? "",
             ["trauerfeier2datum"] = snapshot.Trauerfeier2Datum ?? "",
             ["trauerfeier2zeit"] = snapshot.Trauerfeier2Zeit ?? "",
+            ["trauerfeier2ort"] = snapshot.Trauerfeier2Ort ?? "",
             ["rosenkranzdatum"] = snapshot.RosenkranzDatum ?? "",
             ["rosenkranzzeit"] = snapshot.RosenkranzZeit ?? "",
             ["rosenkranzort"] = snapshot.RosenkranzOrt ?? "",
@@ -508,8 +510,11 @@ public sealed class FirestoreSyncService : IAsyncDisposable
         AddStringIfPresent(payload, "beisetzungszeit", snapshot.BeisetzungsZeit);
         AddStringIfPresent(payload, "trauerfeierdatum", snapshot.TrauerfeierDatum);
         AddStringIfPresent(payload, "trauerfeierzeit", snapshot.TrauerfeierZeit);
+        AddStringIfPresent(payload, "trauerfeierort", snapshot.TrauerfeierOrt);
         AddStringIfPresent(payload, "trauerfeier2datum", snapshot.Trauerfeier2Datum);
         AddStringIfPresent(payload, "trauerfeier2zeit", snapshot.Trauerfeier2Zeit);
+        AddStringIfPresent(payload, "trauerfeier2ort", snapshot.Trauerfeier2Ort);
+        AddStringIfPresent(payload, "rosenkranzort", snapshot.RosenkranzOrt);
         if (snapshot.ImAnschluss)
             payload["imAnschluss"] = true;
 
@@ -542,10 +547,13 @@ public sealed class FirestoreSyncService : IAsyncDisposable
             AbholortIstKrankenhaus = abholortKh,
             BeisetzungsDatum = MergeTerminField(snapshot.BeisetzungsDatum, existing, "beisetzungsdatum"),
             BeisetzungsZeit = MergeTerminField(snapshot.BeisetzungsZeit, existing, "beisetzungszeit"),
+            Endziel = MergeTerminField(snapshot.Endziel, existing, "endziel"),
             TrauerfeierDatum = MergeTerminField(snapshot.TrauerfeierDatum, existing, "trauerfeierdatum"),
             TrauerfeierZeit = MergeTerminField(snapshot.TrauerfeierZeit, existing, "trauerfeierzeit"),
+            TrauerfeierOrt = MergeTerminField(snapshot.TrauerfeierOrt, existing, "trauerfeierort"),
             Trauerfeier2Datum = MergeTerminField(snapshot.Trauerfeier2Datum, existing, "trauerfeier2datum"),
             Trauerfeier2Zeit = MergeTerminField(snapshot.Trauerfeier2Zeit, existing, "trauerfeier2zeit"),
+            Trauerfeier2Ort = MergeTerminField(snapshot.Trauerfeier2Ort, existing, "trauerfeier2ort"),
             RosenkranzDatum = MergeTerminField(snapshot.RosenkranzDatum, existing, "rosenkranzdatum"),
             RosenkranzZeit = MergeTerminField(snapshot.RosenkranzZeit, existing, "rosenkranzzeit"),
             RosenkranzOrt = MergeTerminField(snapshot.RosenkranzOrt, existing, "rosenkranzort"),
@@ -701,8 +709,10 @@ public sealed class FirestoreSyncService : IAsyncDisposable
             ["beisetzungszeit"] = snapshot.BeisetzungsZeit ?? "",
             ["trauerfeierdatum"] = snapshot.TrauerfeierDatum ?? "",
             ["trauerfeierzeit"] = snapshot.TrauerfeierZeit ?? "",
+            ["trauerfeierort"] = snapshot.TrauerfeierOrt ?? "",
             ["trauerfeier2datum"] = snapshot.Trauerfeier2Datum ?? "",
             ["trauerfeier2zeit"] = snapshot.Trauerfeier2Zeit ?? "",
+            ["trauerfeier2ort"] = snapshot.Trauerfeier2Ort ?? "",
             ["rosenkranzdatum"] = snapshot.RosenkranzDatum ?? "",
             ["rosenkranzzeit"] = snapshot.RosenkranzZeit ?? "",
             ["rosenkranzort"] = snapshot.RosenkranzOrt ?? "",
