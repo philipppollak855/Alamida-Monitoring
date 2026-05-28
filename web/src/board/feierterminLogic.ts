@@ -46,17 +46,17 @@ export function hatKremationImSterbefall(s: Sterbefall): boolean {
 }
 
 /**
- * Kremation für S/U-Marker: nicht nur „im Ablauf“, sondern terminiert oder erledigt.
- * Trauerfeier/Verabschiedung: U nur nach Kremation (Urnenfeier), sonst S (Sarg).
+ * S/U auf Feierterminen: Beisetzung U bei jeder Kremation im Ablauf, sonst S.
+ * Trauerfeier/Verabschiedung: U nur nach erledigter Kremation (Urnenfeier), sonst S.
  */
 function hatKremationFuerBestattungsMarker(
   s: Sterbefall,
   arts: readonly string[],
   title: string
 ): boolean {
+  if (entryHatBeisetzung(arts, title)) return hatKremationImSterbefall(s);
+  if (entryHatTrauerfeierOderVerabschiedung(arts, title)) return istKremationErledigt(s);
   if (istKremationErledigt(s)) return true;
-  if (entryHatTrauerfeierOderVerabschiedung(arts, title)) return false;
-  if (entryHatBeisetzung(arts, title)) return Boolean(findeKremationTermin(s));
   return Boolean(findeKremationTermin(s));
 }
 

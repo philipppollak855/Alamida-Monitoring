@@ -77,7 +77,7 @@ describe('calendarBestattungsMarker', () => {
     ).toBe('U');
   });
 
-  it('S bei Beisetzung mit Kremation ohne Termin', () => {
+  it('U bei Beisetzung mit Kremation im Ablauf (auch ohne Termin)', () => {
     expect(
       calendarBestattungsMarker(
         {
@@ -85,6 +85,21 @@ describe('calendarBestattungsMarker', () => {
           beisetzungsdatum: '09.06.2026',
           endzielTyp: 'kremation',
           ausstehend: [{ schrittTyp: 'kremation', status: 'geplant' }],
+        },
+        ['beisetzung'],
+        'Beisetzung'
+      )
+    ).toBe('U');
+  });
+
+  it('S bei Beisetzung ohne Kremation', () => {
+    expect(
+      calendarBestattungsMarker(
+        {
+          ...base,
+          beisetzungsdatum: '08.06.2026',
+          endziel: 'Friedhof Ternitz',
+          endzielTyp: 'beisetzung',
         },
         ['beisetzung'],
         'Beisetzung'
