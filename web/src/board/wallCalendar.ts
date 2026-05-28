@@ -13,6 +13,8 @@ import {
 } from './dateUtils';
 import {
   beisetzungImAnschlussAmTrauerfeierTag,
+  calendarBestattungsMarker,
+  type BestattungsMarker,
   rosenkranzUndTrauerfeier1AmSelbenTag,
 } from './feierterminLogic';
 import { filterSterbefaelleFuerKalender, sterbefallImAnschluss } from './historieLogic';
@@ -115,6 +117,8 @@ export interface WallCalendarEntry {
   grouped: boolean;
   arts: CalendarTerminArt[];
   searchText: string;
+  /** S = ohne Kremation, U = mit Kremation im Ablauf */
+  bestattungsMarker?: BestattungsMarker;
 }
 
 export interface WallCalendarDay {
@@ -332,6 +336,11 @@ function subtitleFromGroupedParts(parts: AtomicTermin[]): string {
   return '';
 }
 
+function withBestattungsMarker(s: Sterbefall, entry: WallCalendarEntry): WallCalendarEntry {
+  const bestattungsMarker = calendarBestattungsMarker(s, entry.arts, entry.title);
+  return bestattungsMarker ? { ...entry, bestattungsMarker } : entry;
+}
+
 function buildFeierBlockEntry(
   s: Sterbefall,
   groupParts: AtomicTermin[],
@@ -346,7 +355,7 @@ function buildFeierBlockEntry(
     ...sorted.map((p) => p.art).filter((a, i, arr) => arr.indexOf(a) === i && a !== primaryArt),
   ];
 
-  return {
+  return withBestattungsMarker(s, {
     id: `${s.id}:block:${primaryArt}:${dayKey}`,
     docId: s.id,
     sterbefallId: s.sterbefallId ?? s.id,
@@ -361,7 +370,7 @@ function buildFeierBlockEntry(
     grouped: true,
     arts,
     searchText: buildSearchText(s, sorted),
-  };
+  });
 }
 
 /**
@@ -431,7 +440,7 @@ function collectTrauerblockEntries(
 
 function atomicToEntry(s: Sterbefall, a: AtomicTermin): WallCalendarEntry {
   const subtitle = a.route || a.ort || '';
-  return {
+  return withBestattungsMarker(s, {
     id: a.key,
     docId: s.id,
     sterbefallId: s.sterbefallId ?? s.id,
@@ -446,7 +455,7 @@ function atomicToEntry(s: Sterbefall, a: AtomicTermin): WallCalendarEntry {
     grouped: false,
     arts: [a.art],
     searchText: buildSearchText(s, [a]),
-  };
+  });
 }
 
 export function buildWallCalendarEntries(sterbefaelle: Sterbefall[]): WallCalendarEntry[] {

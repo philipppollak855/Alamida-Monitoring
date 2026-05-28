@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import type { Sterbefall } from '../types';
 import { buildKuehlraumTerminMarkers } from '../board/kuehlraumTerminMarker';
+import { WallCalBestattungsBadge } from './WallCalBestattungsBadge';
 
 interface Props {
   fall: Sterbefall;
@@ -24,7 +25,10 @@ export function KuehlraumTerminMarker({ fall, now, className }: Props) {
           className={`cool-termin-marker cool-termin-marker--${marker.kind}`}
           title={marker.label}
         >
-          {marker.label}
+          {marker.bestattungsMarker ? (
+            <WallCalBestattungsBadge marker={marker.bestattungsMarker} />
+          ) : null}
+          <span className="cool-termin-marker-text">{marker.label}</span>
         </span>
       ))}
     </span>

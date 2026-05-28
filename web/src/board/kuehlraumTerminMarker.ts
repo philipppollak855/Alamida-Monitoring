@@ -3,9 +3,11 @@ import { isAusstehendHeuteOrGeplant } from './ausstehendStatus';
 import { extractDeDatum, parseDatumDeToDate } from './dateUtils';
 import {
   beisetzungAlsEigenerTermin,
+  calendarBestattungsMarker,
+  type BestattungsMarker,
+  hatKremationImSterbefall,
   rosenkranzUndTrauerfeier1AmSelbenTag,
 } from './feierterminLogic';
-import { istKrematorium } from './ortKeywords';
 
 export type KuehlraumTerminMarkerKind =
   | 'kremation'
@@ -19,6 +21,7 @@ export interface KuehlraumTerminMarker {
   relativeLabel: string;
   /** Anzeigezeile, z. B. „Kremation in 2 Tagen · 24.05.2026“ */
   label: string;
+  bestattungsMarker?: BestattungsMarker;
 }
 
 const MARKER_PREFIX: Record<KuehlraumTerminMarkerKind, string> = {
@@ -40,11 +43,7 @@ function istOffenerKremationsschritt(a: {
 }
 
 function hatKremationImAblauf(s: Sterbefall): boolean {
-  if ((s.ausstehend ?? []).some(istOffenerKremationsschritt)) return true;
-  if (s.naechsterSchrittTyp === 'kremation') return true;
-  if (s.endzielTyp === 'kremation') return true;
-  if (s.endziel?.trim() && istKrematorium(s.endziel)) return true;
-  return false;
+  return hatKremationImSterbefall(s);
 }
 
 function findeKremationTermin(s: Sterbefall): string | undefined {
@@ -107,6 +106,25 @@ function formatMarkerLabel(
   return { kind, datum: d, relativeLabel, label };
 }
 
+function withKuehlraumBestattungsMarker(
+  s: Sterbefall,
+  marker: KuehlraumTerminMarker
+): KuehlraumTerminMarker {
+  const bm = calendarBestattungsMarker(s, [marker.kind], MARKER_PREFIX[marker.kind]);
+  return bm ? { ...marker, bestattungsMarker: bm } : marker;
+}
+
+function pushFeierMarker(
+  list: KuehlraumTerminMarker[],
+  s: Sterbefall,
+  kind: Exclude<KuehlraumTerminMarkerKind, 'kremation'>,
+  datum: string | undefined,
+  now: Date
+) {
+  const m = formatMarkerLabel(kind, datum, now);
+  if (m) list.push(withKuehlraumBestattungsMarker(s, m));
+}
+
 /** Relevante Termine für Kühlraum-Kacheln (Kalender-Regeln für Feier/Beisetzung). */
 export function buildKuehlraumTerminMarkers(
   s: Sterbefall,
@@ -116,17 +134,10 @@ export function buildKuehlraumTerminMarkers(
   const bsEigenerTermin = beisetzungAlsEigenerTermin(s);
 
   const tf1 = extractDeDatum(s.trauerfeierdatum);
-  if (tf1) {
-    const kind = feierMarkerKindTf1(s);
-    const m = formatMarkerLabel(kind, tf1, now);
-    if (m) markers.push(m);
-  }
+  if (tf1) pushFeierMarker(markers, s, feierMarkerKindTf1(s), tf1, now);
 
   const tf2 = extractDeDatum(s.trauerfeier2datum);
-  if (tf2) {
-    const m = formatMarkerLabel(feierMarkerKindTf2(s), tf2, now);
-    if (m) markers.push(m);
-  }
+  if (tf2) pushFeierMarker(markers, s, feierMarkerKindTf2(s), tf2, now);
 
   if (hatKremationImAblauf(s)) {
     const kr = formatMarkerLabel('kremation', findeKremationTermin(s), now);
@@ -135,10 +146,7 @@ export function buildKuehlraumTerminMarkers(
 
   if (bsEigenerTermin) {
     const beisetzung = extractDeDatum(s.beisetzungsdatum);
-    if (beisetzung) {
-      const b = formatMarkerLabel('beisetzung', beisetzung, now);
-      if (b) markers.push(b);
-    }
+    if (beisetzung) pushFeierMarker(markers, s, 'beisetzung', beisetzung, now);
   }
 
   return markers;

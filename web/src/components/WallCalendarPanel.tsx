@@ -38,6 +38,7 @@ import {
 } from '../board/wallCalendar';
 import { calendarDayLayout, calendarEventFlexClass } from '../board/wallCalendarLayout';
 
+import { WallCalBestattungsBadge } from './WallCalBestattungsBadge';
 import { WallCalendarPeriodOverview } from './WallCalendarPeriodOverview';
 
 
@@ -751,8 +752,9 @@ function WallCalendarEventCard({
 }) {
 
   const colorClass = `wall-cal-card--color-${calendarColorGroupFromArts(entry.arts)}`;
-
-
+  const bestattungsBadge = entry.bestattungsMarker ? (
+    <WallCalBestattungsBadge marker={entry.bestattungsMarker} />
+  ) : null;
 
   if (mobile) {
 
@@ -764,7 +766,10 @@ function WallCalendarEventCard({
 
       >
 
-        <time className="wall-cal-time">{entry.timeLabel}</time>
+        <div className="wall-cal-card-headline">
+          {bestattungsBadge}
+          <time className="wall-cal-time">{entry.timeLabel}</time>
+        </div>
 
         <div className="wall-cal-mobile-body">
 
@@ -796,6 +801,7 @@ function WallCalendarEventCard({
     return (
       <article className={`wall-cal-card wall-cal-card--strip ${colorClass}`}>
         <div className="wall-cal-strip-top">
+          {bestattungsBadge}
           <time className="wall-cal-time">{entry.timeLabel}</time>
           {stripTypes && <span className="wall-cal-strip-types">{stripTypes}</span>}
         </div>
@@ -813,7 +819,10 @@ function WallCalendarEventCard({
 
       <div className="wall-cal-card-top">
 
-        <time className="wall-cal-time">{entry.timeLabel}</time>
+        <div className="wall-cal-card-headline">
+          {bestattungsBadge}
+          <time className="wall-cal-time">{entry.timeLabel}</time>
+        </div>
 
         <div className="wall-cal-badges">
 
