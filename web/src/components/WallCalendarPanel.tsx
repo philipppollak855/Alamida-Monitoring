@@ -163,14 +163,15 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
 
   useEffect(() => {
     if (!scrollToFocusPending.current || !focusDayKey || activeArts.size === 0) return;
+    if (range === 'month' && !isNarrow) return;
     const el = document.getElementById(`wall-cal-focus-${focusDayKey}`);
     if (!el) return;
 
     scrollToFocusPending.current = false;
     const t = window.setTimeout(() => {
       el.scrollIntoView({
-        behavior: 'smooth',
-        block: range === 'month' ? 'center' : 'nearest',
+        behavior: 'auto',
+        block: 'nearest',
         inline: isNarrow ? 'start' : 'nearest',
       });
     }, 60);
@@ -227,6 +228,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
       monthGridMetrics.rowHeight / 2;
     if (Number.isFinite(targetTop)) {
       grid.scrollTop = Math.max(0, targetTop);
+      scrollToFocusPending.current = false;
     }
   }, [focusDayKey, range, isNarrow, days, monthGridMetrics]);
 
@@ -521,6 +523,7 @@ function WallCalendarWeekStrip({
         <WallCalendarDaySection
           key={day.dayKey}
           day={day}
+          compact
           strip
           scrollId={day.dayKey}
           active={focusDayKey === day.dayKey}
@@ -692,7 +695,7 @@ function WallCalendarDaySection({
 
             <li key={e.id} className={`wall-cal-event ${e.grouped ? 'is-grouped' : ''}`}>
 
-              <WallCalendarEventCard entry={e} compact={compact} />
+              <WallCalendarEventCard entry={e} compact={compact || strip} />
 
             </li>
 
