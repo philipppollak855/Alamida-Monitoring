@@ -495,6 +495,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
                   key={weekIdx}
                   days={days.slice(weekIdx * 7, weekIdx * 7 + 7)}
                   focusDayKey={focusDayKey}
+                  weeksStack
                 />
 
               ))}
@@ -522,18 +523,21 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
 function WallCalendarWeekStrip({
   days,
   focusDayKey,
+  weeksStack = false,
 }: {
   days: WallCalendarDay[];
   focusDayKey: string | null;
+  weeksStack?: boolean;
 }) {
   return (
-    <div className="wall-cal-strip wall-cal-strip--week">
+    <div className={`wall-cal-strip wall-cal-strip--week${weeksStack ? ' wall-cal-strip--stacked' : ''}`}>
       {days.map((day) => (
         <WallCalendarDaySection
           key={day.dayKey}
           day={day}
           compact
           strip
+          weeksStack={weeksStack}
           scrollId={day.dayKey}
           active={focusDayKey === day.dayKey}
         />
@@ -640,6 +644,7 @@ function WallCalendarDaySection({
   compact = false,
 
   strip = false,
+  weeksStack = false,
 
   scrollId,
   active = false,
@@ -651,6 +656,7 @@ function WallCalendarDaySection({
   compact?: boolean;
 
   strip?: boolean;
+  weeksStack?: boolean;
 
   scrollId?: string;
   active?: boolean;
@@ -658,18 +664,17 @@ function WallCalendarDaySection({
 }) {
   const mod = strip ? 'strip' : compact ? 'month' : '';
   const isEmpty = day.entries.length === 0;
-  const { densityScale, slotWeight } = calendarDayLayout(day.entries);
-  const densityStyle =
-    slotWeight > 0
-      ? ({ '--cal-density': densityScale } as React.CSSProperties)
-      : undefined;
+  const densityMode = weeksStack ? 'stripCompact' : strip ? 'strip' : 'month';
+  const { densityScale, slotWeight } = calendarDayLayout(day.entries, densityMode);
+  const densityStyle = { '--cal-density': densityScale } as React.CSSProperties;
+  const denseThreshold = weeksStack ? 3 : 4;
 
   return (
 
     <section
 
       id={scrollId ? `wall-cal-focus-${scrollId}` : undefined}
-      className={`wall-cal-day wall-cal-day--${mod} ${day.isToday ? 'is-today' : ''} ${active ? 'is-active' : ''} ${day.isWeekend ? 'is-weekend' : ''} ${isEmpty ? 'is-empty' : ''} ${slotWeight > 4 ? 'is-dense' : ''}`}
+      className={`wall-cal-day wall-cal-day--${mod} ${weeksStack ? 'is-strip-compact' : ''} ${day.isToday ? 'is-today' : ''} ${active ? 'is-active' : ''} ${day.isWeekend ? 'is-weekend' : ''} ${isEmpty ? 'is-empty' : ''} ${slotWeight > denseThreshold ? 'is-dense' : ''}`}
       style={strip || compact ? densityStyle : undefined}
 
     >

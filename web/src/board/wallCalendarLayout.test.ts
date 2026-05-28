@@ -43,5 +43,9 @@ describe('wallCalendarLayout', () => {
     expect(slotWeight).toBe(8);
     expect(densityScale).toBeLessThan(1);
     expect(densityScale).toBeGreaterThanOrEqual(0.5);
+
+    const compact = calendarDayLayout(many, 'stripCompact');
+    expect(compact.densityScale).toBeLessThan(densityScale);
+    expect(compact.densityScale).toBeGreaterThanOrEqual(0.32);
   });
 });
