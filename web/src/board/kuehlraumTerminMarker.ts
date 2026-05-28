@@ -5,6 +5,7 @@ import {
   beisetzungAlsEigenerTermin,
   calendarBestattungsMarker,
   type BestattungsMarker,
+  findeKremationTermin,
   hatKremationImSterbefall,
   rosenkranzUndTrauerfeier1AmSelbenTag,
 } from './feierterminLogic';
@@ -44,16 +45,6 @@ function istOffenerKremationsschritt(a: {
 
 function hatKremationImAblauf(s: Sterbefall): boolean {
   return hatKremationImSterbefall(s);
-}
-
-function findeKremationTermin(s: Sterbefall): string | undefined {
-  const ausstehend = (s.ausstehend ?? []).find(istOffenerKremationsschritt);
-  const t = ausstehend?.terminAm?.trim() || ausstehend?.abholungAm?.trim();
-  if (t) return t;
-  if (s.naechsterSchrittTyp === 'kremation') {
-    return s.naechsterSchrittAm?.trim() || undefined;
-  }
-  return undefined;
 }
 
 function feierMarkerKindTf1(s: Sterbefall): KuehlraumTerminMarkerKind {

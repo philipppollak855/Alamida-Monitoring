@@ -18,14 +18,46 @@ function istOffenerKremationsschritt(a: {
   return isAusstehendHeuteOrGeplant(a);
 }
 
-/** Kremation geplant, offen oder bereits im Verlauf (vor Feier/Beisetzung). */
+/** Kremation bereits durchgeführt (Verlauf). */
+export function istKremationErledigt(s: Sterbefall): boolean {
+  return (s.verlauf ?? []).some((v) => (v.typ ?? '').toLowerCase() === 'kremation');
+}
+
+/** Kremation mit erkennbarem Termindatum (ausstehend oder nächster Schritt). */
+export function findeKremationTermin(s: Sterbefall): string | undefined {
+  const ausstehend = (s.ausstehend ?? []).find(istOffenerKremationsschritt);
+  const t = ausstehend?.terminAm?.trim() || ausstehend?.abholungAm?.trim();
+  if (t && extractDeDatum(t)) return t;
+  if (s.naechsterSchrittTyp === 'kremation') {
+    const n = s.naechsterSchrittAm?.trim();
+    if (n && extractDeDatum(n)) return n;
+  }
+  return undefined;
+}
+
+/** Kremation geplant, offen oder bereits im Verlauf (Kühlraum-Chip „Kremation“). */
 export function hatKremationImSterbefall(s: Sterbefall): boolean {
   if ((s.ausstehend ?? []).some(istOffenerKremationsschritt)) return true;
-  if ((s.verlauf ?? []).some((v) => (v.typ ?? '').toLowerCase() === 'kremation')) return true;
+  if (istKremationErledigt(s)) return true;
   if (s.naechsterSchrittTyp === 'kremation') return true;
   if (s.endzielTyp === 'kremation') return true;
   if (s.endziel?.trim() && istKrematorium(s.endziel)) return true;
   return false;
+}
+
+/**
+ * Kremation für S/U-Marker: nicht nur „im Ablauf“, sondern terminiert oder erledigt.
+ * Trauerfeier/Verabschiedung: U nur nach Kremation (Urnenfeier), sonst S (Sarg).
+ */
+function hatKremationFuerBestattungsMarker(
+  s: Sterbefall,
+  arts: readonly string[],
+  title: string
+): boolean {
+  if (istKremationErledigt(s)) return true;
+  if (entryHatTrauerfeierOderVerabschiedung(arts, title)) return false;
+  if (entryHatBeisetzung(arts, title)) return Boolean(findeKremationTermin(s));
+  return Boolean(findeKremationTermin(s));
 }
 
 const FEIER_MARKER_ARTS = new Set([
@@ -53,16 +85,12 @@ export function calendarBestattungsMarker(
 ): BestattungsMarker | undefined {
   if (!arts.some((a) => FEIER_MARKER_ARTS.has(a))) return undefined;
 
-  const kremation = hatKremationImSterbefall(s);
+  const kremation = hatKremationFuerBestattungsMarker(s, arts, title);
   const tfOderVerabschiedung = entryHatTrauerfeierOderVerabschiedung(arts, title);
   const beisetzung = entryHatBeisetzung(arts, title);
 
-  if (kremation) {
-    if (tfOderVerabschiedung || beisetzung) return 'U';
-    return undefined;
-  }
-  if (tfOderVerabschiedung) return 'S';
-  return undefined;
+  if (!tfOderVerabschiedung && !beisetzung) return undefined;
+  return kremation ? 'U' : 'S';
 }
 
 export function beisetzungZeitGleichTrauerfeier(s: Sterbefall): boolean {

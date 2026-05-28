@@ -80,6 +80,20 @@ describe('buildKuehlraumTerminMarkers', () => {
     expect(markers.some((m) => m.kind === 'trauerfeier')).toBe(false);
   });
 
+  it('Beisetzung-Chip erhaelt S-Marker ohne Kremation', () => {
+    const markers = buildKuehlraumTerminMarkers(
+      fall({
+        trauerfeierdatum: '03.06.2026',
+        beisetzungsdatum: '08.06.2026',
+        beisetzungszeit: '12:00',
+        trauerfeierzeit: '10:00',
+      }),
+      now
+    );
+    const bs = markers.find((m) => m.kind === 'beisetzung');
+    expect(bs?.bestattungsMarker).toBe('S');
+  });
+
   it('parst Alamida-Datumstext mit Wochentag', () => {
     const markers = buildKuehlraumTerminMarkers(
       fall({

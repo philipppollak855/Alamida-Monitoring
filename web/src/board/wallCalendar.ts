@@ -459,12 +459,29 @@ function atomicToEntry(s: Sterbefall, a: AtomicTermin): WallCalendarEntry {
   });
 }
 
+function isUeberfuehrungCalendarArt(art: CalendarTerminArt): boolean {
+  return art === 'ueberfuehrung' || art === 'ueberfuehrung_kremation';
+}
+
+/** Kalendereintrag ist kein reiner Überführungstermin (für Tab „Heute“ neben flattenOffene). */
+export function isFeierCalendarEntry(entry: WallCalendarEntry): boolean {
+  return entry.arts.some((a) => !isUeberfuehrungCalendarArt(a));
+}
+
 /** Feier- und Beisetzungstermine an einem Kalendertag (z. B. Tab „Heute“). */
 export function buildWallCalendarEntriesForDay(
   sterbefaelle: Sterbefall[],
   dayKey: string
 ): WallCalendarEntry[] {
   return buildWallCalendarEntries(sterbefaelle).filter((e) => e.dayKey === dayKey);
+}
+
+/** Wie {@link buildWallCalendarEntriesForDay}, ohne Überführungen (die kommen aus flattenOffene). */
+export function buildWallFeierEntriesForDay(
+  sterbefaelle: Sterbefall[],
+  dayKey: string
+): WallCalendarEntry[] {
+  return buildWallCalendarEntriesForDay(sterbefaelle, dayKey).filter(isFeierCalendarEntry);
 }
 
 export function buildWallCalendarEntries(sterbefaelle: Sterbefall[]): WallCalendarEntry[] {

@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { calendarBestattungsMarker, hatKremationImSterbefall } from './feierterminLogic';
 import { buildKuehlraumTerminMarkers } from './kuehlraumTerminMarker';
-import { buildWallCalendarEntries, buildWallCalendarEntriesForDay } from './wallCalendar';
+import {
+  buildWallCalendarEntries,
+  buildWallCalendarEntriesForDay,
+  buildWallFeierEntriesForDay,
+} from './wallCalendar';
 import type { Sterbefall } from '../types';
 
 const base: Sterbefall = { id: '1', sterbefallId: '260001' };
@@ -17,13 +21,35 @@ describe('calendarBestattungsMarker', () => {
     ).toBe('S');
   });
 
-  it('U bei Trauerfeier mit Kremation im Ablauf', () => {
+  it('S bei Trauerfeier mit Kremation nur im Ablauf ohne Termin', () => {
+    expect(
+      calendarBestattungsMarker(
+        {
+          ...base,
+          trauerfeierdatum: '29.05.2026',
+          endzielTyp: 'kremation',
+          ausstehend: [
+            {
+              schrittTyp: 'kremation',
+              vonOrt: 'Kühl. Grafenbach',
+              nachOrt: 'Innermanzing',
+              status: 'geplant',
+            },
+          ],
+        },
+        ['trauerfeier'],
+        'Trauerfeier'
+      )
+    ).toBe('S');
+  });
+
+  it('U bei Trauerfeier nach erledigter Kremation', () => {
     expect(
       calendarBestattungsMarker(
         {
           ...base,
           trauerfeierdatum: '08.06.2026',
-          endzielTyp: 'kremation',
+          verlauf: [{ typ: 'kremation', ort: 'Innermanzing' }],
         },
         ['trauerfeier'],
         'Trauerfeier'
@@ -31,18 +57,39 @@ describe('calendarBestattungsMarker', () => {
     ).toBe('U');
   });
 
-  it('U bei Beisetzung mit Kremation', () => {
+  it('U bei Beisetzung mit terminierten Kremation', () => {
     expect(
       calendarBestattungsMarker(
         {
           ...base,
           beisetzungsdatum: '09.06.2026',
-          ausstehend: [{ schrittTyp: 'kremation', status: 'geplant' }],
+          ausstehend: [
+            {
+              schrittTyp: 'kremation',
+              terminAm: '08.06.2026',
+              status: 'geplant',
+            },
+          ],
         },
         ['beisetzung'],
         'Beisetzung'
       )
     ).toBe('U');
+  });
+
+  it('S bei Beisetzung mit Kremation ohne Termin', () => {
+    expect(
+      calendarBestattungsMarker(
+        {
+          ...base,
+          beisetzungsdatum: '09.06.2026',
+          endzielTyp: 'kremation',
+          ausstehend: [{ schrittTyp: 'kremation', status: 'geplant' }],
+        },
+        ['beisetzung'],
+        'Beisetzung'
+      )
+    ).toBe('S');
   });
 
   it('kein S nur für Rosenkranz', () => {
@@ -72,6 +119,32 @@ describe('integration S/U markers', () => {
     expect(hatKremationImSterbefall({ ...base, endzielTyp: 'kremation' })).toBe(true);
   });
 
+  it('Heute-Tab: Überführungen nicht in Feierliste (kommen aus flattenOffene)', () => {
+    const sterbefaelle = [
+      {
+        ...base,
+        id: 'u',
+        verstorbenerName: 'Doppelt',
+        trauerfeierdatum: '27.05.2026',
+        ausstehend: [
+          {
+            zeile: 1,
+            terminAm: '27.05.2026',
+            vonOrt: 'UK - Wr. Neustadt',
+            nachOrt: 'Kühl. Grafenbach',
+            schrittTyp: 'abholung',
+          },
+        ],
+      },
+    ];
+    const day = '2026-05-27';
+    const alle = buildWallCalendarEntriesForDay(sterbefaelle, day);
+    const feier = buildWallFeierEntriesForDay(sterbefaelle, day);
+    expect(alle.some((e) => e.arts.includes('ueberfuehrung'))).toBe(true);
+    expect(feier.some((e) => e.arts.includes('ueberfuehrung'))).toBe(false);
+    expect(feier.some((e) => e.title === 'Trauerfeier')).toBe(true);
+  });
+
   it('Heute-Tab: nur Feiertermine des gewählten Tages', () => {
     const heute = buildWallCalendarEntriesForDay(
       [
@@ -95,11 +168,28 @@ describe('integration S/U markers', () => {
     expect(heute[0]?.bestattungsMarker).toBe('S');
   });
 
-  it('Kühlraum: Trauerfeier-Chip mit U bei Kremation', () => {
+  it('Kühlraum: Trauerfeier-Chip mit S bei Kremation ohne Termin', () => {
+    const markers = buildKuehlraumTerminMarkers(
+      {
+        ...base,
+        trauerfeierdatum: '29.05.2026',
+        endzielTyp: 'kremation',
+        ausstehend: [{ schrittTyp: 'kremation', status: 'geplant' }],
+      },
+      new Date(2026, 4, 27)
+    );
+    const tf = markers.find((m) => m.kind === 'trauerfeier');
+    expect(tf?.bestattungsMarker).toBe('S');
+    expect(markers.some((m) => m.kind === 'kremation' && m.label.includes('Termin offen'))).toBe(
+      true
+    );
+  });
+
+  it('Kühlraum: Trauerfeier-Chip mit U nach Kremation im Verlauf', () => {
     const markers = buildKuehlraumTerminMarkers({
       ...base,
       trauerfeierdatum: '08.06.2026',
-      endzielTyp: 'kremation',
+      verlauf: [{ typ: 'kremation', ort: 'Innermanzing' }],
     });
     const tf = markers.find((m) => m.kind === 'trauerfeier');
     expect(tf?.bestattungsMarker).toBe('U');

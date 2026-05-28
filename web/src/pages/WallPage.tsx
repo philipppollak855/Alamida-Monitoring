@@ -36,7 +36,7 @@ import { SchrittBadge } from '../ui/SchrittBadge';
 import { RouteFlow } from '../ui/RouteFlow';
 import { WallCalendarPanel, wallCalendarTabCount } from '../components/WallCalendarPanel';
 import { WallHeuteFeierRow } from '../components/WallHeuteFeierRow';
-import { buildWallCalendarEntriesForDay } from '../board/wallCalendar';
+import { buildWallFeierEntriesForDay } from '../board/wallCalendar';
 import { WallFreigabeControl } from '../components/WallFreigabeControl';
 import { freigabePersonCssClass, istFreigabeWirksam } from '../board/freigabeLogic';
 import { WallUeberfuehrungErledigtBtn } from '../components/WallUeberfuehrungErledigtBtn';
@@ -163,7 +163,7 @@ export function WallPage({
   const offene = useMemo(() => flattenOffene(sterbefaelle), [sterbefaelle, calendarDay]);
   const heuteOffen = useMemo(() => offene.filter((o) => o.status === 'heute'), [offene, calendarDay]);
   const heuteFeier = useMemo(
-    () => buildWallCalendarEntriesForDay(sterbefaelleKalender, calendarDay),
+    () => buildWallFeierEntriesForDay(sterbefaelleKalender, calendarDay),
     [sterbefaelleKalender, calendarDay]
   );
   const heuteTermineCount = heuteFeier.length + heuteOffen.length;
