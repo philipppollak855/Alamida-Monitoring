@@ -110,12 +110,15 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
   );
   const monthScrollWindowRef = useRef(monthScrollWindow);
   monthScrollWindowRef.current = monthScrollWindow;
+  const monthTouchStartY = useRef<number | null>(null);
   const [monthGridMetrics, setMonthGridMetrics] = useState({
     columns: MONTH_GRID_COLUMNS_DESKTOP,
     rowHeight: DEFAULT_MONTH_ROW_HEIGHT,
     scrollTop: 0,
     viewportHeight: 0,
   });
+  const monthGridMetricsRef = useRef(monthGridMetrics);
+  monthGridMetricsRef.current = monthGridMetrics;
 
   const selectFocusDay = useCallback(
     (dayKey: string) => {
@@ -252,6 +255,58 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
     return () => window.clearTimeout(t);
   }, [focusDayKey, days.length, isNarrow, activeArts.size, range]);
 
+  const syncMonthGridMetrics = useCallback(() => {
+    const grid = monthGridRef.current;
+    if (!grid || range !== 'month') return;
+    const columns = monthEntryGridColumns(grid.clientWidth, isNarrow);
+    const firstDay = grid.querySelector('.wall-cal-day--month') as HTMLElement | null;
+    const rowHeight =
+      (firstDay?.getBoundingClientRect().height ?? DEFAULT_MONTH_ROW_HEIGHT) + MONTH_GRID_GAP_PX;
+
+    setMonthGridMetrics((prev) => ({
+      columns,
+      rowHeight: Number.isFinite(rowHeight) && rowHeight > 0 ? rowHeight : prev.rowHeight,
+      scrollTop: grid.scrollTop,
+      viewportHeight: grid.clientHeight,
+    }));
+  }, [range, isNarrow]);
+
+  const tryExpandMonthWindow = useCallback(
+    (direction: 'backward' | 'forward'): boolean => {
+      const grid = monthGridRef.current;
+      if (!grid || range !== 'month' || monthExpandLock.current) return false;
+
+      monthHasUserScrolled.current = true;
+      monthExpandLock.current = true;
+
+      const columns = monthEntryGridColumns(grid.clientWidth, isNarrow);
+      const scrollTop = grid.scrollTop;
+      const rowHeight = monthGridMetricsRef.current.rowHeight;
+
+      if (direction === 'backward') {
+        const prev = monthScrollWindowRef.current;
+        const next = expandMonthWindowBackward(prev, MONTH_SCROLL_CHUNK_WEEKS);
+        const added = daysPrependedBackward(prev, next);
+        setMonthScrollWindow(next);
+        requestAnimationFrame(() => {
+          const rows = Math.ceil(added / Math.max(1, columns));
+          grid.scrollTop = scrollTop + rows * rowHeight;
+          monthExpandLock.current = false;
+          syncMonthGridMetrics();
+        });
+        return true;
+      }
+
+      setMonthScrollWindow((w) => expandMonthWindowForward(w, MONTH_SCROLL_CHUNK_WEEKS));
+      requestAnimationFrame(() => {
+        monthExpandLock.current = false;
+        syncMonthGridMetrics();
+      });
+      return true;
+    },
+    [range, isNarrow, syncMonthGridMetrics]
+  );
+
   const handleMonthGridScroll = useCallback(() => {
     const grid = monthGridRef.current;
     if (!grid || range !== 'month') return;
@@ -259,14 +314,16 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
     const scrollTop = grid.scrollTop;
     const scrollHeight = grid.scrollHeight;
     const clientHeight = grid.clientHeight;
-    const columns = monthEntryGridColumns(grid.clientWidth, isNarrow);
+    const scrollable = scrollHeight > clientHeight + 2;
 
     setMonthGridMetrics((prev) => ({
       ...prev,
-      columns,
+      columns: monthEntryGridColumns(grid.clientWidth, isNarrow),
       scrollTop,
       viewportHeight: clientHeight,
     }));
+
+    if (!scrollable) return;
 
     if (!monthHasUserScrolled.current) {
       if (scrollTop > 8) monthHasUserScrolled.current = true;
@@ -275,61 +332,70 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
 
     if (monthExpandLock.current) return;
 
-    const nearTop = scrollTop < MONTH_SCROLL_EDGE_PX;
-    const nearBottom = scrollHeight - scrollTop - clientHeight < MONTH_SCROLL_EDGE_PX;
-    if (!nearTop && !nearBottom) return;
-
-    const rowHeight = monthGridMetrics.rowHeight;
-
-    if (nearTop) {
-      monthExpandLock.current = true;
-      const prev = monthScrollWindowRef.current;
-      const next = expandMonthWindowBackward(prev, MONTH_SCROLL_CHUNK_WEEKS);
-      const added = daysPrependedBackward(prev, next);
-      setMonthScrollWindow(next);
-      requestAnimationFrame(() => {
-        const rows = Math.ceil(added / Math.max(1, columns));
-        grid.scrollTop = scrollTop + rows * rowHeight;
-        monthExpandLock.current = false;
-      });
-      return;
-    }
-
-    monthExpandLock.current = true;
-    setMonthScrollWindow((w) => expandMonthWindowForward(w, MONTH_SCROLL_CHUNK_WEEKS));
-    requestAnimationFrame(() => {
-      monthExpandLock.current = false;
-    });
-  }, [range, isNarrow, monthGridMetrics.rowHeight]);
+    const atTop = scrollTop < MONTH_SCROLL_EDGE_PX;
+    const atBottom = scrollHeight - scrollTop - clientHeight < MONTH_SCROLL_EDGE_PX;
+    if (atTop) tryExpandMonthWindow('backward');
+    else if (atBottom) tryExpandMonthWindow('forward');
+  }, [range, isNarrow, tryExpandMonthWindow]);
 
   useEffect(() => {
     if (range !== 'month') return;
     const grid = monthGridRef.current;
     if (!grid) return;
 
-    const syncMetrics = () => {
-      const columns = monthEntryGridColumns(grid.clientWidth, isNarrow);
-      const firstDay = grid.querySelector('.wall-cal-day--month') as HTMLElement | null;
-      const rowHeight =
-        (firstDay?.getBoundingClientRect().height ?? DEFAULT_MONTH_ROW_HEIGHT) + MONTH_GRID_GAP_PX;
+    const onWheel = (e: WheelEvent) => {
+      const { scrollTop, scrollHeight, clientHeight } = grid;
+      const scrollable = scrollHeight > clientHeight + 2;
+      const atTop = scrollTop < MONTH_SCROLL_EDGE_PX;
+      const atBottom =
+        scrollable && scrollHeight - scrollTop - clientHeight < MONTH_SCROLL_EDGE_PX;
 
-      setMonthGridMetrics((prev) => ({
-        columns,
-        rowHeight: Number.isFinite(rowHeight) && rowHeight > 0 ? rowHeight : prev.rowHeight,
-        scrollTop: grid.scrollTop,
-        viewportHeight: grid.clientHeight,
-      }));
+      if (e.deltaY < 0 && (!scrollable || atTop)) {
+        if (tryExpandMonthWindow('backward')) e.preventDefault();
+      } else if (e.deltaY > 0 && (!scrollable || atBottom)) {
+        if (tryExpandMonthWindow('forward')) e.preventDefault();
+      }
     };
 
-    syncMetrics();
-    const ro = new ResizeObserver(syncMetrics);
+    const onTouchStart = (e: TouchEvent) => {
+      monthTouchStartY.current = e.touches[0]?.clientY ?? null;
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      const startY = monthTouchStartY.current;
+      const endY = e.changedTouches[0]?.clientY;
+      monthTouchStartY.current = null;
+      if (startY == null || endY == null) return;
+
+      const dy = endY - startY;
+      if (Math.abs(dy) < 28) return;
+
+      const { scrollTop, scrollHeight, clientHeight } = grid;
+      const scrollable = scrollHeight > clientHeight + 2;
+      const atTop = scrollTop < MONTH_SCROLL_EDGE_PX;
+      const atBottom =
+        scrollable && scrollHeight - scrollTop - clientHeight < MONTH_SCROLL_EDGE_PX;
+
+      if (dy > 0 && atTop) tryExpandMonthWindow('backward');
+      else if (dy < 0 && (!scrollable || atBottom)) tryExpandMonthWindow('forward');
+    };
+
+    syncMonthGridMetrics();
+    const ro = new ResizeObserver(syncMonthGridMetrics);
     ro.observe(grid);
     grid.addEventListener('scroll', handleMonthGridScroll, { passive: true });
+    grid.addEventListener('wheel', onWheel, { passive: false });
+    grid.addEventListener('touchstart', onTouchStart, { passive: true });
+    grid.addEventListener('touchend', onTouchEnd, { passive: true });
+
     return () => {
       grid.removeEventListener('scroll', handleMonthGridScroll);
+      grid.removeEventListener('wheel', onWheel);
+      grid.removeEventListener('touchstart', onTouchStart);
+      grid.removeEventListener('touchend', onTouchEnd);
       ro.disconnect();
     };
-  }, [range, days.length, isNarrow, handleMonthGridScroll]);
+  }, [range, days.length, isNarrow, handleMonthGridScroll, syncMonthGridMetrics, tryExpandMonthWindow]);
 
   const scrollMonthGridToFocus = useCallback(() => {
     const grid = monthGridRef.current;
