@@ -2744,10 +2744,16 @@ code {
 }
 
 .wall-cal-card--strip {
-  display: grid;
-  grid-template-columns: auto 1fr;
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+}
+
+.wall-cal-strip-top {
+  display: flex;
   align-items: center;
-  gap: 0.28rem;
+  gap: 0.25rem;
+  min-width: 0;
 }
 
 .wall-cal-card--strip .wall-cal-time {
@@ -2755,7 +2761,23 @@ code {
   white-space: nowrap;
 }
 
+.wall-cal-strip-types {
+  font-size: 0.52rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .wall-cal-card--strip .wall-cal-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wall-cal-strip-meta {
+  font-size: 0.56rem;
+  color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

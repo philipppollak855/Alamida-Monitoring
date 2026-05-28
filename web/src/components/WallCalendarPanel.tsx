@@ -783,10 +783,16 @@ function WallCalendarEventCard({
   }
 
   if (strip) {
+    const stripMeta = entry.subtitle || entry.title;
+    const stripTypes = entry.badges.join(' · ');
     return (
       <article className={`wall-cal-card wall-cal-card--strip ${colorClass}`}>
-        <time className="wall-cal-time">{entry.timeLabel}</time>
+        <div className="wall-cal-strip-top">
+          <time className="wall-cal-time">{entry.timeLabel}</time>
+          {stripTypes && <span className="wall-cal-strip-types">{stripTypes}</span>}
+        </div>
         <span className="wall-cal-name">{entry.name}</span>
+        {stripMeta && <span className="wall-cal-strip-meta">{stripMeta}</span>}
       </article>
     );
   }
