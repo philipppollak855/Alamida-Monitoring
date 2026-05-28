@@ -458,6 +458,14 @@ function atomicToEntry(s: Sterbefall, a: AtomicTermin): WallCalendarEntry {
   });
 }
 
+/** Feier- und Beisetzungstermine an einem Kalendertag (z. B. Tab „Heute“). */
+export function buildWallCalendarEntriesForDay(
+  sterbefaelle: Sterbefall[],
+  dayKey: string
+): WallCalendarEntry[] {
+  return buildWallCalendarEntries(sterbefaelle).filter((e) => e.dayKey === dayKey);
+}
+
 export function buildWallCalendarEntries(sterbefaelle: Sterbefall[]): WallCalendarEntry[] {
   const entries: WallCalendarEntry[] = [];
 

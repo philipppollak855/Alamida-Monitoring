@@ -35,6 +35,8 @@ import {
 import { SchrittBadge } from '../ui/SchrittBadge';
 import { RouteFlow } from '../ui/RouteFlow';
 import { WallCalendarPanel, wallCalendarTabCount } from '../components/WallCalendarPanel';
+import { WallHeuteFeierRow } from '../components/WallHeuteFeierRow';
+import { buildWallCalendarEntriesForDay } from '../board/wallCalendar';
 import { WallFreigabeControl } from '../components/WallFreigabeControl';
 import { freigabePersonCssClass, istFreigabeWirksam } from '../board/freigabeLogic';
 import { WallUeberfuehrungErledigtBtn } from '../components/WallUeberfuehrungErledigtBtn';
@@ -160,6 +162,11 @@ export function WallPage({
   const externTotal = useMemo(() => externGesamt(externGruppen), [externGruppen]);
   const offene = useMemo(() => flattenOffene(sterbefaelle), [sterbefaelle, calendarDay]);
   const heuteOffen = useMemo(() => offene.filter((o) => o.status === 'heute'), [offene, calendarDay]);
+  const heuteFeier = useMemo(
+    () => buildWallCalendarEntriesForDay(sterbefaelleKalender, calendarDay),
+    [sterbefaelleKalender, calendarDay]
+  );
+  const heuteTermineCount = heuteFeier.length + heuteOffen.length;
   const sterbefallByDocId = useMemo(
     () => new Map(sterbefaelle.map((s) => [s.id, s])),
     [sterbefaelle]
@@ -324,7 +331,7 @@ export function WallPage({
               urnen: urnenListe.length,
               extern: externTotal,
               kalender: kalenderTermine7d,
-              heute: heuteOffen.length,
+              heute: heuteTermineCount,
               offen: offene.length,
             })}
           </button>
@@ -510,11 +517,14 @@ export function WallPage({
 
         {view === 'abholungen' && (
           <div className="wall-list-stage">
-            <h2 className="wall-stage-title">Heutige Überführungen</h2>
-            {heuteOffen.length === 0 ? (
+            <h2 className="wall-stage-title">Heutige Termine</h2>
+            {heuteTermineCount === 0 ? (
               <p className="wall-empty">Keine Termine für heute</p>
             ) : (
               <div className="wall-big-list">
+                {heuteFeier.map((e) => (
+                  <WallHeuteFeierRow key={e.id} entry={e} />
+                ))}
                 {heuteOffen.map((r) => {
                   const pendingKey = `${r.docId}:${r.zeile}`;
                   return (

@@ -2176,11 +2176,32 @@ code {
   font-size: 1.15rem;
 }
 
+.wall-big-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.wall-big-name-row .wall-big-name {
+  margin-bottom: 0;
+}
+
 .wall-big-name {
   display: block;
   font-size: 1.35rem;
   font-weight: 600;
   margin-bottom: 0.35rem;
+}
+
+.wall-big-row--feier .wall-big-meta {
+  font-size: 1rem;
+  color: var(--muted);
+}
+
+.wall-heute-feier-title {
+  color: var(--text);
+  font-weight: 600;
 }
 
 .wall-big-row .route-flow {

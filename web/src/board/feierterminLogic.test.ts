@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { calendarBestattungsMarker, hatKremationImSterbefall } from './feierterminLogic';
 import { buildKuehlraumTerminMarkers } from './kuehlraumTerminMarker';
-import { buildWallCalendarEntries } from './wallCalendar';
+import { buildWallCalendarEntries, buildWallCalendarEntriesForDay } from './wallCalendar';
 import type { Sterbefall } from '../types';
 
 const base: Sterbefall = { id: '1', sterbefallId: '260001' };
@@ -70,6 +70,29 @@ describe('integration S/U markers', () => {
     const feier = entries.find((e) => e.title === 'Trauerfeier');
     expect(feier?.bestattungsMarker).toBe('S');
     expect(hatKremationImSterbefall({ ...base, endzielTyp: 'kremation' })).toBe(true);
+  });
+
+  it('Heute-Tab: nur Feiertermine des gewählten Tages', () => {
+    const heute = buildWallCalendarEntriesForDay(
+      [
+        {
+          ...base,
+          id: 'a',
+          verstorbenerName: 'Heute',
+          trauerfeierdatum: '08.06.2026',
+        },
+        {
+          ...base,
+          id: 'b',
+          verstorbenerName: 'Morgen',
+          trauerfeierdatum: '09.06.2026',
+        },
+      ],
+      '2026-06-08'
+    );
+    expect(heute).toHaveLength(1);
+    expect(heute[0]?.name).toBe('Heute');
+    expect(heute[0]?.bestattungsMarker).toBe('S');
   });
 
   it('Kühlraum: Trauerfeier-Chip mit U bei Kremation', () => {
