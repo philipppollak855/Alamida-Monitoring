@@ -83,6 +83,7 @@ const MONTH_OVERSCAN_ROWS = 2;
 const DEFAULT_MONTH_ROW_HEIGHT = 220;
 const MONTH_SCROLL_CHUNK_WEEKS = 2;
 const MONTH_SCROLL_EDGE_PX = 80;
+const MONTH_EXPAND_COOLDOWN_MS = 400;
 
 function monthEntryGridColumns(gridWidth: number, isNarrow: boolean): number {
   if (!isNarrow) return MONTH_GRID_COLUMNS_DESKTOP;
@@ -104,6 +105,9 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
   const scrollToFocusPending = useRef(false);
   const monthHasUserScrolled = useRef(false);
   const monthExpandLock = useRef(false);
+  const monthExpandCooldownUntil = useRef(0);
+  const monthLastScrollTop = useRef(0);
+  const monthPendingScrollAdjustPx = useRef(0);
   const monthGridRef = useRef<HTMLDivElement | null>(null);
   const [monthScrollWindow, setMonthScrollWindow] = useState<WallCalendarDayRange>(() =>
     currentWeekDayRange(now)
@@ -271,40 +275,36 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
     }));
   }, [range, isNarrow]);
 
+  const canExpandMonthWindow = useCallback(() => {
+    return !monthExpandLock.current && Date.now() >= monthExpandCooldownUntil.current;
+  }, []);
+
   const tryExpandMonthWindow = useCallback(
     (direction: 'backward' | 'forward'): boolean => {
       const grid = monthGridRef.current;
-      if (!grid || range !== 'month' || monthExpandLock.current) return false;
+      if (!grid || range !== 'month' || !canExpandMonthWindow()) return false;
 
       monthHasUserScrolled.current = true;
       monthExpandLock.current = true;
+      monthExpandCooldownUntil.current = Date.now() + MONTH_EXPAND_COOLDOWN_MS;
 
       const columns = monthEntryGridColumns(grid.clientWidth, isNarrow);
-      const scrollTop = grid.scrollTop;
       const rowHeight = monthGridMetricsRef.current.rowHeight;
 
       if (direction === 'backward') {
         const prev = monthScrollWindowRef.current;
         const next = expandMonthWindowBackward(prev, MONTH_SCROLL_CHUNK_WEEKS);
         const added = daysPrependedBackward(prev, next);
+        const rows = Math.ceil(added / Math.max(1, columns));
+        monthPendingScrollAdjustPx.current += rows * rowHeight;
         setMonthScrollWindow(next);
-        requestAnimationFrame(() => {
-          const rows = Math.ceil(added / Math.max(1, columns));
-          grid.scrollTop = scrollTop + rows * rowHeight;
-          monthExpandLock.current = false;
-          syncMonthGridMetrics();
-        });
         return true;
       }
 
       setMonthScrollWindow((w) => expandMonthWindowForward(w, MONTH_SCROLL_CHUNK_WEEKS));
-      requestAnimationFrame(() => {
-        monthExpandLock.current = false;
-        syncMonthGridMetrics();
-      });
       return true;
     },
-    [range, isNarrow, syncMonthGridMetrics]
+    [range, isNarrow, canExpandMonthWindow]
   );
 
   const handleMonthGridScroll = useCallback(() => {
@@ -312,6 +312,10 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
     if (!grid || range !== 'month') return;
 
     const scrollTop = grid.scrollTop;
+    const prevScrollTop = monthLastScrollTop.current;
+    const scrollDelta = scrollTop - prevScrollTop;
+    monthLastScrollTop.current = scrollTop;
+
     const scrollHeight = grid.scrollHeight;
     const clientHeight = grid.clientHeight;
     const scrollable = scrollHeight > clientHeight + 2;
@@ -330,13 +334,13 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
       else return;
     }
 
-    if (monthExpandLock.current) return;
+    if (!canExpandMonthWindow()) return;
 
     const atTop = scrollTop < MONTH_SCROLL_EDGE_PX;
     const atBottom = scrollHeight - scrollTop - clientHeight < MONTH_SCROLL_EDGE_PX;
-    if (atTop) tryExpandMonthWindow('backward');
-    else if (atBottom) tryExpandMonthWindow('forward');
-  }, [range, isNarrow, tryExpandMonthWindow]);
+    if (atTop && scrollDelta < -1) tryExpandMonthWindow('backward');
+    else if (atBottom && scrollDelta > 1) tryExpandMonthWindow('forward');
+  }, [range, isNarrow, tryExpandMonthWindow, canExpandMonthWindow]);
 
   useEffect(() => {
     if (range !== 'month') return;
@@ -344,15 +348,13 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
     if (!grid) return;
 
     const onWheel = (e: WheelEvent) => {
-      const { scrollTop, scrollHeight, clientHeight } = grid;
+      const { scrollHeight, clientHeight } = grid;
       const scrollable = scrollHeight > clientHeight + 2;
-      const atTop = scrollTop < MONTH_SCROLL_EDGE_PX;
-      const atBottom =
-        scrollable && scrollHeight - scrollTop - clientHeight < MONTH_SCROLL_EDGE_PX;
+      if (scrollable) return;
 
-      if (e.deltaY < 0 && (!scrollable || atTop)) {
+      if (e.deltaY < 0) {
         if (tryExpandMonthWindow('backward')) e.preventDefault();
-      } else if (e.deltaY > 0 && (!scrollable || atBottom)) {
+      } else if (e.deltaY > 0) {
         if (tryExpandMonthWindow('forward')) e.preventDefault();
       }
     };
@@ -380,6 +382,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
       else if (dy < 0 && (!scrollable || atBottom)) tryExpandMonthWindow('forward');
     };
 
+    monthLastScrollTop.current = grid.scrollTop;
     syncMonthGridMetrics();
     const ro = new ResizeObserver(syncMonthGridMetrics);
     ro.observe(grid);
@@ -414,6 +417,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
     if (top === null) return false;
 
     grid.scrollTop = top;
+    monthLastScrollTop.current = grid.scrollTop;
     return Math.abs(grid.scrollTop - top) <= 8;
   }, [range, focusDayKey, days, monthGridMetrics.rowHeight, monthGridMetrics.columns]);
 
@@ -463,6 +467,9 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
     if (range !== 'month') return;
     setMonthScrollWindow(currentWeekDayRange(now));
     monthHasUserScrolled.current = false;
+    monthPendingScrollAdjustPx.current = 0;
+    monthExpandCooldownUntil.current = 0;
+    monthExpandLock.current = false;
     scrollToFocusPending.current = true;
     setFocusDayKey(todayKey);
   }, [range, todayKey, setFocusDayKey, now]);
@@ -470,6 +477,24 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
   useEffect(() => {
     if (range !== 'month') setDialogDayKey(null);
   }, [range]);
+
+  useLayoutEffect(() => {
+    if (range !== 'month') return;
+
+    const grid = monthGridRef.current;
+    if (monthPendingScrollAdjustPx.current > 0 && grid) {
+      grid.scrollTop += monthPendingScrollAdjustPx.current;
+      monthPendingScrollAdjustPx.current = 0;
+      monthLastScrollTop.current = grid.scrollTop;
+      setMonthGridMetrics((prev) => ({
+        ...prev,
+        scrollTop: grid.scrollTop,
+        viewportHeight: grid.clientHeight,
+      }));
+    }
+
+    monthExpandLock.current = false;
+  }, [range, days.length, monthScrollWindow.fromKey, monthScrollWindow.toKey]);
 
   useLayoutEffect(() => {
     if (range !== 'month' || !focusDayKey || !scrollToFocusPending.current) return;
@@ -488,7 +513,10 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
     setMonthGridMetrics((prev) =>
       Math.abs(prev.scrollTop - top) < 2 ? prev : { ...prev, scrollTop: top }
     );
-    if (grid) grid.scrollTop = top;
+    if (grid) {
+      grid.scrollTop = top;
+      monthLastScrollTop.current = top;
+    }
   }, [range, days, focusDayKey, monthGridMetrics.columns, monthGridMetrics.rowHeight, monthGridMetrics.viewportHeight]);
 
   const monthVirtual = useMemo(() => {
