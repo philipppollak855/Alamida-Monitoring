@@ -286,6 +286,44 @@
   flex-shrink: 0;
 }
 
+.wall--mobile .wall-cal--mobile-month .wall-cal-period-overview--month-grid {
+  gap: 0.06rem;
+  padding-bottom: 0.15rem;
+  margin-bottom: 0.1rem;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-period-overview--month-grid .wall-cal-period-weekday {
+  min-height: 0.5rem;
+  font-size: 0.38rem;
+  letter-spacing: 0;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-period-overview--month-grid .wall-cal-period-cell:not(.is-pad),
+.wall--mobile .wall-cal--mobile-month .wall-cal-period-overview--month-grid .wall-cal-period-cell.is-pad {
+  aspect-ratio: unset;
+  min-height: 0.68rem;
+  max-height: 0.76rem;
+  padding: 0;
+  border-radius: 4px;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-period-overview--month-grid .wall-cal-period-num {
+  font-size: 0.48rem;
+  line-height: 1;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-period-overview--month-grid .wall-cal-period-badge {
+  font-size: 0.34rem;
+  line-height: 1;
+  margin-top: 0;
+  padding: 0;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-today-btn {
+  font-size: 0.58rem;
+  padding: 0.15rem 0.3rem;
+}
+
 .wall--mobile .wall-cal--mobile-month .wall-cal-month-grid {
   display: grid !important;
   flex: 1;
@@ -295,8 +333,8 @@
   overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: var(--wall-scroll-thumb) transparent;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.35rem;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.28rem;
   align-content: start;
 }
 
@@ -309,27 +347,60 @@
   border-radius: 999px;
 }
 
-@media (min-width: 400px) {
-  .wall--mobile .wall-cal--mobile-month .wall-cal-month-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
 .wall--mobile .wall-cal--mobile-month .wall-cal-day--month {
-  min-height: 5.5rem;
+  min-height: 0;
   max-height: none;
 }
 
 .wall--mobile .wall-cal--mobile-month .wall-cal-day--month.is-summary-only {
-  min-height: 3.75rem;
+  min-height: 0;
 }
 
-.wall--mobile .wall-cal--mobile-month .wall-cal-day-summary-total {
-  font-size: 0.66rem;
+.wall--mobile .wall-cal--mobile-month .wall-cal-day-head--micro {
+  padding: 0.12rem 0.08rem;
+  border-bottom-width: 1px;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-day-head--micro .wall-cal-day-num {
+  font-size: 0.55rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-day-summary {
+  padding: 0.08rem 0.04rem 0.12rem;
+  min-height: 0;
+  gap: 0;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-day-summary-stats {
+  flex-direction: row;
+  gap: 0.18rem;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-day-summary-total,
+.wall--mobile .wall-cal--mobile-month .wall-cal-day-summary-ueb {
+  font-size: 0.48rem;
+  line-height: 1;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-day-summary-unit {
+  font-size: 0.4rem;
+  margin-left: 0.04rem;
 }
 
 .wall--mobile .wall-cal--mobile-month .wall-cal-day-summary-ueb {
-  font-size: 0.6rem;
+  color: var(--muted);
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-day-summary-none {
+  font-size: 0.55rem;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-day.is-today {
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.45);
 }
 
 .wall--mobile .wall-cal--mobile-month .wall-cal-day-list {

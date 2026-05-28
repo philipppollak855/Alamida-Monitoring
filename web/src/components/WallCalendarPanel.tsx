@@ -33,6 +33,7 @@ import {
   type WallCalendarRange,
 
 } from '../board/wallCalendar';
+import { dayOfMonthFromDayKey } from '../board/dateUtils';
 import {
   calendarDayLayout,
   calendarEventFlexClass,
@@ -66,8 +67,8 @@ const RANGE_OPTIONS: { id: WallCalendarRange; label: string; short: string }[] =
 
 ];
 
-const MONTH_CARD_MIN_WIDTH = 148;
-const MONTH_CARD_MIN_WIDTH_MOBILE = 96;
+/** Monats-Einträge: immer eine Kalenderwoche (Mo–So) pro Zeile. */
+const MONTH_GRID_COLUMNS = 7;
 const MONTH_GRID_GAP_PX = 8;
 const MONTH_OVERSCAN_ROWS = 2;
 const DEFAULT_MONTH_ROW_HEIGHT = 220;
@@ -87,7 +88,6 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
   const scrollToFocusPending = useRef(false);
   const monthGridRef = useRef<HTMLDivElement | null>(null);
   const [monthGridMetrics, setMonthGridMetrics] = useState({
-    columns: 1,
     rowHeight: DEFAULT_MONTH_ROW_HEIGHT,
     scrollTop: 0,
     viewportHeight: 0,
@@ -218,19 +218,12 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
     if (!grid) return;
 
     const syncMetrics = () => {
-      const width = grid.clientWidth;
-      const minCard = isNarrow ? MONTH_CARD_MIN_WIDTH_MOBILE : MONTH_CARD_MIN_WIDTH;
-      const columns = Math.max(
-        1,
-        Math.floor((width + MONTH_GRID_GAP_PX) / (minCard + MONTH_GRID_GAP_PX))
-      );
       const firstDay = grid.querySelector('.wall-cal-day--month') as HTMLElement | null;
       const rowHeight =
         (firstDay?.getBoundingClientRect().height ?? DEFAULT_MONTH_ROW_HEIGHT) + MONTH_GRID_GAP_PX;
 
       setMonthGridMetrics((prev) => ({
-        columns,
-        rowHeight: Number.isFinite(rowHeight) ? rowHeight : prev.rowHeight,
+        rowHeight: Number.isFinite(rowHeight) && rowHeight > 0 ? rowHeight : prev.rowHeight,
         scrollTop: grid.scrollTop,
         viewportHeight: grid.clientHeight,
       }));
@@ -248,44 +241,69 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
       grid.removeEventListener('scroll', onScroll);
       ro.disconnect();
     };
-  }, [range, days.length, isNarrow]);
+  }, [range, days.length]);
+
+  const scrollMonthGridToFocus = useCallback(() => {
+    const grid = monthGridRef.current;
+    if (!grid || range !== 'month' || !focusDayKey) return false;
+
+    const viewportHeight = grid.clientHeight;
+    if (viewportHeight <= 0) return false;
+
+    const firstDay = grid.querySelector('.wall-cal-day--month') as HTMLElement | null;
+    const rowHeight =
+      (firstDay?.getBoundingClientRect().height ?? monthGridMetrics.rowHeight) + MONTH_GRID_GAP_PX;
+    if (rowHeight <= 0) return false;
+
+    const index = days.findIndex((d) => d.dayKey === focusDayKey);
+    const top = monthGridScrollTop(index, MONTH_GRID_COLUMNS, rowHeight, viewportHeight);
+    if (top === null) return false;
+
+    grid.scrollTop = top;
+    return Math.abs(grid.scrollTop - top) <= 8;
+  }, [range, focusDayKey, days, monthGridMetrics.rowHeight]);
 
   useEffect(() => {
     if (!scrollToFocusPending.current || range !== 'month' || !focusDayKey) return;
-    const grid = monthGridRef.current;
-    if (!grid) return;
+    if (activeArts.size === 0 || totalInRange === 0) return;
 
-    const applyScroll = (rowHeight: number, viewportHeight: number) => {
-      const index = days.findIndex((d) => d.dayKey === focusDayKey);
-      const top = monthGridScrollTop(
-        index,
-        monthGridMetrics.columns,
-        rowHeight,
-        viewportHeight
-      );
-      if (top === null) return false;
-      grid.scrollTop = top;
-      return true;
+    let cancelled = false;
+    const attempt = () => {
+      if (cancelled || !scrollToFocusPending.current) return;
+      if (scrollMonthGridToFocus()) {
+        scrollToFocusPending.current = false;
+      }
     };
 
-    const viewportHeight = monthGridMetrics.viewportHeight || grid.clientHeight;
-    if (viewportHeight <= 0) return;
+    attempt();
+    const raf1 = requestAnimationFrame(attempt);
+    const t1 = window.setTimeout(attempt, 60);
+    const t2 = window.setTimeout(attempt, 250);
 
-    if (!applyScroll(monthGridMetrics.rowHeight, viewportHeight)) return;
+    const grid = monthGridRef.current;
+    const ro =
+      grid &&
+      new ResizeObserver(() => {
+        attempt();
+      });
+    if (grid && ro) ro.observe(grid);
 
-    scrollToFocusPending.current = false;
-
-    const raf = requestAnimationFrame(() => {
-      const firstDay = grid.querySelector('.wall-cal-day--month') as HTMLElement | null;
-      const measuredRow =
-        (firstDay?.getBoundingClientRect().height ?? 0) + MONTH_GRID_GAP_PX;
-      const vh = grid.clientHeight;
-      if (measuredRow > 1 && vh > 0) {
-        applyScroll(measuredRow, vh);
-      }
-    });
-    return () => cancelAnimationFrame(raf);
-  }, [focusDayKey, range, days, monthGridMetrics]);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf1);
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      ro?.disconnect();
+    };
+  }, [
+    range,
+    focusDayKey,
+    days.length,
+    activeArts.size,
+    totalInRange,
+    scrollMonthGridToFocus,
+    monthGridMetrics.viewportHeight,
+  ]);
 
   useEffect(() => {
     if (range !== 'month') return;
@@ -301,10 +319,9 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
     if (range !== 'month') {
       return { visibleDays: days, topSpacerPx: 0, bottomSpacerPx: 0 };
     }
-    const columns = Math.max(1, monthGridMetrics.columns);
     const rowHeight = Math.max(1, monthGridMetrics.rowHeight);
     const viewportHeight = Math.max(rowHeight, monthGridMetrics.viewportHeight);
-    const totalRows = Math.max(1, Math.ceil(days.length / columns));
+    const totalRows = Math.max(1, Math.ceil(days.length / MONTH_GRID_COLUMNS));
     const startRow = Math.max(
       0,
       Math.floor(monthGridMetrics.scrollTop / rowHeight) - MONTH_OVERSCAN_ROWS
@@ -313,8 +330,8 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
       totalRows - 1,
       Math.ceil((monthGridMetrics.scrollTop + viewportHeight) / rowHeight) + MONTH_OVERSCAN_ROWS
     );
-    const startIndex = startRow * columns;
-    const endIndex = Math.min(days.length, (endRow + 1) * columns);
+    const startIndex = startRow * MONTH_GRID_COLUMNS;
+    const endIndex = Math.min(days.length, (endRow + 1) * MONTH_GRID_COLUMNS);
     const topSpacerPx = startRow * rowHeight;
     const bottomSpacerPx = Math.max(0, (totalRows - endRow - 1) * rowHeight);
 
@@ -758,21 +775,38 @@ function WallCalendarDaySection({
   const summary = summarizeWallCalendarDay(day.entries);
   const clickable = Boolean(onOpenDay);
 
+  const summaryAria =
+    summary.total === 0
+      ? 'keine Termine'
+      : `${summary.total} Termin${summary.total === 1 ? '' : 'e'}${
+          summary.ueberfuehrungen > 0
+            ? `, ${summary.ueberfuehrungen} Überführung${summary.ueberfuehrungen === 1 ? '' : 'en'}`
+            : ''
+        }`;
+
   const body = summaryOnly ? (
     <div className="wall-cal-day-summary">
       {summary.total === 0 ? (
         <span className="wall-cal-day-summary-none">—</span>
       ) : (
-        <>
-          <span className="wall-cal-day-summary-total">
-            {summary.total} Termin{summary.total === 1 ? '' : 'e'}
+        <div className="wall-cal-day-summary-stats" aria-hidden>
+          <span
+            className="wall-cal-day-summary-total"
+            title={`${summary.total} Termin${summary.total === 1 ? '' : 'e'}`}
+          >
+            {summary.total}
+            <span className="wall-cal-day-summary-unit">T</span>
           </span>
           {summary.ueberfuehrungen > 0 && (
-            <span className="wall-cal-day-summary-ueb">
-              {summary.ueberfuehrungen} Überführung{summary.ueberfuehrungen === 1 ? '' : 'en'}
+            <span
+              className="wall-cal-day-summary-ueb"
+              title={`${summary.ueberfuehrungen} Überführung${summary.ueberfuehrungen === 1 ? '' : 'en'}`}
+            >
+              {summary.ueberfuehrungen}
+              <span className="wall-cal-day-summary-unit">Ü</span>
             </span>
           )}
-        </>
+        </div>
       )}
     </div>
   ) : (
@@ -807,7 +841,12 @@ function WallCalendarDaySection({
     .filter(Boolean)
     .join(' ');
 
-  const head = (
+  const head = summaryOnly ? (
+    <header className="wall-cal-day-head wall-cal-day-head--micro">
+      <span className="wall-cal-day-num">{dayOfMonthFromDayKey(day.dayKey)}</span>
+      {day.isToday && <span className="sr-only">Heute</span>}
+    </header>
+  ) : (
     <header className="wall-cal-day-head">
       <span className="wall-cal-day-wd">{day.weekdayShort}</span>
       <span className="wall-cal-day-num">
@@ -843,7 +882,7 @@ function WallCalendarDaySection({
         type="button"
         className="wall-cal-day-open"
         onClick={() => onOpenDay!(day.dayKey)}
-        aria-label={`Termine am ${day.dayLabel}${summary.total > 0 ? `, ${summary.total} Termine` : ''}`}
+        aria-label={`Termine am ${day.dayLabel}, ${summaryAria}`}
       >
         {head}
         {body}
