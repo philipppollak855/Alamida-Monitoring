@@ -1,0 +1,200 @@
+/**
+ * Wandmonitor — Mobilansicht (Klasse wall--mobile, Viewport ≤768px).
+ * Desktop-Layout in styles.css bleibt unverändert.
+ */
+
+.wall--mobile {
+  --wall-mob-pad: max(0.5rem, env(safe-area-inset-left, 0px));
+}
+
+.wall--mobile .wall-stage {
+  padding-left: var(--wall-mob-pad);
+  padding-right: var(--wall-mob-pad);
+}
+
+/* Tabs: horizontal scrollbar statt gequetschter 5-Spalten-Raster */
+.wall--mobile .wall-view-tabs.wall-view-tabs--one-row {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  gap: 0.35rem;
+  padding: 0.35rem var(--wall-mob-pad) 0;
+}
+
+.wall--mobile .wall-view-tabs.wall-view-tabs--one-row::-webkit-scrollbar {
+  display: none;
+}
+
+.wall--mobile .wall-view-tab {
+  flex: 0 0 auto;
+  min-width: 4.75rem;
+  max-width: 6.25rem;
+  font-size: 0.68rem;
+  padding: 0.45rem 0.5rem;
+  min-height: 44px;
+}
+
+/* Kühlraum */
+.wall--mobile .wall-kuehlraum-stage {
+  gap: 0.35rem;
+}
+
+.wall--mobile .wall-cool-grid {
+  flex: 1;
+  min-height: 0;
+}
+
+.wall--mobile .wall-cool-tile.on.is-nicht-frei,
+.wall--mobile .wall-cool-tile.on.is-frei-erfasst {
+  background: var(--surface);
+  box-shadow: none;
+}
+
+.wall--mobile .wall-cool-tile-footer {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.wall--mobile .wall-cool-tile-footer .wall-freigabe-btn {
+  max-width: none;
+  width: 100%;
+  min-height: 34px;
+  font-size: 0.62rem;
+}
+
+/* Extern */
+.wall--mobile .wall-extern-stage {
+  gap: 0.35rem;
+}
+
+.wall--mobile .wall-extern-grid {
+  padding-bottom: 0.25rem;
+}
+
+.wall--mobile .wall-extern-person.is-nicht-frei,
+.wall--mobile .wall-extern-person.is-frei-erfasst {
+  background: var(--surface);
+  border-width: 0 0 0 4px;
+  border-style: solid;
+  box-shadow: none;
+}
+
+.wall--mobile .wall-extern-person.is-nicht-frei {
+  border-left-color: #ef4444;
+}
+
+.wall--mobile .wall-extern-person.is-frei-erfasst {
+  border-left-color: #22c55e;
+}
+
+/* Heute / Offen */
+.wall--mobile .wall-list-stage {
+  gap: 0.25rem;
+}
+
+.wall--mobile .wall-big-list {
+  gap: 0.4rem;
+  padding-bottom: 0.25rem;
+}
+
+.wall--mobile .wall-big-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto;
+  gap: 0.15rem 0.5rem;
+  padding: 0.55rem 0.65rem;
+  align-items: center;
+}
+
+.wall--mobile .wall-big-row time {
+  grid-column: 1;
+  grid-row: 1;
+  order: unset;
+  font-size: 0.75rem;
+  opacity: 1;
+}
+
+.wall--mobile .wall-big-main {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  min-width: 0;
+}
+
+.wall--mobile .wall-big-name {
+  font-size: 0.95rem;
+  line-height: 1.25;
+}
+
+.wall--mobile .wall-big-row .route-flow {
+  font-size: 0.78rem;
+  margin-top: 0.15rem;
+}
+
+.wall--mobile .wall-big-row-actions {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: start;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+  margin-top: 0;
+}
+
+.wall--mobile .wall-erledigt-btn {
+  min-height: 36px;
+  font-size: 0.72rem;
+}
+
+.wall--mobile .wall-big-row.is-erledigt {
+  border-left-width: 4px;
+}
+
+/* Kalender: Mobil-Layout nur wenn Panel narrow ist */
+.wall--mobile .wall-cal-stage {
+  min-height: 0;
+}
+
+.wall--mobile .wall-cal--narrow {
+  height: 100%;
+}
+
+.wall--mobile .wall-cal-mobile-body {
+  min-height: 0;
+}
+
+.wall--mobile .wall-cal-mobile-strip {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  gap: 0.5rem;
+  padding-bottom: 0.35rem;
+}
+
+.wall--mobile .wall-cal-agenda-day {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 0.35rem 0.45rem;
+}
+
+.wall--mobile .wall-cal-card--mobile {
+  padding: 0.45rem 0.5rem;
+}
+
+@media (max-width: 480px) {
+  .wall--mobile .wall-view-tab {
+    min-width: 4.25rem;
+    font-size: 0.62rem;
+  }
+
+  .wall--mobile .wall-time {
+    font-size: 1.1rem;
+  }
+
+  .wall--mobile .wall-urnen-section {
+    max-height: 22vh;
+  }
+}

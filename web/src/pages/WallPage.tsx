@@ -253,7 +253,9 @@ export function WallPage({
   });
 
   return (
-    <div className={`wall ${legacyMode ? 'wall--legacy' : ''}`}>
+    <div
+      className={`wall ${legacyMode ? 'wall--legacy' : ''}${isNarrow ? ' wall--mobile' : ''}`}
+    >
       <div className="wall-bg" aria-hidden />
       <header className="wall-topbar">
         <div className="wall-brand" aria-label="Alamida Monitoring">

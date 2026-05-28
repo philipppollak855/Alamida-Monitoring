@@ -363,15 +363,17 @@
 
 [data-theme='alamida'] .cool-cell.occupied,
 [data-theme='alamida'] .wall-cool-tile.on.is-nicht-frei {
-  background: rgba(248, 113, 113, 0.1);
-  border-color: rgba(248, 113, 113, 0.5);
-  box-shadow: 0 4px 16px rgba(248, 113, 113, 0.08);
+  background: rgba(255, 255, 255, 0.95);
+  border-color: #ef4444;
+  border-width: 3px;
+  box-shadow: none;
 }
 
 [data-theme='alamida'] .wall-cool-tile.on.is-frei-erfasst {
-  background: rgba(34, 197, 94, 0.12);
-  border-color: rgba(34, 197, 94, 0.45);
-  box-shadow: 0 4px 16px rgba(34, 197, 94, 0.1);
+  background: rgba(255, 255, 255, 0.95);
+  border-color: #22c55e;
+  border-width: 3px;
+  box-shadow: none;
 }
 
 [data-theme='alamida'] .wall-big-row.is-erledigt {

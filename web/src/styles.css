@@ -1562,17 +1562,19 @@ code {
   backdrop-filter: blur(8px);
 }
 
-/* Belegter Platz: rot = keine wirksame Freigabe, grün = Freigabe erfasst/wirksam */
+/* Belegter Platz: Randfarbe = Freigabe (Hintergrund neutral) */
 .wall-cool-tile.on.is-nicht-frei {
-  border-color: rgba(248, 113, 113, 0.65);
-  background: rgba(248, 113, 113, 0.14);
-  box-shadow: 0 0 24px rgba(248, 113, 113, 0.15);
+  background: var(--surface);
+  border-color: #ef4444;
+  border-width: 3px;
+  box-shadow: none;
 }
 
 .wall-cool-tile.on.is-frei-erfasst {
-  border-color: rgba(34, 197, 94, 0.65);
-  background: rgba(34, 197, 94, 0.14);
-  box-shadow: 0 0 32px rgba(34, 197, 94, 0.14);
+  background: var(--surface);
+  border-color: #22c55e;
+  border-width: 3px;
+  box-shadow: none;
 }
 
 .wall-cool-tile-footer {
