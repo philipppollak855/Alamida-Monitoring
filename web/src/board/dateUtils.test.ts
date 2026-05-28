@@ -106,6 +106,37 @@ describe('buildWallCalendarEntries Feiertermine', () => {
     expect(block?.arts).toEqual(expect.arrayContaining(['trauerfeier', 'beisetzung']));
     expect(entries.filter((e) => e.dayKey === '2026-05-28')).toHaveLength(1);
   });
+
+  it('gleiche Uhrzeit wie Trauerfeier: ein Termin Trauerfeier', () => {
+    const entries = buildWallCalendarEntries([
+      {
+        ...base,
+        trauerfeierdatum: '28.05.2026',
+        trauerfeierzeit: '14:00',
+        beisetzungsdatum: '28.05.2026',
+        beisetzungszeit: '14:00',
+        imAnschluss: false,
+      },
+    ]);
+    expect(entries.filter((e) => e.dayKey === '2026-05-28')).toHaveLength(1);
+    expect(entries[0]?.title).toBe('Trauerfeier');
+    expect(entries[0]?.grouped).toBe(true);
+  });
+
+  it('Im Anschluss mit gleicher Uhrzeit in beiden Feldern: ein Termin', () => {
+    const entries = buildWallCalendarEntries([
+      {
+        ...base,
+        trauerfeierdatum: '28.05.2026',
+        trauerfeierzeit: '14:00',
+        beisetzungsdatum: '28.05.2026',
+        beisetzungszeit: '14:00',
+        imAnschluss: true,
+      },
+    ]);
+    expect(entries.filter((e) => e.dayKey === '2026-05-28')).toHaveLength(1);
+    expect(entries.find((e) => e.title === 'Beisetzung' && !e.grouped)).toBeUndefined();
+  });
 });
 
 describe('startOfWeekMonday', () => {

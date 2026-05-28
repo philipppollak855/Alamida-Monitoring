@@ -477,7 +477,7 @@
     font-size: 0.7rem;
   }
 
-  .wall-view-tabs.wall-view-tabs--one-row {
+  .wall:not(.wall--mobile) .wall-view-tabs.wall-view-tabs--one-row {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 0.2rem;
@@ -1031,9 +1031,9 @@
     font-size: 0.95rem;
   }
 
-  /* Desktop-Strip/Monatsgrid auf Mobil ausblenden */
-  .wall-cal--narrow .wall-cal-strip,
-  .wall-cal--narrow .wall-cal-month-grid {
+  /* Wochenstreifen nur in Desktop-Ansicht; Monatsraster über wall-cal--mobile-month */
+  .wall-cal--narrow:not(.wall-cal--mobile-month) .wall-cal-strip,
+  .wall-cal--narrow:not(.wall-cal--mobile-month) .wall-cal-month-grid {
     display: none !important;
   }
 

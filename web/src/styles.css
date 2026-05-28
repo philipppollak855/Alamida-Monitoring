@@ -3379,7 +3379,7 @@ code {
     grid-template-columns: repeat(3, 1fr);
   }
 
-  .wall-view-tabs {
+  .wall:not(.wall--mobile) .wall-view-tabs {
     flex-direction: column;
   }
 

@@ -305,7 +305,11 @@ export function WallPage({
         </div>
       </header>
 
-      <div className={`wall-view-tabs ${isNarrow ? 'wall-view-tabs--one-row' : ''}`}>
+      <div
+        className={`wall-view-tabs ${isNarrow ? 'wall-view-tabs--one-row wall-view-tabs--mobile-bar' : ''}`}
+        role="tablist"
+        aria-label="Wandansichten"
+      >
         {activeViews.map((v, i) => (
           <button
             key={v}

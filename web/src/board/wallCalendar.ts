@@ -135,21 +135,29 @@ function fallName(s: Sterbefall): string {
   );
 }
 
-/** Beisetzung mit fester Uhrzeit (nicht „Im Anschluss“). */
-function beisetzungHatEigeneUhrzeit(s: Sterbefall): boolean {
-  if (istImAnschluss(s.beisetzungszeit)) return false;
-  return Boolean(extractZeitDe(s.beisetzungsdatum, s.beisetzungszeit));
+function beisetzungZeitGleichTrauerfeier(s: Sterbefall): boolean {
+  const tf = extractZeitDe(s.trauerfeierdatum, s.trauerfeierzeit);
+  const bs = extractZeitDe(s.beisetzungsdatum, s.beisetzungszeit);
+  return Boolean(tf && bs && tf === bs);
 }
 
-/** Gleicher Tag wie Trauerfeier, ohne eigene Beisetzungs-Uhrzeit. */
+/** Beisetzung mit abweichender Uhrzeit (nicht Im Anschluss, nicht gleiche Zeit wie Trauerfeier). */
+function beisetzungHatEigeneUhrzeit(s: Sterbefall): boolean {
+  if (istImAnschluss(s.beisetzungszeit)) return false;
+  const bs = extractZeitDe(s.beisetzungsdatum, s.beisetzungszeit);
+  if (!bs) return false;
+  if (beisetzungZeitGleichTrauerfeier(s)) return false;
+  return true;
+}
+
+/** Ein Kalendertermin Trauerfeier: Im Anschluss oder gleiche Uhrzeit am Trauerfeier-Tag. */
 function beisetzungImAnschlussAmTrauerfeierTag(s: Sterbefall): boolean {
-  if (!sterbefallImAnschluss(s)) return false;
   if (beisetzungHatEigeneUhrzeit(s)) return false;
   const tfDay = dayKeyFromDeDatum(s.trauerfeierdatum);
   if (!tfDay) return false;
   const bsDay = dayKeyFromDeDatum(s.beisetzungsdatum);
-  if (!bsDay) return true;
-  return bsDay === tfDay;
+  if (bsDay && bsDay !== tfDay) return false;
+  return sterbefallImAnschluss(s) || beisetzungZeitGleichTrauerfeier(s);
 }
 
 function pushAtomic(
@@ -428,7 +436,6 @@ function collectTrauerblockEntries(
       if (rosen) groupParts.push(rosen);
       groupParts.push(ceremony);
       if (beisetzung && beisetzung.dayKey === dayKey) groupParts.push(beisetzung);
-      if (groupParts.length < 2) continue;
 
       for (const p of groupParts) used.add(p.key);
       entries.push(

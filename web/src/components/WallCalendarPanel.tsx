@@ -64,6 +64,7 @@ const RANGE_OPTIONS: { id: WallCalendarRange; label: string; short: string }[] =
 ];
 
 const MONTH_CARD_MIN_WIDTH = 148;
+const MONTH_CARD_MIN_WIDTH_MOBILE = 96;
 const MONTH_GRID_GAP_PX = 8;
 const MONTH_OVERSCAN_ROWS = 2;
 const DEFAULT_MONTH_ROW_HEIGHT = 220;
@@ -156,6 +157,9 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
 
   const overviewColumns = range === 14 ? 7 : 7;
 
+  /** Monat: vertikales Raster wie Desktop; 7/14 Tage: horizontale Agenda. */
+  const mobileUsesAgenda = isNarrow && range !== 'month';
+
   useEffect(() => {
     // Beim Öffnen des Kalender-Tabs immer auf "heute" fokussieren.
     scrollToFocusPending.current = true;
@@ -164,7 +168,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
 
   useEffect(() => {
     if (!scrollToFocusPending.current || !focusDayKey || activeArts.size === 0) return;
-    if (range === 'month' && !isNarrow) return;
+    if (range === 'month' && mobileUsesAgenda) return;
     const el = document.getElementById(`wall-cal-focus-${focusDayKey}`);
     if (!el) return;
 
@@ -177,18 +181,19 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
       });
     }, 60);
     return () => window.clearTimeout(t);
-  }, [focusDayKey, days.length, isNarrow, activeArts.size, range]);
+  }, [focusDayKey, days.length, isNarrow, activeArts.size, range, mobileUsesAgenda]);
 
   useEffect(() => {
-    if (range !== 'month' || isNarrow) return;
+    if (range !== 'month') return;
     const grid = monthGridRef.current;
     if (!grid) return;
 
     const syncMetrics = () => {
       const width = grid.clientWidth;
+      const minCard = isNarrow ? MONTH_CARD_MIN_WIDTH_MOBILE : MONTH_CARD_MIN_WIDTH;
       const columns = Math.max(
         1,
-        Math.floor((width + MONTH_GRID_GAP_PX) / (MONTH_CARD_MIN_WIDTH + MONTH_GRID_GAP_PX))
+        Math.floor((width + MONTH_GRID_GAP_PX) / (minCard + MONTH_GRID_GAP_PX))
       );
       const firstDay = grid.querySelector('.wall-cal-day--month') as HTMLElement | null;
       const rowHeight =
@@ -214,10 +219,10 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
       grid.removeEventListener('scroll', onScroll);
       ro.disconnect();
     };
-  }, [range, isNarrow, days.length]);
+  }, [range, days.length, isNarrow]);
 
   useEffect(() => {
-    if (!scrollToFocusPending.current || range !== 'month' || isNarrow || !focusDayKey) return;
+    if (!scrollToFocusPending.current || range !== 'month' || !focusDayKey) return;
     const grid = monthGridRef.current;
     if (!grid) return;
     const index = days.findIndex((d) => d.dayKey === focusDayKey);
@@ -231,10 +236,10 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
       grid.scrollTop = Math.max(0, targetTop);
       scrollToFocusPending.current = false;
     }
-  }, [focusDayKey, range, isNarrow, days, monthGridMetrics]);
+  }, [focusDayKey, range, days, monthGridMetrics]);
 
   const monthVirtual = useMemo(() => {
-    if (range !== 'month' || isNarrow) {
+    if (range !== 'month') {
       return { visibleDays: days, topSpacerPx: 0, bottomSpacerPx: 0 };
     }
     const columns = Math.max(1, monthGridMetrics.columns);
@@ -259,7 +264,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
       topSpacerPx,
       bottomSpacerPx,
     };
-  }, [range, isNarrow, days, monthGridMetrics]);
+  }, [range, days, monthGridMetrics]);
 
 
 
@@ -272,7 +277,9 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
 
   return (
 
-    <div className={`wall-cal ${isNarrow ? 'wall-cal--narrow' : ''}`}>
+    <div
+      className={`wall-cal ${isNarrow ? 'wall-cal--narrow' : ''} ${isNarrow && range === 'month' ? 'wall-cal--mobile-month' : ''}`}
+    >
 
       <div className="wall-cal-toolbar">
 
@@ -403,7 +410,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
 
         </p>
 
-      ) : isNarrow ? (
+      ) : mobileUsesAgenda ? (
 
         <div className="wall-cal-mobile-body">
 

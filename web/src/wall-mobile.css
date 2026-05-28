@@ -5,6 +5,7 @@
 
 .wall--mobile {
   --wall-mob-pad: max(0.5rem, env(safe-area-inset-left, 0px));
+  --wall-scroll-thumb: color-mix(in srgb, var(--muted) 55%, transparent);
 }
 
 .wall--mobile .wall-stage {
@@ -12,38 +13,91 @@
   padding-right: var(--wall-mob-pad);
 }
 
-/* Tabs: horizontal scrollbar statt gequetschter 5-Spalten-Raster */
-.wall--mobile .wall-view-tabs.wall-view-tabs--one-row {
-  display: flex;
-  flex-wrap: nowrap;
+/* ─── Tab-Leiste: horizontale Pill-Leiste, geringe Höhe ─── */
+.wall--mobile .wall-view-tabs.wall-view-tabs--one-row,
+.wall--mobile .wall-view-tabs.wall-view-tabs--mobile-bar {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: stretch;
   overflow-x: auto;
+  overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  gap: 0.35rem;
-  padding: 0.35rem var(--wall-mob-pad) 0;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  scrollbar-color: var(--wall-scroll-thumb) transparent;
+  gap: 0.3rem;
+  padding: 0.28rem var(--wall-mob-pad) 0.35rem;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-solid);
 }
 
-.wall--mobile .wall-view-tabs.wall-view-tabs--one-row::-webkit-scrollbar {
-  display: none;
+.wall--mobile .wall-view-tabs.wall-view-tabs--one-row::-webkit-scrollbar,
+.wall--mobile .wall-view-tabs.wall-view-tabs--mobile-bar::-webkit-scrollbar {
+  height: 4px;
+}
+
+.wall--mobile .wall-view-tabs.wall-view-tabs--one-row::-webkit-scrollbar-thumb,
+.wall--mobile .wall-view-tabs.wall-view-tabs--mobile-bar::-webkit-scrollbar-thumb {
+  background: var(--wall-scroll-thumb);
+  border-radius: 999px;
 }
 
 .wall--mobile .wall-view-tab {
   flex: 0 0 auto;
-  min-width: 4.75rem;
-  max-width: 6.25rem;
+  scroll-snap-align: center;
+  min-width: 4.5rem;
+  max-width: none;
+  min-height: 32px;
+  max-height: 32px;
+  padding: 0.28rem 0.55rem;
   font-size: 0.68rem;
-  padding: 0.45rem 0.5rem;
-  min-height: 44px;
+  font-weight: 600;
+  line-height: 1.15;
+  white-space: nowrap;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
 }
 
-/* Kühlraum */
+.wall--mobile .wall-view-tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.wall--mobile .wall-view-tab.auto.active {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+/* ─── Kühlraum: scrollbarer Bereich ─── */
 .wall--mobile .wall-kuehlraum-stage {
   gap: 0.35rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--wall-scroll-thumb) transparent;
+  padding-bottom: 0.35rem;
+}
+
+.wall--mobile .wall-kuehlraum-stage::-webkit-scrollbar {
+  width: 5px;
+}
+
+.wall--mobile .wall-kuehlraum-stage::-webkit-scrollbar-thumb {
+  background: var(--wall-scroll-thumb);
+  border-radius: 999px;
 }
 
 .wall--mobile .wall-cool-grid {
-  flex: 1;
-  min-height: 0;
+  flex: 0 0 auto;
+  min-height: min(52vh, 22rem);
+  height: auto;
 }
 
 .wall--mobile .wall-cool-tile.on.is-nicht-frei,
@@ -64,9 +118,65 @@
   font-size: 0.62rem;
 }
 
+/* Urnen: zwei Spalten */
+.wall--mobile .wall-urnen-section {
+  flex-shrink: 0;
+  max-height: none;
+  overflow: visible;
+  padding-top: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.wall--mobile .wall-urnen-title {
+  font-size: 0.95rem;
+}
+
+.wall--mobile .wall-urnen-sub {
+  font-size: 0.72rem;
+  margin-bottom: 0.35rem;
+}
+
+.wall--mobile .wall-urnen-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem;
+}
+
+.wall--mobile .wall-urnen-item {
+  min-width: 0;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.35rem;
+  padding: 0.4rem 0.45rem;
+}
+
+.wall--mobile .wall-urnen-item-main {
+  min-width: 0;
+}
+
+.wall--mobile .wall-urnen-name {
+  font-size: 0.78rem;
+  line-height: 1.2;
+}
+
+.wall--mobile .wall-urnen-meta {
+  font-size: 0.65rem;
+}
+
+.wall--mobile .wall-urnen-section .urnen-undo-btn {
+  width: 100%;
+  min-height: 32px;
+  font-size: 0.65rem;
+  text-align: center;
+}
+
 /* Extern */
 .wall--mobile .wall-extern-stage {
   gap: 0.35rem;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--wall-scroll-thumb) transparent;
 }
 
 .wall--mobile .wall-extern-grid {
@@ -92,6 +202,10 @@
 /* Heute / Offen */
 .wall--mobile .wall-list-stage {
   gap: 0.25rem;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--wall-scroll-thumb) transparent;
 }
 
 .wall--mobile .wall-big-list {
@@ -151,13 +265,82 @@
   border-left-width: 4px;
 }
 
-/* Kalender: Mobil-Layout nur wenn Panel narrow ist */
+/* ─── Kalender ─── */
 .wall--mobile .wall-cal-stage {
   min-height: 0;
 }
 
 .wall--mobile .wall-cal--narrow {
   height: 100%;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-desktop-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-period-row {
+  flex-shrink: 0;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-month-grid {
+  display: grid !important;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--wall-scroll-thumb) transparent;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem;
+  align-content: start;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-month-grid::-webkit-scrollbar {
+  width: 5px;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-month-grid::-webkit-scrollbar-thumb {
+  background: var(--wall-scroll-thumb);
+  border-radius: 999px;
+}
+
+@media (min-width: 400px) {
+  .wall--mobile .wall-cal--mobile-month .wall-cal-month-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-day--month {
+  min-height: 5.5rem;
+  max-height: none;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-day-list {
+  max-height: 4.5rem;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-card--compact {
+  padding: 0.28rem 0.32rem;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-card--compact .wall-cal-name {
+  font-size: 0.68rem;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-card--compact .wall-cal-time {
+  font-size: 0.62rem;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-badge {
+  font-size: 0.5rem;
+  padding: 0.06rem 0.2rem;
 }
 
 .wall--mobile .wall-cal-mobile-body {
@@ -167,8 +350,11 @@
 .wall--mobile .wall-cal-mobile-strip {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  overflow-x: auto;
+  overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--wall-scroll-thumb) transparent;
   gap: 0.5rem;
   padding-bottom: 0.35rem;
 }
@@ -186,15 +372,12 @@
 
 @media (max-width: 480px) {
   .wall--mobile .wall-view-tab {
-    min-width: 4.25rem;
+    min-width: 4.1rem;
     font-size: 0.62rem;
+    padding: 0.25rem 0.45rem;
   }
 
   .wall--mobile .wall-time {
     font-size: 1.1rem;
-  }
-
-  .wall--mobile .wall-urnen-section {
-    max-height: 22vh;
   }
 }
