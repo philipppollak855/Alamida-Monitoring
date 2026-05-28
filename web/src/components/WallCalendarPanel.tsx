@@ -33,7 +33,6 @@ import {
   type WallCalendarRange,
 
 } from '../board/wallCalendar';
-import { dayOfMonthFromDayKey } from '../board/dateUtils';
 import {
   calendarDayLayout,
   calendarEventFlexClass,
@@ -67,11 +66,16 @@ const RANGE_OPTIONS: { id: WallCalendarRange; label: string; short: string }[] =
 
 ];
 
-/** Monats-Einträge: immer eine Kalenderwoche (Mo–So) pro Zeile. */
-const MONTH_GRID_COLUMNS = 7;
+/** Desktop Monats-Einträge: eine Kalenderwoche (Mo–So) pro Zeile. */
+const MONTH_GRID_COLUMNS_DESKTOP = 7;
 const MONTH_GRID_GAP_PX = 8;
 const MONTH_OVERSCAN_ROWS = 2;
 const DEFAULT_MONTH_ROW_HEIGHT = 220;
+
+function monthEntryGridColumns(gridWidth: number, isNarrow: boolean): number {
+  if (!isNarrow) return MONTH_GRID_COLUMNS_DESKTOP;
+  return gridWidth >= 400 ? 3 : 2;
+}
 
 
 
@@ -88,6 +92,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
   const scrollToFocusPending = useRef(false);
   const monthGridRef = useRef<HTMLDivElement | null>(null);
   const [monthGridMetrics, setMonthGridMetrics] = useState({
+    columns: MONTH_GRID_COLUMNS_DESKTOP,
     rowHeight: DEFAULT_MONTH_ROW_HEIGHT,
     scrollTop: 0,
     viewportHeight: 0,
@@ -218,11 +223,13 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
     if (!grid) return;
 
     const syncMetrics = () => {
+      const columns = monthEntryGridColumns(grid.clientWidth, isNarrow);
       const firstDay = grid.querySelector('.wall-cal-day--month') as HTMLElement | null;
       const rowHeight =
         (firstDay?.getBoundingClientRect().height ?? DEFAULT_MONTH_ROW_HEIGHT) + MONTH_GRID_GAP_PX;
 
       setMonthGridMetrics((prev) => ({
+        columns,
         rowHeight: Number.isFinite(rowHeight) && rowHeight > 0 ? rowHeight : prev.rowHeight,
         scrollTop: grid.scrollTop,
         viewportHeight: grid.clientHeight,
@@ -241,7 +248,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
       grid.removeEventListener('scroll', onScroll);
       ro.disconnect();
     };
-  }, [range, days.length]);
+  }, [range, days.length, isNarrow]);
 
   const scrollMonthGridToFocus = useCallback(() => {
     const grid = monthGridRef.current;
@@ -256,12 +263,12 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
     if (rowHeight <= 0) return false;
 
     const index = days.findIndex((d) => d.dayKey === focusDayKey);
-    const top = monthGridScrollTop(index, MONTH_GRID_COLUMNS, rowHeight, viewportHeight);
+    const top = monthGridScrollTop(index, monthGridMetrics.columns, rowHeight, viewportHeight);
     if (top === null) return false;
 
     grid.scrollTop = top;
     return Math.abs(grid.scrollTop - top) <= 8;
-  }, [range, focusDayKey, days, monthGridMetrics.rowHeight]);
+  }, [range, focusDayKey, days, monthGridMetrics.rowHeight, monthGridMetrics.columns]);
 
   useEffect(() => {
     if (!scrollToFocusPending.current || range !== 'month' || !focusDayKey) return;
@@ -321,7 +328,8 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
     }
     const rowHeight = Math.max(1, monthGridMetrics.rowHeight);
     const viewportHeight = Math.max(rowHeight, monthGridMetrics.viewportHeight);
-    const totalRows = Math.max(1, Math.ceil(days.length / MONTH_GRID_COLUMNS));
+    const columns = Math.max(1, monthGridMetrics.columns);
+    const totalRows = Math.max(1, Math.ceil(days.length / columns));
     const startRow = Math.max(
       0,
       Math.floor(monthGridMetrics.scrollTop / rowHeight) - MONTH_OVERSCAN_ROWS
@@ -330,8 +338,8 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
       totalRows - 1,
       Math.ceil((monthGridMetrics.scrollTop + viewportHeight) / rowHeight) + MONTH_OVERSCAN_ROWS
     );
-    const startIndex = startRow * MONTH_GRID_COLUMNS;
-    const endIndex = Math.min(days.length, (endRow + 1) * MONTH_GRID_COLUMNS);
+    const startIndex = startRow * columns;
+    const endIndex = Math.min(days.length, (endRow + 1) * columns);
     const topSpacerPx = startRow * rowHeight;
     const bottomSpacerPx = Math.max(0, (totalRows - endRow - 1) * rowHeight);
 
@@ -775,38 +783,21 @@ function WallCalendarDaySection({
   const summary = summarizeWallCalendarDay(day.entries);
   const clickable = Boolean(onOpenDay);
 
-  const summaryAria =
-    summary.total === 0
-      ? 'keine Termine'
-      : `${summary.total} Termin${summary.total === 1 ? '' : 'e'}${
-          summary.ueberfuehrungen > 0
-            ? `, ${summary.ueberfuehrungen} Überführung${summary.ueberfuehrungen === 1 ? '' : 'en'}`
-            : ''
-        }`;
-
   const body = summaryOnly ? (
     <div className="wall-cal-day-summary">
       {summary.total === 0 ? (
         <span className="wall-cal-day-summary-none">—</span>
       ) : (
-        <div className="wall-cal-day-summary-stats" aria-hidden>
-          <span
-            className="wall-cal-day-summary-total"
-            title={`${summary.total} Termin${summary.total === 1 ? '' : 'e'}`}
-          >
-            {summary.total}
-            <span className="wall-cal-day-summary-unit">T</span>
+        <>
+          <span className="wall-cal-day-summary-total">
+            {summary.total} Termin{summary.total === 1 ? '' : 'e'}
           </span>
           {summary.ueberfuehrungen > 0 && (
-            <span
-              className="wall-cal-day-summary-ueb"
-              title={`${summary.ueberfuehrungen} Überführung${summary.ueberfuehrungen === 1 ? '' : 'en'}`}
-            >
-              {summary.ueberfuehrungen}
-              <span className="wall-cal-day-summary-unit">Ü</span>
+            <span className="wall-cal-day-summary-ueb">
+              {summary.ueberfuehrungen} Überführung{summary.ueberfuehrungen === 1 ? '' : 'en'}
             </span>
           )}
-        </div>
+        </>
       )}
     </div>
   ) : (
@@ -841,12 +832,7 @@ function WallCalendarDaySection({
     .filter(Boolean)
     .join(' ');
 
-  const head = summaryOnly ? (
-    <header className="wall-cal-day-head wall-cal-day-head--micro">
-      <span className="wall-cal-day-num">{dayOfMonthFromDayKey(day.dayKey)}</span>
-      {day.isToday && <span className="sr-only">Heute</span>}
-    </header>
-  ) : (
+  const head = (
     <header className="wall-cal-day-head">
       <span className="wall-cal-day-wd">{day.weekdayShort}</span>
       <span className="wall-cal-day-num">
@@ -882,7 +868,7 @@ function WallCalendarDaySection({
         type="button"
         className="wall-cal-day-open"
         onClick={() => onOpenDay!(day.dayKey)}
-        aria-label={`Termine am ${day.dayLabel}, ${summaryAria}`}
+        aria-label={`Termine am ${day.dayLabel}${summary.total > 0 ? `, ${summary.total} Termine` : ''}`}
       >
         {head}
         {body}
