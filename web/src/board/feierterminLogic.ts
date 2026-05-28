@@ -1,6 +1,6 @@
 import type { Sterbefall } from '../types';
 import { isAusstehendHeuteOrGeplant } from './ausstehendStatus';
-import { dayKeyFromDeDatum, extractDeDatum, extractZeitDe } from './dateUtils';
+import { dayKeyFromDeDatum, extractDeDatum, extractZeitDe, parseDatumDe } from './dateUtils';
 import { istImAnschluss, sterbefallImAnschluss } from './historieLogic';
 import { istKrematorium } from './ortKeywords';
 
@@ -18,9 +18,24 @@ function istOffenerKremationsschritt(a: {
   return isAusstehendHeuteOrGeplant(a);
 }
 
-/** Kremation bereits durchgeführt (Verlauf). */
-export function istKremationErledigt(s: Sterbefall): boolean {
-  return (s.verlauf ?? []).some((v) => (v.typ ?? '').toLowerCase() === 'kremation');
+/**
+ * Kremation abgeschlossen: kein offener Kremationsschritt und Termin im Verlauf ≤ heute.
+ * (Verlauf enthält auch geplante Schritte — nicht jede Kremationszeile = erledigt.)
+ */
+export function istKremationErledigt(s: Sterbefall, now: Date = new Date()): boolean {
+  if ((s.ausstehend ?? []).some(istOffenerKremationsschritt)) return false;
+
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  return (s.verlauf ?? []).some((v) => {
+    if ((v.typ ?? '').toLowerCase() !== 'kremation') return false;
+    const raw = v.terminAm ?? v.abholungAm;
+    if (!raw?.trim()) return false;
+    const ms = parseDatumDe(raw);
+    if (ms === Number.MAX_SAFE_INTEGER) return false;
+    const day = new Date(ms);
+    day.setHours(0, 0, 0, 0);
+    return day.getTime() <= today;
+  });
 }
 
 /** Kremation mit erkennbarem Termindatum (ausstehend oder nächster Schritt). */
@@ -54,10 +69,20 @@ function hatKremationFuerBestattungsMarker(
   arts: readonly string[],
   title: string
 ): boolean {
-  if (entryHatBeisetzung(arts, title)) return hatKremationImSterbefall(s);
   if (entryHatTrauerfeierOderVerabschiedung(arts, title)) return istKremationErledigt(s);
+  if (entryHatBeisetzung(arts, title)) return hatKremationImSterbefall(s);
   if (istKremationErledigt(s)) return true;
   return Boolean(findeKremationTermin(s));
+}
+
+/** S/U auf Kühlraum-Chips (ohne Kalender-Gruppierung). */
+export function kuehlraumBestattungsMarker(
+  s: Sterbefall,
+  kind: 'trauerfeier' | 'verabschiedung' | 'beisetzung',
+  now: Date = new Date()
+): BestattungsMarker {
+  if (kind === 'beisetzung') return hatKremationImSterbefall(s) ? 'U' : 'S';
+  return istKremationErledigt(s, now) ? 'U' : 'S';
 }
 
 const FEIER_MARKER_ARTS = new Set([

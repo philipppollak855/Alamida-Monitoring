@@ -49,12 +49,46 @@ describe('calendarBestattungsMarker', () => {
         {
           ...base,
           trauerfeierdatum: '08.06.2026',
-          verlauf: [{ typ: 'kremation', ort: 'Innermanzing' }],
+          verlauf: [{ typ: 'kremation', ort: 'Innermanzing', terminAm: '27.05.2026' }],
         },
         ['trauerfeier'],
         'Trauerfeier'
       )
     ).toBe('U');
+  });
+
+  it('S bei Trauerfeier wenn Kremation nur im Verlauf geplant (Zukunft)', () => {
+    expect(
+      calendarBestattungsMarker(
+        {
+          ...base,
+          trauerfeierdatum: '29.05.2026',
+          endzielTyp: 'kremation',
+          verlauf: [{ typ: 'kremation', terminAm: '30.05.2026', nachOrt: 'Innermanzing' }],
+          ausstehend: [{ schrittTyp: 'kremation', status: 'geplant' }],
+        },
+        ['trauerfeier'],
+        'Trauerfeier'
+      )
+    ).toBe('S');
+  });
+
+  it('S bei gruppiertem Trauerfeier-Block mit Beisetzung im Anschluss trotz Kremation', () => {
+    expect(
+      calendarBestattungsMarker(
+        {
+          ...base,
+          trauerfeierdatum: '29.05.2026',
+          beisetzungsdatum: '29.05.2026',
+          beisetzungszeit: 'Im Anschluss',
+          imAnschluss: true,
+          endzielTyp: 'kremation',
+          ausstehend: [{ schrittTyp: 'kremation', status: 'geplant' }],
+        },
+        ['trauerfeier', 'beisetzung'],
+        'Trauerfeier'
+      )
+    ).toBe('S');
   });
 
   it('U bei Beisetzung mit terminierten Kremation', () => {
@@ -200,13 +234,45 @@ describe('integration S/U markers', () => {
     );
   });
 
-  it('Kühlraum: Trauerfeier-Chip mit U nach Kremation im Verlauf', () => {
-    const markers = buildKuehlraumTerminMarkers({
-      ...base,
-      trauerfeierdatum: '08.06.2026',
-      verlauf: [{ typ: 'kremation', ort: 'Innermanzing' }],
-    });
+  it('Kühlraum: Trauerfeier-Chip mit U nach abgeschlossener Kremation', () => {
+    const markers = buildKuehlraumTerminMarkers(
+      {
+        ...base,
+        trauerfeierdatum: '08.06.2026',
+        verlauf: [{ typ: 'kremation', ort: 'Innermanzing', terminAm: '07.06.2026' }],
+      },
+      new Date(2026, 5, 8)
+    );
     const tf = markers.find((m) => m.kind === 'trauerfeier');
     expect(tf?.bestattungsMarker).toBe('U');
+  });
+
+  it('Kühlraum: Bernhard-Bock-Fall — TF mit S, Kremation offen', () => {
+    const markers = buildKuehlraumTerminMarkers(
+      {
+        ...base,
+        trauerfeierdatum: '29.05.2026',
+        endzielTyp: 'kremation',
+        verlauf: [
+          {
+            typ: 'kremation',
+            terminAm: '30.05.2026',
+            vonOrt: 'Kühl. Grafenbach',
+            nachOrt: 'Innermanzing',
+          },
+        ],
+        ausstehend: [
+          {
+            schrittTyp: 'kremation',
+            status: 'geplant',
+            vonOrt: 'Kühl. Grafenbach',
+            nachOrt: 'Innermanzing',
+          },
+        ],
+      },
+      new Date(2026, 4, 28)
+    );
+    const tf = markers.find((m) => m.kind === 'trauerfeier');
+    expect(tf?.bestattungsMarker).toBe('S');
   });
 });

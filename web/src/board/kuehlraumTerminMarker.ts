@@ -3,10 +3,10 @@ import { isAusstehendHeuteOrGeplant } from './ausstehendStatus';
 import { extractDeDatum, parseDatumDeToDate } from './dateUtils';
 import {
   beisetzungAlsEigenerTermin,
-  calendarBestattungsMarker,
   type BestattungsMarker,
   findeKremationTermin,
   hatKremationImSterbefall,
+  kuehlraumBestattungsMarker,
   rosenkranzUndTrauerfeier1AmSelbenTag,
 } from './feierterminLogic';
 
@@ -99,10 +99,14 @@ function formatMarkerLabel(
 
 function withKuehlraumBestattungsMarker(
   s: Sterbefall,
-  marker: KuehlraumTerminMarker
+  marker: KuehlraumTerminMarker,
+  now: Date
 ): KuehlraumTerminMarker {
-  const bm = calendarBestattungsMarker(s, [marker.kind], MARKER_PREFIX[marker.kind]);
-  return bm ? { ...marker, bestattungsMarker: bm } : marker;
+  if (marker.kind === 'kremation') return marker;
+  return {
+    ...marker,
+    bestattungsMarker: kuehlraumBestattungsMarker(s, marker.kind, now),
+  };
 }
 
 function pushFeierMarker(
@@ -113,7 +117,7 @@ function pushFeierMarker(
   now: Date
 ) {
   const m = formatMarkerLabel(kind, datum, now);
-  if (m) list.push(withKuehlraumBestattungsMarker(s, m));
+  if (m) list.push(withKuehlraumBestattungsMarker(s, m, now));
 }
 
 /** Relevante Termine für Kühlraum-Kacheln (Kalender-Regeln für Feier/Beisetzung). */
