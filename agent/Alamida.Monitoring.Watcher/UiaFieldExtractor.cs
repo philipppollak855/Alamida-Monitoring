@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Alamida.Monitoring.Profiles;
 using FlaUI.Core.AutomationElements;
 
@@ -57,6 +58,13 @@ public static class UiaFieldExtractor
             .DefaultIfEmpty(0)
             .Max();
 
+    private static bool LooksLikeUhrzeit(string? value) =>
+        !string.IsNullOrWhiteSpace(value)
+        && Regex.IsMatch(value.Trim(), @"^\d{1,2}[:\.]\d{2}");
+
+    private static bool IsZeitFieldKey(string fieldKey) =>
+        fieldKey.EndsWith("zeit", StringComparison.OrdinalIgnoreCase);
+
     private static string? FindBestMatch(
         AutomationElement[] candidates,
         FieldLocator locator,
@@ -66,8 +74,11 @@ public static class UiaFieldExtractor
         {
             string? bestDate = null;
             var bestDateScore = 0;
+            string? bestTime = null;
+            var bestTimeScore = 0;
             string? fallback = null;
             var bestFallbackScore = 0;
+            var preferZeit = IsZeitFieldKey(fieldKey);
 
             foreach (var el in candidates)
             {
@@ -85,7 +96,15 @@ public static class UiaFieldExtractor
 
                 var score = LongestMatchingPatternLength(aid, locator);
 
-                if (UeberfuehrungSnapshotBuilder.TryParseDatum(val, out _))
+                if (preferZeit && LooksLikeUhrzeit(val))
+                {
+                    if (score > bestTimeScore)
+                    {
+                        bestTimeScore = score;
+                        bestTime = val;
+                    }
+                }
+                else if (!preferZeit && UeberfuehrungSnapshotBuilder.TryParseDatum(val, out _))
                 {
                     if (score > bestDateScore)
                     {
@@ -100,7 +119,8 @@ public static class UiaFieldExtractor
                 }
             }
 
-            if (!string.IsNullOrWhiteSpace(bestDate)) return bestDate;
+            if (preferZeit && !string.IsNullOrWhiteSpace(bestTime)) return bestTime;
+            if (!preferZeit && !string.IsNullOrWhiteSpace(bestDate)) return bestDate;
             if (!string.IsNullOrWhiteSpace(fallback)) return fallback;
         }
 

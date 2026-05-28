@@ -540,8 +540,23 @@ public sealed class FirestoreSyncService : IAsyncDisposable
             Sterbeort = sterbeort,
             Abholort = abholort,
             AbholortIstKrankenhaus = abholortKh,
+            BeisetzungsDatum = MergeTerminField(snapshot.BeisetzungsDatum, existing, "beisetzungsdatum"),
+            BeisetzungsZeit = MergeTerminField(snapshot.BeisetzungsZeit, existing, "beisetzungszeit"),
+            TrauerfeierDatum = MergeTerminField(snapshot.TrauerfeierDatum, existing, "trauerfeierdatum"),
+            TrauerfeierZeit = MergeTerminField(snapshot.TrauerfeierZeit, existing, "trauerfeierzeit"),
+            Trauerfeier2Datum = MergeTerminField(snapshot.Trauerfeier2Datum, existing, "trauerfeier2datum"),
+            Trauerfeier2Zeit = MergeTerminField(snapshot.Trauerfeier2Zeit, existing, "trauerfeier2zeit"),
+            RosenkranzDatum = MergeTerminField(snapshot.RosenkranzDatum, existing, "rosenkranzdatum"),
+            RosenkranzZeit = MergeTerminField(snapshot.RosenkranzZeit, existing, "rosenkranzzeit"),
+            RosenkranzOrt = MergeTerminField(snapshot.RosenkranzOrt, existing, "rosenkranzort"),
         };
     }
+
+    /// <summary>Termine bei unvollständiger Masken-Erfassung nicht mit Leerwerten überschreiben.</summary>
+    private static string? MergeTerminField(string? incoming, DocumentSnapshot existing, string field) =>
+        string.IsNullOrWhiteSpace(incoming)
+            ? FirestoreFieldHelpers.SafeString(existing, field)
+            : incoming.Trim();
 
     private static void AddStringIfPresent(
         Dictionary<string, object> payload,

@@ -37,6 +37,16 @@ export function dayKeyFromDeDatum(datum?: string): string | null {
   return d ? dayKeyFromDate(d) : null;
 }
 
+/** Uhrzeit aus separatem Feld oder aus kombiniertem Datumstext (z. B. „08.06.2026 14:00“). */
+export function extractZeitDe(datum?: string, zeit?: string): string | undefined {
+  const fromZeit = formatZeitDe(zeit);
+  if (fromZeit) return fromZeit;
+  if (!datum?.trim()) return undefined;
+  const m = datum.trim().match(/\d{4}[\s,.-]+(\d{1,2})[.:](\d{2})/);
+  if (!m) return undefined;
+  return `${m[1].padStart(2, '0')}:${m[2]}`;
+}
+
 export function parseDatumZeitDe(
   datum?: string,
   zeit?: string,
@@ -50,8 +60,9 @@ export function parseDatumZeitDe(
   let sec = endOfDayIfNoTime ? 59 : 0;
   let ms = endOfDayIfNoTime ? 999 : 0;
 
-  if (zeit?.trim()) {
-    const tm = zeit.trim().match(/(\d{1,2})[.:](\d{2})/);
+  const zeitNorm = extractZeitDe(datum, zeit);
+  if (zeitNorm) {
+    const tm = zeitNorm.match(/(\d{1,2}):(\d{2})/);
     if (tm) {
       h = +tm[1];
       min = +tm[2];
@@ -66,7 +77,7 @@ export function parseDatumZeitDe(
 export function formatZeitDe(zeit?: string): string {
   if (!zeit?.trim()) return '';
   const tm = zeit.trim().match(/(\d{1,2})[.:](\d{2})/);
-  return tm ? `${tm[1].padStart(2, '0')}:${tm[2]}` : zeit.trim();
+  return tm ? `${tm[1].padStart(2, '0')}:${tm[2]}` : '';
 }
 
 export function formatDayLabelDe(dayKey: string): string {

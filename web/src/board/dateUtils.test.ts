@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { extractDeDatum, startOfWeekMonday, dayKeyFromDate } from './dateUtils';
-import { buildWallCalendarDays, filterCalendarEntries } from './wallCalendar';
+import { extractDeDatum, extractZeitDe, startOfWeekMonday, dayKeyFromDate } from './dateUtils';
+import { buildWallCalendarEntries, buildWallCalendarDays, filterCalendarEntries } from './wallCalendar';
+import type { Sterbefall } from '../types';
 
 describe('extractDeDatum', () => {
   it('extrahiert Datum aus Text mit Wochentag und Uhrzeit', () => {
@@ -9,6 +10,74 @@ describe('extractDeDatum', () => {
 
   it('normalisiert einstellige Tage/Monate', () => {
     expect(extractDeDatum('8.6.2026')).toBe('08.06.2026');
+  });
+});
+
+describe('extractZeitDe', () => {
+  it('liest Uhrzeit aus kombiniertem Datumstext', () => {
+    expect(extractZeitDe('Montag, 08.06.2026 13:00', undefined)).toBe('13:00');
+  });
+
+  it('bevorzugt separates Zeitfeld', () => {
+    expect(extractZeitDe('08.06.2026', '14:30')).toBe('14:30');
+  });
+});
+
+describe('buildWallCalendarEntries Feiertermine', () => {
+  const base: Sterbefall = {
+    id: 'doc1',
+    sterbefallId: '260001',
+    verstorbenerName: 'Max Mustermann',
+  };
+
+  it('erkennt Trauerfeier und Beisetzung aus Alamida-Textformat', () => {
+    const entries = buildWallCalendarEntries([
+      {
+        ...base,
+        trauerfeierdatum: 'Montag, 08.06.2026 10:00',
+        beisetzungsdatum: '08.06.2026',
+        beisetzungszeit: '14:00',
+        endziel: 'Friedhof',
+      },
+    ]);
+    const arts = entries.flatMap((e) => e.arts);
+    expect(arts).toContain('trauerfeier');
+    expect(arts).toContain('beisetzung');
+    const tf = entries.find((e) => e.arts.includes('trauerfeier'));
+    expect(tf?.timeLabel).toBe('10:00');
+  });
+
+  it('Verabschiedung nur bei Rosenkranz am selben Tag', () => {
+    const entries = buildWallCalendarEntries([
+      {
+        ...base,
+        rosenkranzdatum: '07.06.2026',
+        rosenkranzzeit: '09:00',
+        trauerfeierdatum: '08.06.2026',
+        trauerfeierzeit: '11:00',
+      },
+    ]);
+    expect(entries.some((e) => e.arts.includes('verabschiedung'))).toBe(false);
+    expect(entries.some((e) => e.arts.includes('trauerfeier'))).toBe(true);
+    expect(entries.some((e) => e.arts.includes('rosenkranz'))).toBe(true);
+  });
+
+  it('gruppiert Verabschiedung mit Rosenkranz am selben Tag', () => {
+    const entries = buildWallCalendarEntries([
+      {
+        ...base,
+        rosenkranzdatum: '08.06.2026',
+        rosenkranzzeit: '09:00',
+        trauerfeierdatum: '08.06.2026',
+        trauerfeierzeit: '11:00',
+        imAnschluss: true,
+        beisetzungsdatum: '08.06.2026',
+        beisetzungszeit: '12:00',
+      },
+    ]);
+    const block = entries.find((e) => e.grouped && e.dayKey === '2026-06-08');
+    expect(block?.arts).toContain('verabschiedung');
+    expect(block?.badges).toEqual(expect.arrayContaining(['Rosenkranz', 'Verabschiedung', 'Beisetzung']));
   });
 });
 

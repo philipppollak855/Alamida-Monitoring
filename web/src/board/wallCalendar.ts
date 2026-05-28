@@ -4,6 +4,8 @@ import {
   addDays,
   dayKeyFromDate,
   dayKeyFromDeDatum,
+  extractDeDatum,
+  extractZeitDe,
   formatDayLabelDe,
   formatZeitDe,
   parseDatumZeitDe,
@@ -148,11 +150,14 @@ function pushAtomic(
   s: Sterbefall,
   art: CalendarTerminArt,
   label: string,
-  datum?: string,
-  zeit?: string,
+  rawDatum?: string,
+  rawZeit?: string,
   ort?: string,
   route?: string
 ) {
+  const datum = extractDeDatum(rawDatum);
+  if (!datum) return;
+  const zeit = extractZeitDe(rawDatum, rawZeit);
   const dayKey = dayKeyFromDeDatum(datum);
   if (!dayKey) return;
   const sortMs = parseDatumZeitDe(datum, zeit) ?? parseDatumZeitDe(datum, undefined, true)!;
@@ -162,7 +167,7 @@ function pushAtomic(
     label,
     dayKey,
     sortMs,
-    zeit: formatZeitDe(zeit) || undefined,
+    zeit: zeit || undefined,
     ort: ort?.trim() || undefined,
     route: route?.trim() || undefined,
   });
@@ -190,12 +195,15 @@ function collectAtomics(s: Sterbefall): AtomicTermin[] {
   const add = (
     art: CalendarTerminArt,
     label: string,
-    datum?: string,
-    zeit?: string,
+    rawDatum?: string,
+    rawZeit?: string,
     ort?: string,
     route?: string,
     dedupeKey?: string
   ) => {
+    const datum = extractDeDatum(rawDatum);
+    if (!datum) return;
+    const zeit = extractZeitDe(rawDatum, rawZeit);
     const dayKey = dayKeyFromDeDatum(datum);
     if (!dayKey) return;
     const key =
@@ -203,18 +211,21 @@ function collectAtomics(s: Sterbefall): AtomicTermin[] {
       `${art}:${dayKey}:${zeit ?? ''}:${route ?? ''}:${ort ?? ''}`;
     if (seen.has(key)) return;
     seen.add(key);
-    pushAtomic(atoms, s, art, label, datum, zeit, ort, route);
+    pushAtomic(atoms, s, art, label, rawDatum, rawZeit, ort, route);
   };
-  const ortTf = s.endziel?.trim();
-  const ortBeisetzung = s.endziel?.trim();
+  const ortTf = s.endziel?.trim() || undefined;
+  const ortBeisetzung = s.endziel?.trim() || undefined;
 
   if (s.rosenkranzdatum?.trim()) {
     add('rosenkranz', 'Rosenkranz', s.rosenkranzdatum, s.rosenkranzzeit, s.rosenkranzort);
   }
 
   if (s.trauerfeierdatum?.trim()) {
-    const label = s.rosenkranzdatum?.trim() ? 'Verabschiedung' : 'Trauerfeier';
-    const art: CalendarTerminArt = s.rosenkranzdatum?.trim() ? 'verabschiedung' : 'trauerfeier';
+    const rkDay = dayKeyFromDeDatum(s.rosenkranzdatum);
+    const tfDay = dayKeyFromDeDatum(s.trauerfeierdatum);
+    const verabschiedungAmSelbenTag = Boolean(rkDay && tfDay && rkDay === tfDay);
+    const label = verabschiedungAmSelbenTag ? 'Verabschiedung' : 'Trauerfeier';
+    const art: CalendarTerminArt = verabschiedungAmSelbenTag ? 'verabschiedung' : 'trauerfeier';
     add(art, label, s.trauerfeierdatum, s.trauerfeierzeit, ortTf);
   }
 
@@ -398,7 +409,7 @@ function collectTrauerblockEntries(
     const groupParts: AtomicTermin[] = [];
     if (rosen) groupParts.push(rosen);
     groupParts.push(trauerfeier);
-    if (imAnschluss && beisetzung && beisetzung.dayKey === dayKey) {
+    if (beisetzung && beisetzung.dayKey === dayKey && (imAnschluss || rosen)) {
       groupParts.push(beisetzung);
     }
 

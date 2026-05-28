@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace Alamida.Monitoring.Profiles;
 
@@ -17,5 +18,17 @@ public static class AlamidaFieldNormalizer
         if (string.IsNullOrWhiteSpace(value)) return null;
         if (!AlamidaFieldParser.TryParseDatum(value, out var d)) return Normalize(value);
         return d.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>Uhrzeit einheitlich als HH:mm.</summary>
+    public static string? NormalizeZeit(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var m = Regex.Match(value.Trim(), @"(\d{1,2})[:\.](\d{2})");
+        if (!m.Success) return null;
+        var h = int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture);
+        var min = m.Groups[2].Value;
+        if (h is < 0 or > 23) return null;
+        return $"{h:D2}:{min}";
     }
 }

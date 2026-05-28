@@ -102,8 +102,26 @@ public sealed class AlamidaMaskWatcher
     {
         foreach (var key in fields.Keys.ToList())
         {
-            if (!key.EndsWith("datum", StringComparison.OrdinalIgnoreCase)) continue;
-            fields[key] = AlamidaFieldNormalizer.NormalizeDatum(fields.GetValueOrDefault(key));
+            if (key.EndsWith("datum", StringComparison.OrdinalIgnoreCase))
+            {
+                var raw = fields.GetValueOrDefault(key);
+                fields[key] = AlamidaFieldNormalizer.NormalizeDatum(raw);
+                if (string.IsNullOrWhiteSpace(fields[key])) continue;
+
+                if (AlamidaFieldParser.TryParseDatumZeit(raw, null, out var dt, out var hatZeit) && hatZeit)
+                {
+                    var zeitKey = key[..^5] + "zeit";
+                    if (fields.ContainsKey(zeitKey)
+                        && string.IsNullOrWhiteSpace(fields.GetValueOrDefault(zeitKey)))
+                    {
+                        fields[zeitKey] = dt.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture);
+                    }
+                }
+            }
+            else if (key.EndsWith("zeit", StringComparison.OrdinalIgnoreCase))
+            {
+                fields[key] = AlamidaFieldNormalizer.NormalizeZeit(fields.GetValueOrDefault(key));
+            }
         }
     }
 
