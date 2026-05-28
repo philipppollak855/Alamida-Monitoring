@@ -126,6 +126,20 @@ public sealed class AlamidaMaskWatcher
 
         if (SterbefallHistorieResolver.IstImAnschluss(fields.GetValueOrDefault("beisetzungszeit")))
             fields["imAnschluss"] = "ja";
+
+        CoalesceImAnschlussBeisetzung(fields);
+    }
+
+    private static void CoalesceImAnschlussBeisetzung(Dictionary<string, string?> fields)
+    {
+        var imAnschluss = SterbefallHistorieResolver.IstImAnschluss(fields.GetValueOrDefault("imAnschluss"))
+            || SterbefallHistorieResolver.IstImAnschluss(fields.GetValueOrDefault("beisetzungszeit"));
+        if (!imAnschluss) return;
+
+        if (!string.IsNullOrWhiteSpace(fields.GetValueOrDefault("beisetzungsdatum"))) return;
+        var tf = fields.GetValueOrDefault("trauerfeierdatum");
+        if (string.IsNullOrWhiteSpace(tf)) return;
+        fields["beisetzungsdatum"] = tf;
     }
 
     private static string FormatDebug(MaskKind maske, Dictionary<string, string?> fields) =>

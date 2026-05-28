@@ -59,6 +59,12 @@ public static class MaskDetector
                 scoreDetail += 1000;
                 hatUeberfuehrung1 = true;
             }
+            else if (aid.Contains("Termin_Trauerfeier1", StringComparison.OrdinalIgnoreCase)
+                     || aid.Contains("Termin_Beisetzung", StringComparison.OrdinalIgnoreCase)
+                     || aid.Contains("Termin_Rosenkranz", StringComparison.OrdinalIgnoreCase))
+            {
+                scoreDetail += 480;
+            }
             else if (aid.Contains("Field: sfl 2::Termin_", StringComparison.OrdinalIgnoreCase)
                      || aid.Contains("Termin_Überführung", StringComparison.OrdinalIgnoreCase))
             {

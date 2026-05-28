@@ -30,7 +30,7 @@ describe('buildWallCalendarEntries Feiertermine', () => {
     verstorbenerName: 'Max Mustermann',
   };
 
-  it('erkennt Trauerfeier und Beisetzung aus Alamida-Textformat', () => {
+  it('trennt Trauerfeier und Beisetzung bei eigener Beisetzungs-Uhrzeit', () => {
     const entries = buildWallCalendarEntries([
       {
         ...base,
@@ -40,9 +40,10 @@ describe('buildWallCalendarEntries Feiertermine', () => {
         endziel: 'Friedhof',
       },
     ]);
-    const block = entries.find((e) => e.grouped && e.dayKey === '2026-06-08');
-    expect(block?.arts).toEqual(expect.arrayContaining(['trauerfeier', 'beisetzung']));
-    expect(block?.timeLabel).toBe('10:00–14:00');
+    const day = entries.filter((e) => e.dayKey === '2026-06-08');
+    expect(day.some((e) => e.grouped)).toBe(false);
+    expect(day.find((e) => e.title === 'Trauerfeier')?.timeLabel).toBe('10:00');
+    expect(day.find((e) => e.title === 'Beisetzung')?.timeLabel).toBe('14:00');
   });
 
   it('Verabschiedung nur bei Rosenkranz am selben Tag', () => {
@@ -74,7 +75,7 @@ describe('buildWallCalendarEntries Feiertermine', () => {
     expect(entries.some((e) => e.arts.includes('trauerfeier'))).toBe(true);
   });
 
-  it('gruppiert Verabschiedung mit Rosenkranz am selben Tag', () => {
+  it('gruppiert Verabschiedung mit Rosenkranz, Beisetzung separat bei eigener Uhrzeit', () => {
     const entries = buildWallCalendarEntries([
       {
         ...base,
@@ -87,9 +88,23 @@ describe('buildWallCalendarEntries Feiertermine', () => {
         beisetzungszeit: '12:00',
       },
     ]);
-    const block = entries.find((e) => e.grouped && e.dayKey === '2026-06-08');
-    expect(block?.arts).toContain('verabschiedung');
-    expect(block?.badges).toEqual(expect.arrayContaining(['Rosenkranz', 'Verabschiedung', 'Beisetzung']));
+    const block = entries.find((e) => e.grouped && e.title === 'Verabschiedung');
+    expect(block?.badges).toEqual(expect.arrayContaining(['Rosenkranz', 'Verabschiedung']));
+    expect(entries.some((e) => !e.grouped && e.title === 'Beisetzung')).toBe(true);
+  });
+
+  it('im Anschluss: ein Kalendertermin Trauerfeier', () => {
+    const entries = buildWallCalendarEntries([
+      {
+        ...base,
+        trauerfeierdatum: '28.05.2026',
+        trauerfeierzeit: '14:00',
+        beisetzungszeit: 'Im Anschluss',
+      },
+    ]);
+    const block = entries.find((e) => e.grouped && e.title === 'Trauerfeier');
+    expect(block?.arts).toEqual(expect.arrayContaining(['trauerfeier', 'beisetzung']));
+    expect(entries.filter((e) => e.dayKey === '2026-05-28')).toHaveLength(1);
   });
 });
 

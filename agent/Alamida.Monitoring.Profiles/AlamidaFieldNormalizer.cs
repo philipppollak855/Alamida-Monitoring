@@ -16,8 +16,21 @@ public static class AlamidaFieldNormalizer
     public static string? NormalizeDatum(string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return null;
-        if (!AlamidaFieldParser.TryParseDatum(value, out var d)) return Normalize(value);
-        return d.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture);
+        if (AlamidaFieldParser.TryParseDatum(value, out var d))
+            return d.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture);
+
+        var m = Regex.Match(value.Trim(), @"(\d{1,2})\.(\d{1,2})\.(\d{4})");
+        if (m.Success
+            && int.TryParse(m.Groups[1].Value, out var tag)
+            && int.TryParse(m.Groups[2].Value, out var monat)
+            && int.TryParse(m.Groups[3].Value, out var jahr)
+            && monat is >= 1 and <= 12
+            && tag is >= 1 and <= 31)
+        {
+            return new DateTime(jahr, monat, tag).ToString("dd.MM.yyyy", CultureInfo.InvariantCulture);
+        }
+
+        return Normalize(value);
     }
 
     /// <summary>Uhrzeit einheitlich als HH:mm.</summary>

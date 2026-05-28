@@ -11,7 +11,11 @@ import {
   parseDatumZeitDe,
   startOfWeekMonday,
 } from './dateUtils';
-import { filterSterbefaelleFuerKalender, sterbefallImAnschluss } from './historieLogic';
+import {
+  filterSterbefaelleFuerKalender,
+  istImAnschluss,
+  sterbefallImAnschluss,
+} from './historieLogic';
 
 export type WallCalendarRange = 7 | 14 | 'month';
 
@@ -131,6 +135,23 @@ function fallName(s: Sterbefall): string {
   );
 }
 
+/** Beisetzung mit fester Uhrzeit (nicht „Im Anschluss“). */
+function beisetzungHatEigeneUhrzeit(s: Sterbefall): boolean {
+  if (istImAnschluss(s.beisetzungszeit)) return false;
+  return Boolean(extractZeitDe(s.beisetzungsdatum, s.beisetzungszeit));
+}
+
+/** Gleicher Tag wie Trauerfeier, ohne eigene Beisetzungs-Uhrzeit. */
+function beisetzungImAnschlussAmTrauerfeierTag(s: Sterbefall): boolean {
+  if (!sterbefallImAnschluss(s)) return false;
+  if (beisetzungHatEigeneUhrzeit(s)) return false;
+  const tfDay = dayKeyFromDeDatum(s.trauerfeierdatum);
+  if (!tfDay) return false;
+  const bsDay = dayKeyFromDeDatum(s.beisetzungsdatum);
+  if (!bsDay) return true;
+  return bsDay === tfDay;
+}
+
 function pushAtomic(
   list: AtomicTermin[],
   s: Sterbefall,
@@ -220,15 +241,19 @@ function collectAtomics(s: Sterbefall): AtomicTermin[] {
   }
 
   if (extractDeDatum(s.beisetzungsdatum)) {
-    add('beisetzung', 'Beisetzung', s.beisetzungsdatum, s.beisetzungszeit, ortBeisetzung);
-  } else if (sterbefallImAnschluss(s) && extractDeDatum(s.trauerfeierdatum)) {
-    add(
-      'beisetzung',
-      'Beisetzung (im Anschluss)',
-      s.trauerfeierdatum,
-      undefined,
-      ortBeisetzung
-    );
+    if (beisetzungImAnschlussAmTrauerfeierTag(s)) {
+      add(
+        'beisetzung',
+        'Beisetzung',
+        s.beisetzungsdatum ?? s.trauerfeierdatum,
+        undefined,
+        ortBeisetzung
+      );
+    } else {
+      add('beisetzung', 'Beisetzung', s.beisetzungsdatum, s.beisetzungszeit, ortBeisetzung);
+    }
+  } else if (beisetzungImAnschlussAmTrauerfeierTag(s)) {
+    add('beisetzung', 'Beisetzung', s.trauerfeierdatum, undefined, ortBeisetzung);
   }
 
   for (const a of s.ausstehend ?? []) {
@@ -308,13 +333,6 @@ function timeLabelFromParts(parts: AtomicTermin[]): string {
   return `${uniq[0]}–${uniq[uniq.length - 1]}`;
 }
 
-function primaryArtFromParts(parts: AtomicTermin[]): CalendarTerminArt {
-  for (const art of TRAUERBLOCK_ART_ORDER) {
-    if (parts.some((p) => p.art === art)) return art;
-  }
-  return parts[0]!.art;
-}
-
 function orderedBadgesFromParts(parts: AtomicTermin[]): string[] {
   const badges: string[] = [];
   for (const art of TRAUERBLOCK_ART_ORDER) {
@@ -333,21 +351,22 @@ function subtitleFromGroupedParts(parts: AtomicTermin[]): string {
   return '';
 }
 
-function buildTrauerblockEntry(
+function buildFeierBlockEntry(
   s: Sterbefall,
   groupParts: AtomicTermin[],
-  dayKey: string
+  dayKey: string,
+  blockTitle: string,
+  primaryArt: CalendarTerminArt
 ): WallCalendarEntry {
   const sorted = sortPartsChronologically(groupParts);
   const badges = orderedBadgesFromParts(sorted);
-  const primaryArt = primaryArtFromParts(sorted);
   const arts = [
     primaryArt,
     ...sorted.map((p) => p.art).filter((a, i, arr) => arr.indexOf(a) === i && a !== primaryArt),
   ];
 
   return {
-    id: `${s.id}:block:${dayKey}`,
+    id: `${s.id}:block:${primaryArt}:${dayKey}`,
     docId: s.id,
     sterbefallId: s.sterbefallId ?? s.id,
     dayKey,
@@ -355,7 +374,7 @@ function buildTrauerblockEntry(
     timeLabel: timeLabelFromParts(sorted),
     sortMs: Math.min(...sorted.map((p) => p.sortMs)),
     name: fallName(s),
-    title: badges.join(' · '),
+    title: blockTitle,
     subtitle: subtitleFromGroupedParts(sorted),
     badges,
     grouped: true,
@@ -364,13 +383,17 @@ function buildTrauerblockEntry(
   };
 }
 
-/** Rosenkranz + Trauerfeier/Verabschiedung (+ Beisetzung im Anschluss am selben Tag) = ein Termin. */
+/**
+ * Trauerfeier: Rosenkranz + Feier + Beisetzung nur bei Im Anschluss am Trauerfeier-Tag.
+ * Verabschiedung: Rosenkranz + Verabschiedung am selben Tag, Beisetzung separat.
+ */
 function collectTrauerblockEntries(
   s: Sterbefall,
   atoms: AtomicTermin[],
   used: Set<string>
 ): WallCalendarEntry[] {
-  const imAnschluss = sterbefallImAnschluss(s);
+  const tfDay = dayKeyFromDeDatum(s.trauerfeierdatum);
+  const imAnschlussBlock = beisetzungImAnschlussAmTrauerfeierTag(s);
   const byDay = new Map<string, AtomicTermin[]>();
 
   for (const a of atoms) {
@@ -392,28 +415,35 @@ function collectTrauerblockEntries(
 
   for (const [dayKey, dayAtoms] of byDay) {
     const rosen = dayAtoms.find((a) => a.art === 'rosenkranz' && !used.has(a.key));
-    const trauerfeier = dayAtoms.find(
+    const ceremony = dayAtoms.find(
       (a) =>
         (a.art === 'trauerfeier' || a.art === 'verabschiedung') && !used.has(a.key)
     );
     const beisetzung = dayAtoms.find((a) => a.art === 'beisetzung' && !used.has(a.key));
 
-    if (!trauerfeier) continue;
+    if (!ceremony) continue;
 
-    const groupParts: AtomicTermin[] = [];
-    if (rosen) groupParts.push(rosen);
-    groupParts.push(trauerfeier);
-    if (beisetzung && beisetzung.dayKey === dayKey) {
-      groupParts.push(beisetzung);
+    if (imAnschlussBlock && tfDay === dayKey) {
+      const groupParts: AtomicTermin[] = [];
+      if (rosen) groupParts.push(rosen);
+      groupParts.push(ceremony);
+      if (beisetzung && beisetzung.dayKey === dayKey) groupParts.push(beisetzung);
+      if (groupParts.length < 2) continue;
+
+      for (const p of groupParts) used.add(p.key);
+      entries.push(
+        buildFeierBlockEntry(s, groupParts, dayKey, 'Trauerfeier', 'trauerfeier')
+      );
+      continue;
     }
 
-    const hasRosen = Boolean(rosen);
-    const hasBeisetzungImBlock = groupParts.some((p) => p.art === 'beisetzung');
-    if (groupParts.length < 2) continue;
-    if (!hasRosen && !hasBeisetzungImBlock) continue;
-
-    for (const p of groupParts) used.add(p.key);
-    entries.push(buildTrauerblockEntry(s, groupParts, dayKey));
+    if (rosen && ceremony.art === 'verabschiedung') {
+      const groupParts = [rosen, ceremony];
+      for (const p of groupParts) used.add(p.key);
+      entries.push(
+        buildFeierBlockEntry(s, groupParts, dayKey, 'Verabschiedung', 'verabschiedung')
+      );
+    }
   }
 
   return entries;
