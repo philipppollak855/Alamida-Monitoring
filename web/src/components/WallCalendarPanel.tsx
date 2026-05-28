@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import type { Sterbefall } from '../types';
 
@@ -322,6 +322,26 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
   useEffect(() => {
     if (range !== 'month') setDialogDayKey(null);
   }, [range]);
+
+  useLayoutEffect(() => {
+    if (range !== 'month' || !focusDayKey || !scrollToFocusPending.current) return;
+    const index = days.findIndex((d) => d.dayKey === focusDayKey);
+    if (index < 0) return;
+
+    const grid = monthGridRef.current;
+    const columns = Math.max(1, monthGridMetrics.columns);
+    const rowHeight = Math.max(1, monthGridMetrics.rowHeight);
+    const viewportHeight = grid?.clientHeight ?? monthGridMetrics.viewportHeight;
+    if (viewportHeight <= 0) return;
+
+    const top = monthGridScrollTop(index, columns, rowHeight, viewportHeight);
+    if (top === null) return;
+
+    setMonthGridMetrics((prev) =>
+      Math.abs(prev.scrollTop - top) < 2 ? prev : { ...prev, scrollTop: top }
+    );
+    if (grid) grid.scrollTop = top;
+  }, [range, days, focusDayKey, monthGridMetrics.columns, monthGridMetrics.rowHeight, monthGridMetrics.viewportHeight]);
 
   const monthVirtual = useMemo(() => {
     if (range !== 'month') {

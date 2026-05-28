@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildMonthOverviewGrid,
+  buildWallCalendarDays,
+  filterCalendarEntries,
   summarizeWallCalendarDay,
   type WallCalendarEntry,
 } from './wallCalendar';
@@ -32,6 +34,21 @@ describe('summarizeWallCalendarDay', () => {
       entry(['ueberfuehrung_kremation']),
     ]);
     expect(summary).toEqual({ total: 3, ueberfuehrungen: 2 });
+  });
+});
+
+describe('Monats-Eintragsraster', () => {
+  it('beginnt bei heute minus einer Woche, nicht beim frühesten Termin', () => {
+    const anchor = new Date(2026, 4, 28);
+    const entries: WallCalendarEntry[] = [
+      { ...entry(['trauerfeier']), id: 'jan', dayKey: '2026-01-01' },
+      { ...entry(['trauerfeier']), id: 'today', dayKey: '2026-05-28' },
+    ];
+    const filtered = filterCalendarEntries(entries, 'month', anchor, '');
+    const days = buildWallCalendarDays(filtered, 'month', anchor);
+    expect(days[0]?.dayKey).toBe('2026-05-21');
+    expect(days.some((d) => d.dayKey === '2026-01-01')).toBe(false);
+    expect(days.some((d) => d.dayKey === '2026-05-28')).toBe(true);
   });
 });
 

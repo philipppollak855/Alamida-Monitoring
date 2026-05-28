@@ -531,34 +531,42 @@ function dateFromDayKey(dayKey: string): Date {
   return new Date(y, m - 1, d);
 }
 
-/** Monatsansicht: mindestens so viele Tage vor/nach dem Kalendermonat (auch ohne Termine). */
-const MONTH_MIN_BACKWARD_DAYS = 365;
-const MONTH_MIN_FORWARD_DAYS = 365;
+/** Puffer um den Ankermonat; Eintragsraster startet nicht vor „heute − 1 Woche“. */
+const MONTH_PAD_DAYS = 7;
+
+function monthAnchorDate(anchor: Date): Date {
+  return new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
+}
 
 function monthRangeFromKey(anchor: Date, entries: WallCalendarEntry[]): string {
-  let fromKey = monthStartKey(anchor);
-  const minBackward = dayKeyFromDate(
-    addDays(new Date(anchor.getFullYear(), anchor.getMonth(), 1), -MONTH_MIN_BACKWARD_DAYS)
-  );
-  if (minBackward < fromKey) fromKey = minBackward;
+  const monthStart = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+  const monthEnd = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
+  const rangeStart = dayKeyFromDate(addDays(monthStart, -MONTH_PAD_DAYS));
+  const rangeEnd = dayKeyFromDate(addDays(monthEnd, MONTH_PAD_DAYS));
+
+  let fromKey = rangeStart;
+  const notBefore = dayKeyFromDate(addDays(monthAnchorDate(anchor), -MONTH_PAD_DAYS));
+  if (notBefore > fromKey) fromKey = notBefore;
 
   for (const e of entries) {
-    if (e.dayKey < fromKey) fromKey = e.dayKey;
+    if (e.dayKey >= rangeStart && e.dayKey <= rangeEnd && e.dayKey < fromKey) {
+      fromKey = e.dayKey;
+    }
   }
   return fromKey;
 }
 
 function monthRangeToKey(anchor: Date, entries: WallCalendarEntry[]): string {
-  const fromKey = monthStartKey(anchor);
-  let toKey = monthEndKey(anchor);
+  const monthStart = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+  const monthEnd = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
+  const rangeStart = dayKeyFromDate(addDays(monthStart, -MONTH_PAD_DAYS));
+  const rangeEnd = dayKeyFromDate(addDays(monthEnd, MONTH_PAD_DAYS));
 
-  const minForward = dayKeyFromDate(
-    addDays(new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0), MONTH_MIN_FORWARD_DAYS)
-  );
-  if (minForward > toKey) toKey = minForward;
-
+  let toKey = rangeEnd;
   for (const e of entries) {
-    if (e.dayKey >= fromKey && e.dayKey > toKey) toKey = e.dayKey;
+    if (e.dayKey >= rangeStart && e.dayKey <= rangeEnd && e.dayKey > toKey) {
+      toKey = e.dayKey;
+    }
   }
   return toKey;
 }
