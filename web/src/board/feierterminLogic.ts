@@ -60,16 +60,55 @@ export function hatKremationImSterbefall(s: Sterbefall): boolean {
   return false;
 }
 
+/** Kremation mit Termin am oder vor dem Feiertag (Urnenweg). */
+function kremationTerminVorFeier(s: Sterbefall, feierDayKey: string | null): boolean {
+  if (!feierDayKey) return false;
+
+  const kremTermin = findeKremationTermin(s);
+  if (kremTermin) {
+    const krDay = dayKeyFromDeDatum(kremTermin);
+    if (krDay && krDay < feierDayKey) return true;
+  }
+
+  for (const v of s.verlauf ?? []) {
+    if ((v.typ ?? '').toLowerCase() !== 'kremation') continue;
+    const raw = v.terminAm ?? v.abholungAm;
+    const krDay = dayKeyFromDeDatum(raw);
+    if (krDay && krDay < feierDayKey) return true;
+  }
+
+  return false;
+}
+
+/** U auf Feiertermin: Kremation erledigt oder Urnenweg (Kremation vor/am Feiertag). */
+export function hatUrnenMarkerAufFeier(
+  s: Sterbefall,
+  feierDayKey: string | null,
+  now: Date = new Date()
+): boolean {
+  if (istKremationErledigt(s, now)) return true;
+  return kremationTerminVorFeier(s, feierDayKey);
+}
+
+function feierDayKeyFromEntry(s: Sterbefall, arts: readonly string[], title: string): string | null {
+  if (title === 'Trauerfeier 2' || arts.includes('trauerfeier2')) {
+    return dayKeyFromDeDatum(s.trauerfeier2datum);
+  }
+  return dayKeyFromDeDatum(s.trauerfeierdatum);
+}
+
 /**
  * S/U auf Feierterminen: Beisetzung U bei jeder Kremation im Ablauf, sonst S.
- * Trauerfeier/Verabschiedung: U nur nach erledigter Kremation (Urnenfeier), sonst S.
+ * Trauerfeier/Verabschiedung: U bei Urnenfeier oder Urnenweg (Kremation vor/am Feiertag).
  */
 function hatKremationFuerBestattungsMarker(
   s: Sterbefall,
   arts: readonly string[],
   title: string
 ): boolean {
-  if (entryHatTrauerfeierOderVerabschiedung(arts, title)) return istKremationErledigt(s);
+  if (entryHatTrauerfeierOderVerabschiedung(arts, title)) {
+    return hatUrnenMarkerAufFeier(s, feierDayKeyFromEntry(s, arts, title));
+  }
   if (entryHatBeisetzung(arts, title)) return hatKremationImSterbefall(s);
   if (istKremationErledigt(s)) return true;
   return Boolean(findeKremationTermin(s));
@@ -79,10 +118,12 @@ function hatKremationFuerBestattungsMarker(
 export function kuehlraumBestattungsMarker(
   s: Sterbefall,
   kind: 'trauerfeier' | 'verabschiedung' | 'beisetzung',
-  now: Date = new Date()
+  now: Date = new Date(),
+  feierDatum?: string
 ): BestattungsMarker {
   if (kind === 'beisetzung') return hatKremationImSterbefall(s) ? 'U' : 'S';
-  return istKremationErledigt(s, now) ? 'U' : 'S';
+  const feierDay = dayKeyFromDeDatum(feierDatum ?? s.trauerfeierdatum);
+  return hatUrnenMarkerAufFeier(s, feierDay, now) ? 'U' : 'S';
 }
 
 const FEIER_MARKER_ARTS = new Set([

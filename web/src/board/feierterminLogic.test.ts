@@ -47,6 +47,30 @@ describe('calendarBestattungsMarker', () => {
     ).toBe('S');
   });
 
+  it('U bei Trauerfeier mit Kremationstermin vor Trauerfeier (Urnenweg)', () => {
+    expect(
+      calendarBestattungsMarker(
+        {
+          ...base,
+          trauerfeierdatum: '08.06.2026',
+          beisetzungsdatum: '08.06.2026',
+          beisetzungszeit: '12:00',
+          trauerfeierzeit: '10:00',
+          endzielTyp: 'kremation',
+          ausstehend: [
+            {
+              schrittTyp: 'kremation',
+              terminAm: '01.06.2026',
+              status: 'geplant',
+            },
+          ],
+        },
+        ['trauerfeier'],
+        'Trauerfeier'
+      )
+    ).toBe('U');
+  });
+
   it('U bei Trauerfeier nach erledigter Kremation', () => {
     expect(
       calendarBestattungsMarker(
@@ -236,6 +260,29 @@ describe('integration S/U markers', () => {
     expect(markers.some((m) => m.kind === 'kremation' && m.label.includes('Termin offen'))).toBe(
       true
     );
+  });
+
+  it('Kühlraum: Trauerfeier-Chip mit U bei Kremation vor Trauerfeier', () => {
+    const markers = buildKuehlraumTerminMarkers(
+      {
+        ...base,
+        trauerfeierdatum: '08.06.2026',
+        beisetzungsdatum: '08.06.2026',
+        beisetzungszeit: '12:00',
+        trauerfeierzeit: '10:00',
+        endzielTyp: 'kremation',
+        ausstehend: [
+          {
+            schrittTyp: 'kremation',
+            terminAm: '01.06.2026',
+            status: 'geplant',
+          },
+        ],
+      },
+      new Date(2026, 4, 28)
+    );
+    const tf = markers.find((m) => m.kind === 'trauerfeier');
+    expect(tf?.bestattungsMarker).toBe('U');
   });
 
   it('Kühlraum: Trauerfeier-Chip mit U nach abgeschlossener Kremation', () => {

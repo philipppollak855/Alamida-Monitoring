@@ -103,7 +103,7 @@ function withKuehlraumBestattungsMarker(
   if (marker.kind === 'kremation') return marker;
   return {
     ...marker,
-    bestattungsMarker: kuehlraumBestattungsMarker(s, marker.kind, now),
+    bestattungsMarker: kuehlraumBestattungsMarker(s, marker.kind, now, marker.datum),
   };
 }
 
