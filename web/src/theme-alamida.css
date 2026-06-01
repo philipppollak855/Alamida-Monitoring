@@ -511,21 +511,32 @@
   color: #1a3340;
 }
 
-[data-theme='alamida'] .wall-freigabe-btn {
-  color: #14532d;
-  background: #dcfce7;
-  border-color: #16a34a;
+[data-theme='alamida'] .wall-freigabe-btn.is-offen {
+  color: #7f1d1d;
+  background: #fee2e2;
+  border-color: #dc2626;
 }
 
-[data-theme='alamida'] .wall-freigabe-btn:hover:not(:disabled) {
-  background: #bbf7d0;
-  color: #052e16;
+[data-theme='alamida'] .wall-freigabe-btn.is-offen:hover:not(:disabled) {
+  background: #fecaca;
+  color: #450a0a;
+}
+
+[data-theme='alamida'] .wall-freigabe-btn.is-frei-geplant {
+  color: #7f1d1d;
+  background: #fee2e2;
+  border-color: #dc2626;
 }
 
 [data-theme='alamida'] .wall-freigabe-btn.is-frei {
   color: #fff;
   background: #16a34a;
   border-color: #15803d;
+}
+
+[data-theme='alamida'] .wall-freigabe-btn.is-frei:hover:not(:disabled) {
+  background: #15803d;
+  color: #fff;
 }
 
 [data-theme='alamida'] .wall-freigabe-date {

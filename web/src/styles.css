@@ -1875,9 +1875,6 @@ code {
   text-transform: uppercase;
   letter-spacing: 0.03em;
   border-radius: 6px;
-  border: 1px solid #15803d;
-  background: rgba(34, 197, 94, 0.22);
-  color: #bbf7d0;
   cursor: pointer;
   max-width: 5.5rem;
   white-space: nowrap;
@@ -1885,23 +1882,46 @@ code {
   text-overflow: ellipsis;
 }
 
+.wall-freigabe-btn.is-offen {
+  border: 1px solid #b91c1c;
+  background: rgba(239, 68, 68, 0.28);
+  color: #fecaca;
+  box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.3);
+}
+
+.wall-freigabe-btn.is-offen:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.42);
+  color: #fff1f2;
+}
+
 .wall-freigabe-btn:hover:not(:disabled) {
-  background: rgba(34, 197, 94, 0.35);
-  color: #ecfdf5;
+  filter: brightness(1.08);
 }
 
 .wall-freigabe-btn.is-frei {
+  border: 1px solid #16a34a;
   border-color: #16a34a;
   background: rgba(34, 197, 94, 0.45);
   color: #ecfdf5;
   box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.35);
 }
 
+.wall-freigabe-btn.is-frei:hover:not(:disabled) {
+  background: rgba(34, 197, 94, 0.55);
+  color: #ecfdf5;
+}
+
 .wall-freigabe-btn.is-frei-geplant {
+  border: 1px solid #b91c1c;
   border-color: var(--danger);
   background: rgba(248, 113, 113, 0.22);
   color: #fecaca;
   box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.25);
+}
+
+.wall-freigabe-btn.is-frei-geplant:hover:not(:disabled) {
+  background: rgba(248, 113, 113, 0.35);
+  color: #fff1f2;
 }
 
 .wall-freigabe-btn:disabled {

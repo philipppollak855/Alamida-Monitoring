@@ -100,7 +100,7 @@ export function WallFreigabeControl({
   return (
     <button
       type="button"
-      className="wall-freigabe-btn"
+      className="wall-freigabe-btn is-offen"
       disabled={disabled}
       title="Freigabedatum eintragen"
       onClick={() => {
