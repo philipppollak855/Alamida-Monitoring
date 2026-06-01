@@ -12,7 +12,8 @@ export const WALL_VIEWS: WallView[] = ['kuehlraum', 'extern', 'kalender', 'abhol
 const DEFAULT_SEC = 18;
 const MIN_SEC = 5;
 const MAX_SEC = 300;
-const TICK_MS = 250;
+const TICK_MS_VISIBLE = 250;
+const TICK_MS_HIDDEN = 1_000;
 
 function clampSec(n: unknown): number {
   const v = Math.round(Number(n));
@@ -84,18 +85,28 @@ export function useWallTabRotation(
   useEffect(() => {
     if (rotationOff) return;
 
+    let intervalId = 0;
+
+    const armInterval = () => {
+      window.clearInterval(intervalId);
+      const ms =
+        document.visibilityState === 'hidden' ? TICK_MS_HIDDEN : TICK_MS_VISIBLE;
+      intervalId = window.setInterval(applyClock, ms);
+    };
+
     applyClock();
-    const id = window.setInterval(applyClock, TICK_MS);
+    armInterval();
 
     const onResume = () => {
-      if (document.visibilityState === 'visible') applyClock();
+      armInterval();
+      applyClock();
     };
     document.addEventListener('visibilitychange', onResume);
     window.addEventListener('focus', onResume);
     window.addEventListener('pageshow', onResume);
 
     return () => {
-      window.clearInterval(id);
+      window.clearInterval(intervalId);
       document.removeEventListener('visibilitychange', onResume);
       window.removeEventListener('focus', onResume);
       window.removeEventListener('pageshow', onResume);

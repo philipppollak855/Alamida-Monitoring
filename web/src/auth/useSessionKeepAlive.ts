@@ -4,6 +4,7 @@ import { auth } from '../firebase';
 import { ensureFreshIdToken } from './sessionRefresh';
 
 const REFRESH_INTERVAL_MS = 45 * 60 * 1000;
+const REFRESH_INTERVAL_HIDDEN_MS = 10 * 60 * 1000;
 
 /** Hält die Firebase-Sitzung bei langem Tab/PWA-Betrieb aktiv. */
 export function useSessionKeepAlive(enabled: boolean) {
@@ -19,7 +20,18 @@ export function useSessionKeepAlive(enabled: boolean) {
     };
 
     document.addEventListener('visibilitychange', onVisible);
-    const interval = window.setInterval(refresh, REFRESH_INTERVAL_MS);
+
+    let intervalId = 0;
+    const armInterval = () => {
+      window.clearInterval(intervalId);
+      const ms =
+        document.visibilityState === 'hidden'
+          ? REFRESH_INTERVAL_HIDDEN_MS
+          : REFRESH_INTERVAL_MS;
+      intervalId = window.setInterval(refresh, ms);
+    };
+    armInterval();
+    document.addEventListener('visibilitychange', armInterval);
     const unsubToken = onIdTokenChanged(auth, () => {
       /* Listener hält Auth-Interna aktiv; Refresh bei Sichtbarkeit/Intervall. */
     });
@@ -28,7 +40,8 @@ export function useSessionKeepAlive(enabled: boolean) {
 
     return () => {
       document.removeEventListener('visibilitychange', onVisible);
-      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', armInterval);
+      window.clearInterval(intervalId);
       unsubToken();
     };
   }, [enabled]);

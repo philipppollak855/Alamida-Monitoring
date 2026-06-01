@@ -1,4 +1,4 @@
-import { doc, onSnapshot, setDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, setDoc, Timestamp } from 'firebase/firestore';
 import {
   createContext,
   useCallback,
@@ -15,7 +15,8 @@ import { db } from '../firebase';
 import { DEFAULT_DISPOSITION_SETTINGS } from '../config/defaultDispositionSettings';
 import type { DispositionSettings } from '../types/dispositionSettings';
 import { isPublicWallPath } from '../config/publicWall';
-import { useFirestoreResume } from '../hooks/useFirestoreResume';
+import { useBackgroundKeepAlive } from '../hooks/useBackgroundKeepAlive';
+import { isWallRoute } from '../hooks/isWallRoute';
 import {
   mergeDispositionSettings,
   setDispositionSettings,
@@ -40,26 +41,45 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const isPublicWallRoute =
     typeof window !== 'undefined' && isPublicWallPath(window.location.pathname);
   const canRead = status === 'activated' || isPublicWallRoute;
+  const onWall = typeof window !== 'undefined' && isWallRoute();
   const [settings, setSettings] = useState<DispositionSettings>(DEFAULT_DISPOSITION_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [authReconnectTick, setAuthReconnectTick] = useState(0);
 
-  useEffect(() => {
-    const onVisible = () => {
-      if (document.visibilityState === 'visible' && status === 'activated') {
-        void ensureFreshIdToken(true);
+  const pollSettings = useCallback(async () => {
+    if (!db || !canRead) return;
+    const ref = doc(db, SETTINGS_DOC[0], SETTINGS_DOC[1]);
+    try {
+      const snap = await getDoc(ref);
+      const merged = mergeDispositionSettings(
+        snap.exists() ? (snap.data() as Partial<DispositionSettings>) : undefined
+      );
+      setSettings(merged);
+      setDispositionSettings(merged);
+      setLoading(false);
+      setError(null);
+    } catch (err) {
+      if (!isPublicWallRoute && isFirestoreAuthError(err)) {
+        setError(normalizeFirestoreError(err));
+        const ok = await ensureFreshIdToken(true);
+        if (ok) setAuthReconnectTick((t) => t + 1);
       }
-    };
-    document.addEventListener('visibilitychange', onVisible);
-    return () => document.removeEventListener('visibilitychange', onVisible);
-  }, [status]);
+    }
+  }, [canRead, isPublicWallRoute]);
 
-  useFirestoreResume(canRead, () => {
-    if (status === 'activated') void ensureFreshIdToken(true);
-    setAuthReconnectTick((t) => t + 1);
-  });
+  useBackgroundKeepAlive(
+    canRead,
+    () => {
+      if (status === 'activated') void ensureFreshIdToken(true);
+      void pollSettings();
+    },
+    {
+      hiddenIntervalMs: onWall ? 12_000 : 45_000,
+      visibleIntervalMs: onWall ? 60_000 : 120_000,
+    }
+  );
 
   useEffect(() => {
     if (!canRead || !db) {

@@ -1,17 +1,11 @@
-import {
-  collection,
-  limit,
-  onSnapshot,
-  orderBy,
-  query,
-  type Query,
-  type DocumentData,
-} from 'firebase/firestore';
+import { getDocs, onSnapshot } from 'firebase/firestore';
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -19,14 +13,14 @@ import { useAuth } from '../auth/AuthContext';
 import { isFirestoreAuthError, normalizeFirestoreError } from '../auth/firestoreErrors';
 import { ensureFreshIdToken } from '../auth/sessionRefresh';
 import { db } from '../firebase';
-import { istImAnschluss } from '../board/historieLogic';
 import type { Sterbefall } from '../types';
 import { isPublicWallPath } from '../config/publicWall';
-import { useFirestoreResume } from '../hooks/useFirestoreResume';
-
-const COLLECTION = 'sterbefaelle';
-const ORDER_FIELD = 'lastSeenAt';
-const MAX_DOCS = 200;
+import { useBackgroundKeepAlive } from '../hooks/useBackgroundKeepAlive';
+import { isWallRoute } from '../hooks/isWallRoute';
+import {
+  mapSterbefallDocs,
+  sterbefaelleQuery,
+} from './sterbefaelleQuery';
 
 type SterbefaelleContextValue = {
   items: Sterbefall[];
@@ -43,26 +37,50 @@ export function SterbefaelleProvider({ children }: { children: ReactNode }) {
   const { status } = useAuth();
   const isPublicWallRoute =
     typeof window !== 'undefined' && isPublicWallPath(window.location.pathname);
+  const onWall = typeof window !== 'undefined' && isWallRoute();
   const canRead = status === 'activated' || isPublicWallRoute;
   const [items, setItems] = useState<Sterbefall[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastSyncAt, setLastSyncAt] = useState<Date | null>(null);
   const [authReconnectTick, setAuthReconnectTick] = useState(0);
+  const pollFailCountRef = useRef(0);
 
-  useEffect(() => {
-    const onVisible = () => {
-      if (document.visibilityState === 'visible' && status === 'activated') {
-        void ensureFreshIdToken(true);
+  const applySnapshot = useCallback((mapped: Sterbefall[]) => {
+    setItems(mapped);
+    setLastSyncAt(new Date());
+    setLoading(false);
+    setError(null);
+    pollFailCountRef.current = 0;
+  }, []);
+
+  const pollFromServer = useCallback(async () => {
+    const q = sterbefaelleQuery();
+    if (!q || !canRead) return;
+    try {
+      const snap = await getDocs(q);
+      applySnapshot(mapSterbefallDocs(snap.docs));
+    } catch (e) {
+      pollFailCountRef.current += 1;
+      if (isFirestoreAuthError(e) && status === 'activated') {
+        const ok = await ensureFreshIdToken(true);
+        if (ok) setAuthReconnectTick((t) => t + 1);
       }
-    };
-    document.addEventListener('visibilitychange', onVisible);
-    return () => document.removeEventListener('visibilitychange', onVisible);
-  }, [status]);
+      if (pollFailCountRef.current >= 2) {
+        setError(normalizeFirestoreError(e));
+        setAuthReconnectTick((t) => t + 1);
+      }
+    }
+  }, [canRead, status, applySnapshot]);
 
-  useFirestoreResume(canRead, () => {
+  const syncLive = useCallback(() => {
     if (status === 'activated') void ensureFreshIdToken(true);
-    setAuthReconnectTick((t) => t + 1);
+    void pollFromServer();
+  }, [status, pollFromServer]);
+
+  useBackgroundKeepAlive(canRead, syncLive, {
+    hiddenIntervalMs: onWall ? 12_000 : 45_000,
+    visibleIntervalMs: onWall ? 60_000 : 120_000,
   });
 
   useEffect(() => {
@@ -80,34 +98,15 @@ export function SterbefaelleProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    setLoading(true);
-    const ref = collection(db, COLLECTION);
-    const q: Query<DocumentData> = query(
-      ref,
-      orderBy(ORDER_FIELD, 'desc'),
-      limit(MAX_DOCS)
-    );
+    const q = sterbefaelleQuery();
+    if (!q) return;
 
+    setLoading(true);
     const unsub = onSnapshot(
       q,
       { includeMetadataChanges: false },
       (snap) => {
-        setItems(
-          snap.docs.map((d) => {
-            const raw = d.data();
-            return {
-              id: d.id,
-              ...raw,
-              imAnschluss:
-                typeof raw.imAnschluss === 'boolean'
-                  ? raw.imAnschluss
-                  : istImAnschluss(String(raw.imAnschluss ?? '')),
-            } as Sterbefall;
-          })
-        );
-        setLastSyncAt(new Date());
-        setLoading(false);
-        setError(null);
+        applySnapshot(mapSterbefallDocs(snap.docs));
       },
       (err) => {
         if (isFirestoreAuthError(err)) {
@@ -123,7 +122,7 @@ export function SterbefaelleProvider({ children }: { children: ReactNode }) {
     );
 
     return () => unsub();
-  }, [status, authReconnectTick, canRead]);
+  }, [status, authReconnectTick, canRead, applySnapshot]);
 
   const value = useMemo(
     (): SterbefaelleContextValue => ({

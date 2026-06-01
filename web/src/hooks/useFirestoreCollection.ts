@@ -1,5 +1,6 @@
 import {
   collection,
+  getDocs,
   onSnapshot,
   query,
   orderBy,
@@ -7,8 +8,9 @@ import {
   type Query,
   type DocumentData,
 } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
-import { useFirestoreResume } from './useFirestoreResume';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useBackgroundKeepAlive } from './useBackgroundKeepAlive';
+import { isWallRoute } from './isWallRoute';
 import { useAuth } from '../auth/AuthContext';
 import { isFirestoreAuthError, normalizeFirestoreError } from '../auth/firestoreErrors';
 import { ensureFreshIdToken } from '../auth/sessionRefresh';
@@ -25,21 +27,37 @@ export function useFirestoreCollection<T extends { id: string }>(
   const [error, setError] = useState<string | null>(null);
   const [lastSyncAt, setLastSyncAt] = useState<Date | null>(null);
   const [authReconnectTick, setAuthReconnectTick] = useState(0);
+  const queryRef = useRef<Query<DocumentData> | null>(null);
+  const onWall = typeof window !== 'undefined' && isWallRoute();
 
-  useEffect(() => {
-    const onVisible = () => {
-      if (document.visibilityState === 'visible' && status === 'activated') {
-        void ensureFreshIdToken(true);
+  const pollFromServer = useCallback(async () => {
+    const q = queryRef.current;
+    if (!q || status !== 'activated') return;
+    try {
+      const snap = await getDocs(q);
+      setItems(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as T));
+      setLastSyncAt(new Date());
+      setLoading(false);
+      setError(null);
+    } catch (err) {
+      if (isFirestoreAuthError(err)) {
+        const ok = await ensureFreshIdToken(true);
+        if (ok) setAuthReconnectTick((t) => t + 1);
       }
-    };
-    document.addEventListener('visibilitychange', onVisible);
-    return () => document.removeEventListener('visibilitychange', onVisible);
+    }
   }, [status]);
 
-  useFirestoreResume(status === 'activated', () => {
-    void ensureFreshIdToken(true);
-    setAuthReconnectTick((t) => t + 1);
-  });
+  useBackgroundKeepAlive(
+    status === 'activated',
+    () => {
+      void ensureFreshIdToken(true);
+      void pollFromServer();
+    },
+    {
+      hiddenIntervalMs: onWall ? 12_000 : 45_000,
+      visibleIntervalMs: 120_000,
+    }
+  );
 
   useEffect(() => {
     if (status !== 'activated') {
@@ -58,9 +76,10 @@ export function useFirestoreCollection<T extends { id: string }>(
 
     setLoading(true);
     const ref = collection(db, collectionName);
-    let q: Query<DocumentData> = orderField
+    const q: Query<DocumentData> = orderField
       ? query(ref, orderBy(orderField, 'desc'), limit(max))
       : query(ref, limit(max));
+    queryRef.current = q;
 
     const unsub = onSnapshot(
       q,

@@ -6,11 +6,20 @@ export function useWallClock(tickMs = 1000) {
 
   useEffect(() => {
     const sync = () => setNow(new Date());
-    sync();
+    let intervalId = 0;
 
-    const id = window.setInterval(sync, tickMs);
+    const armInterval = () => {
+      window.clearInterval(intervalId);
+      const ms = document.visibilityState === 'hidden' ? Math.max(tickMs, 1_000) : tickMs;
+      intervalId = window.setInterval(sync, ms);
+    };
+
+    sync();
+    armInterval();
+
     const onResume = () => {
-      if (document.visibilityState === 'visible') sync();
+      armInterval();
+      sync();
     };
 
     document.addEventListener('visibilitychange', onResume);
@@ -18,7 +27,7 @@ export function useWallClock(tickMs = 1000) {
     window.addEventListener('pageshow', onResume);
 
     return () => {
-      window.clearInterval(id);
+      window.clearInterval(intervalId);
       document.removeEventListener('visibilitychange', onResume);
       window.removeEventListener('focus', onResume);
       window.removeEventListener('pageshow', onResume);

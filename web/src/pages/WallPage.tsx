@@ -43,6 +43,7 @@ import { WallUeberfuehrungErledigtBtn } from '../components/WallUeberfuehrungErl
 import { getErledigteZeilen } from '../board/ueberfuehrungErledigt';
 import { toggleUeberfuehrungErledigt } from '../services/ueberfuehrungErledigt';
 import { useNarrowViewport } from '../hooks/useNarrowViewport';
+import { useScreenWakeLock } from '../hooks/useScreenWakeLock';
 import { useWallClock } from '../hooks/useWallClock';
 import { useWallEdgeSwipe } from '../hooks/useWallEdgeSwipe';
 import type { Sterbefall } from '../types';
@@ -101,6 +102,7 @@ export function WallPage({
   const { settings } = useDispositionSettings();
   const { signOut } = useAuth();
   const isNarrow = useNarrowViewport();
+  useScreenWakeLock(!isNarrow);
   const now = useWallClock(legacyMode ? 30_000 : 1000);
   const [rotationPaused, setRotationPaused] = useState(false);
   const [urnenPending, setUrnenPending] = useState<string | null>(null);
