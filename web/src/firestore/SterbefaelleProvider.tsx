@@ -22,6 +22,7 @@ import { db } from '../firebase';
 import { istImAnschluss } from '../board/historieLogic';
 import type { Sterbefall } from '../types';
 import { isPublicWallPath } from '../config/publicWall';
+import { useFirestoreResume } from '../hooks/useFirestoreResume';
 
 const COLLECTION = 'sterbefaelle';
 const ORDER_FIELD = 'lastSeenAt';
@@ -58,6 +59,11 @@ export function SterbefaelleProvider({ children }: { children: ReactNode }) {
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [status]);
+
+  useFirestoreResume(canRead, () => {
+    if (status === 'activated') void ensureFreshIdToken(true);
+    setAuthReconnectTick((t) => t + 1);
+  });
 
   useEffect(() => {
     if (!canRead) {

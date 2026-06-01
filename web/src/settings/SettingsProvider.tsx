@@ -15,6 +15,7 @@ import { db } from '../firebase';
 import { DEFAULT_DISPOSITION_SETTINGS } from '../config/defaultDispositionSettings';
 import type { DispositionSettings } from '../types/dispositionSettings';
 import { isPublicWallPath } from '../config/publicWall';
+import { useFirestoreResume } from '../hooks/useFirestoreResume';
 import {
   mergeDispositionSettings,
   setDispositionSettings,
@@ -54,6 +55,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [status]);
+
+  useFirestoreResume(canRead, () => {
+    if (status === 'activated') void ensureFreshIdToken(true);
+    setAuthReconnectTick((t) => t + 1);
+  });
 
   useEffect(() => {
     if (!canRead || !db) {

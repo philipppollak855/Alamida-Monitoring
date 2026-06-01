@@ -43,6 +43,7 @@ import { WallUeberfuehrungErledigtBtn } from '../components/WallUeberfuehrungErl
 import { getErledigteZeilen } from '../board/ueberfuehrungErledigt';
 import { toggleUeberfuehrungErledigt } from '../services/ueberfuehrungErledigt';
 import { useNarrowViewport } from '../hooks/useNarrowViewport';
+import { useWallClock } from '../hooks/useWallClock';
 import { useWallEdgeSwipe } from '../hooks/useWallEdgeSwipe';
 import type { Sterbefall } from '../types';
 
@@ -53,15 +54,6 @@ const WALL_TAB_LABELS: Record<WallView, string> = {
   abholungen: 'Heute',
   offen: 'Offen',
 };
-
-function useClock(tickMs = 1000) {
-  const [now, setNow] = useState(new Date());
-  useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), tickMs);
-    return () => clearInterval(t);
-  }, [tickMs]);
-  return now;
-}
 
 function formatWallTabLabel(
   v: WallView,
@@ -109,7 +101,7 @@ export function WallPage({
   const { settings } = useDispositionSettings();
   const { signOut } = useAuth();
   const isNarrow = useNarrowViewport();
-  const now = useClock(legacyMode ? 30_000 : 1000);
+  const now = useWallClock(legacyMode ? 30_000 : 1000);
   const [rotationPaused, setRotationPaused] = useState(false);
   const [urnenPending, setUrnenPending] = useState<string | null>(null);
   const [freigabePending, setFreigabePending] = useState<string | null>(null);

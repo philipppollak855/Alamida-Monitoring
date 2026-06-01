@@ -8,6 +8,7 @@ import {
   type DocumentData,
 } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
+import { useFirestoreResume } from './useFirestoreResume';
 import { useAuth } from '../auth/AuthContext';
 import { isFirestoreAuthError, normalizeFirestoreError } from '../auth/firestoreErrors';
 import { ensureFreshIdToken } from '../auth/sessionRefresh';
@@ -34,6 +35,11 @@ export function useFirestoreCollection<T extends { id: string }>(
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [status]);
+
+  useFirestoreResume(status === 'activated', () => {
+    void ensureFreshIdToken(true);
+    setAuthReconnectTick((t) => t + 1);
+  });
 
   useEffect(() => {
     if (status !== 'activated') {
