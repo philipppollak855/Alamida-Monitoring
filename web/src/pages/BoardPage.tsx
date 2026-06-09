@@ -21,7 +21,8 @@ import {
   parseBoardSection,
   type BoardSection,
 } from '../board/boardSections';
-import { filterAktiveSterbefaelle } from '../board/historieLogic';
+import { filterAktiveSterbefaelle, istInHistory } from '../board/historieLogic';
+import { fallAbschlussGrundLabel } from '../board/fallAbschluss';
 import { buildUrnenListe, countUrnen } from '../board/urnenLogic';
 import { UrnenBereichPanel } from '../components/UrnenBereichPanel';
 import { KuehlraumPlatzGrid } from '../components/KuehlraumPlatzGrid';
@@ -140,8 +141,10 @@ export function BoardPage() {
     return rows;
   }, [offene, filter, searchQuery]);
 
+  const faelleSearchActive = section === 'faelle' && normalizeBoardSearch(searchQuery).length > 0;
+
   const faelleFiltered = useMemo(() => {
-    let list = sterbefaelle;
+    let list = faelleSearchActive ? sterbefaelleRaw : sterbefaelle;
     if (faelleFilter === 'kuehlraum') list = list.filter((s) => isImEigenenKuehlraum(s));
     if (faelleFilter === 'neu') list = list.filter((s) => s.istNeuerFall);
     if (faelleFilter === 'heute') {
@@ -149,11 +152,20 @@ export function BoardPage() {
         offene.some((o) => o.docId === s.id && o.status === 'heute')
       );
     }
-    if (searchQuery.trim()) {
+    if (faelleSearchActive) {
       list = list.filter((s) => matchSterbefallQuery(s, searchQuery));
+      list = [...list].sort((a, b) => {
+        const ah = istInHistory(a) ? 1 : 0;
+        const bh = istInHistory(b) ? 1 : 0;
+        if (ah !== bh) return ah - bh;
+        return (a.verstorbenerName || a.sterbefallId || '').localeCompare(
+          b.verstorbenerName || b.sterbefallId || '',
+          'de'
+        );
+      });
     }
     return list;
-  }, [sterbefaelle, faelleFilter, searchQuery, offene]);
+  }, [sterbefaelle, sterbefaelleRaw, faelleFilter, faelleSearchActive, searchQuery, offene]);
 
   const faelleChipCounts = useMemo(
     () => ({
@@ -198,9 +210,10 @@ export function BoardPage() {
         sterbefaelle,
         offene,
         urnenListe,
-        kuehlraumGrids
-      ),
-    [searchQuery, sterbefaelle, offene, urnenListe, kuehlraumGrids]
+        kuehlraumGrids,
+        sterbefaelleRaw
+    ),
+    [searchQuery, sterbefaelle, sterbefaelleRaw, offene, urnenListe, kuehlraumGrids]
   );
 
   const badgeStats = useMemo(
@@ -390,7 +403,9 @@ export function BoardPage() {
             }
             totalCount={
               section === 'faelle'
-                ? sterbefaelle.length
+                ? faelleSearchActive
+                  ? sterbefaelleRaw.length
+                  : sterbefaelle.length
                 : section === 'ueberfuehrungen'
                   ? offene.length
                   : section === 'lager' && lagerSearchActive
@@ -753,10 +768,18 @@ export function BoardPage() {
                 {faelleFiltered.map((s) => {
                   const open = expandedId === s.id;
                   const imKr = isImEigenenKuehlraum(s);
+                  const abgeschlossen = istInHistory(s);
                   return (
                     <div
                       key={s.id}
-                      className={`case-card ${open ? 'open' : ''} ${imKr ? 'in-kuehlraum' : ''}`}
+                      className={[
+                        'case-card',
+                        open ? 'open' : '',
+                        imKr ? 'in-kuehlraum' : '',
+                        abgeschlossen ? 'is-abgeschlossen' : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
                     >
                       <div className="case-card-header">
                         <button
@@ -770,8 +793,17 @@ export function BoardPage() {
                             <span className="case-id">{s.sterbefallId}</span>
                           </div>
                           <div className="case-card-tags">
-                            {s.istNeuerFall && <span className="chip chip-abholung">Neu</span>}
-                            {imKr && <span className="chip chip-muted">Kühlraum</span>}
+                            {abgeschlossen && (
+                              <span className="chip chip-muted">
+                                {fallAbschlussGrundLabel(s.historieGrund ?? s.abschlussGrund)}
+                              </span>
+                            )}
+                            {s.istNeuerFall && !abgeschlossen && (
+                              <span className="chip chip-abholung">Neu</span>
+                            )}
+                            {imKr && !abgeschlossen && (
+                              <span className="chip chip-muted">Kühlraum</span>
+                            )}
                           </div>
                           <div className="case-card-meta">
                             <span className="case-position">{s.aktuellePosition ?? '—'}</span>
@@ -781,14 +813,16 @@ export function BoardPage() {
                           </div>
                           <span className="case-chevron" aria-hidden />
                         </button>
-                        <button
-                          type="button"
-                          className="case-abschluss-btn"
-                          disabled={abschluss.pendingId === s.id}
-                          onClick={() => abschluss.open(s)}
-                        >
-                          {abschluss.pendingId === s.id ? '…' : 'Abschließen'}
-                        </button>
+                        {!abgeschlossen && (
+                          <button
+                            type="button"
+                            className="case-abschluss-btn"
+                            disabled={abschluss.pendingId === s.id}
+                            onClick={() => abschluss.open(s)}
+                          >
+                            {abschluss.pendingId === s.id ? '…' : 'Abschließen'}
+                          </button>
+                        )}
                       </div>
                       {open && (
                         <div className="case-timeline">

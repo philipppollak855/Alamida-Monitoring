@@ -233,20 +233,23 @@ function collectAtomics(s: Sterbefall): AtomicTermin[] {
     add('trauerfeier2', 'Trauerfeier 2', s.trauerfeier2datum, s.trauerfeier2zeit, s.trauerfeier2ort ?? ortTf);
   }
 
-  if (extractDeDatum(s.beisetzungsdatum)) {
+  const beisetzungsDatumNorm =
+    extractDeDatum(s.beisetzungsdatum) ?? extractDeDatum(s.trauerfeierdatum) ?? undefined;
+
+  if (beisetzungsDatumNorm) {
     if (beisetzungImAnschlussAmTrauerfeierTag(s)) {
-      add(
-        'beisetzung',
-        'Beisetzung',
-        s.beisetzungsdatum ?? s.trauerfeierdatum,
-        undefined,
-        ortBeisetzung
-      );
+      add('beisetzung', 'Beisetzung', beisetzungsDatumNorm, undefined, ortBeisetzung);
     } else {
       add('beisetzung', 'Beisetzung', s.beisetzungsdatum, s.beisetzungszeit, ortBeisetzung);
     }
   } else if (beisetzungImAnschlussAmTrauerfeierTag(s)) {
-    add('beisetzung', 'Beisetzung', s.trauerfeierdatum, undefined, ortBeisetzung);
+    add(
+      'beisetzung',
+      'Beisetzung',
+      extractDeDatum(s.trauerfeierdatum) ?? s.trauerfeierdatum,
+      undefined,
+      ortBeisetzung
+    );
   }
 
   for (const a of s.ausstehend ?? []) {

@@ -123,6 +123,43 @@ describe('buildWallCalendarEntries Feiertermine', () => {
     expect(entries[0]?.grouped).toBe(true);
   });
 
+  it('Trauerfeier + Beisetzung im Anschluss: ein kombinierter Termin (Touahria)', () => {
+    const entries = buildWallCalendarEntries([
+      {
+        ...base,
+        verstorbenerName: 'Gertraud Touahria',
+        trauerfeierdatum: '08.06.2026',
+        trauerfeierzeit: '14:00',
+        trauerfeierort: 'St. Lorenzen - Pfarrfriedhof - Halle',
+        beisetzungsdatum: '08.06.2026',
+        beisetzungszeit: 'Im Anschluss',
+        imAnschluss: true,
+        endziel: 'St. Lorenzen - Pfarrfriedhof',
+      },
+    ]);
+    const day = entries.filter((e) => e.dayKey === '2026-06-08');
+    expect(day).toHaveLength(1);
+    expect(day[0]?.grouped).toBe(true);
+    expect(day[0]?.title).toBe('Trauerfeier');
+    expect(day[0]?.timeLabel).toBe('14:00');
+    expect(day[0]?.arts).toEqual(expect.arrayContaining(['trauerfeier', 'beisetzung']));
+  });
+
+  it('ignoriert erfundene Uhrzeit im Beisetzungs-Datum bei Im Anschluss', () => {
+    const entries = buildWallCalendarEntries([
+      {
+        ...base,
+        trauerfeierdatum: '08.06.2026',
+        trauerfeierzeit: '14:00',
+        beisetzungsdatum: 'Montag, 08.06.2026 13:00',
+        beisetzungszeit: 'Im Anschluss',
+        imAnschluss: true,
+      },
+    ]);
+    expect(entries.filter((e) => e.dayKey === '2026-06-08')).toHaveLength(1);
+    expect(entries.find((e) => e.title === 'Beisetzung' && !e.grouped)).toBeUndefined();
+  });
+
   it('Im Anschluss mit gleicher Uhrzeit in beiden Feldern: ein Termin', () => {
     const entries = buildWallCalendarEntries([
       {

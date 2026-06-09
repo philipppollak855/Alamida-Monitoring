@@ -1,3 +1,4 @@
+import { fallAbschlussGrundLabel } from './fallAbschluss';
 import type { OffeneUeberfuehrungRow, Sterbefall } from '../types';
 
 export function normalizeBoardSearch(q: string): string {
@@ -27,6 +28,10 @@ export function matchSterbefallQuery(s: Sterbefall, rawQuery: string): boolean {
     s.abholort,
     s.naechsterSchrittNach,
     s.naechsteUeberfuehrungNach,
+    s.historieGrund,
+    s.abschlussGrund,
+    s.abschlussBemerkung,
+    fallAbschlussGrundLabel(s.historieGrund ?? s.abschlussGrund),
   ]);
   return q.split(' ').every((token) => hay.includes(token));
 }

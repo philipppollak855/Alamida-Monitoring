@@ -1,6 +1,8 @@
 import type { BoardSection } from './boardSections';
 import type { KuehlraumSlotGrid } from './boardUtils';
+import { fallAbschlussGrundLabel } from './fallAbschluss';
 import { matchSterbefallQuery, matchTransferQuery, normalizeBoardSearch } from './boardSearch';
+import { istInHistory } from './historieLogic';
 import { isImEigenenKuehlraum } from './kuehlraumLogic';
 import { resolveSlotKuehlraumId } from './kuehlplatzSlots';
 import type { OffeneUeberfuehrungRow, Sterbefall } from '../types';
@@ -33,7 +35,9 @@ export function buildBoardSearchHits(
   sterbefaelle: Sterbefall[],
   offene: OffeneUeberfuehrungRow[],
   urnen: UrnenEintrag[],
-  kuehlraumGrids: KuehlraumSlotGrid[]
+  kuehlraumGrids: KuehlraumSlotGrid[],
+  /** Inkl. abgeschlossene Fälle für die Suche (z. B. gesamte Firestore-Liste). */
+  sterbefaelleAlle?: Sterbefall[]
 ): BoardSearchHit[] {
   const q = normalizeBoardSearch(rawQuery);
   if (!q) return [];
@@ -56,15 +60,20 @@ export function buildBoardSearchHits(
     });
   }
 
-  for (const s of sterbefaelle) {
+  const faellePool = sterbefaelleAlle ?? sterbefaelle;
+  for (const s of faellePool) {
     if (!matchSterbefallQuery(s, q)) continue;
     if (seenFall.has(s.id)) continue;
-    const imKr = isImEigenenKuehlraum(s);
+    const abgeschlossen = istInHistory(s);
+    const imKr = !abgeschlossen && isImEigenenKuehlraum(s);
+    const grundLabel = fallAbschlussGrundLabel(s.historieGrund ?? s.abschlussGrund);
     hits.push({
       id: `fall-${s.id}`,
       kind: 'fall',
       title: s.verstorbenerName || s.sterbefallId || s.id,
-      subtitle: s.aktuellePosition ?? undefined,
+      subtitle: abgeschlossen
+        ? [grundLabel, s.aktuellePosition].filter(Boolean).join(' · ')
+        : (s.aktuellePosition ?? undefined),
       tab: imKr ? 'lager' : 'faelle',
       badge: s.sterbefallId,
     });

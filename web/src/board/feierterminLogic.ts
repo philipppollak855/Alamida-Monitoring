@@ -159,16 +159,24 @@ export function calendarBestattungsMarker(
   return kremation ? 'U' : 'S';
 }
 
+/** Bei „Im Anschluss“ keine Uhrzeit aus dem Beisetzungs-Datumtext übernehmen (Sync-Artefakt). */
+export function beisetzungsZeitAusSterbefall(s: Sterbefall): string | undefined {
+  if (sterbefallImAnschluss(s)) {
+    return extractZeitDe(undefined, s.beisetzungszeit);
+  }
+  return extractZeitDe(s.beisetzungsdatum, s.beisetzungszeit);
+}
+
 export function beisetzungZeitGleichTrauerfeier(s: Sterbefall): boolean {
   const tf = extractZeitDe(s.trauerfeierdatum, s.trauerfeierzeit);
-  const bs = extractZeitDe(s.beisetzungsdatum, s.beisetzungszeit);
+  const bs = beisetzungsZeitAusSterbefall(s);
   return Boolean(tf && bs && tf === bs);
 }
 
 /** Beisetzung mit abweichender Uhrzeit (nicht Im Anschluss, nicht gleiche Zeit wie Trauerfeier). */
 export function beisetzungHatEigeneUhrzeit(s: Sterbefall): boolean {
   if (istImAnschluss(s.beisetzungszeit)) return false;
-  const bs = extractZeitDe(s.beisetzungsdatum, s.beisetzungszeit);
+  const bs = beisetzungsZeitAusSterbefall(s);
   if (!bs) return false;
   if (beisetzungZeitGleichTrauerfeier(s)) return false;
   return true;

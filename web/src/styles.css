@@ -2050,6 +2050,11 @@ code {
   border-left: 3px solid rgba(52, 211, 153, 0.55);
 }
 
+.case-card.is-abgeschlossen {
+  opacity: 0.82;
+  border-style: dashed;
+}
+
 .case-card-header {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

@@ -118,7 +118,11 @@ public sealed class AlamidaMaskWatcher
                 if (AlamidaFieldParser.TryParseDatumZeit(raw, null, out var dt, out var hatZeit) && hatZeit)
                 {
                     var zeitKey = key[..^5] + "zeit";
-                    if (fields.ContainsKey(zeitKey)
+                    var beisetzungImAnschluss = string.Equals(key, "beisetzungsdatum", StringComparison.OrdinalIgnoreCase)
+                        && (SterbefallHistorieResolver.IstImAnschluss(fields.GetValueOrDefault("beisetzungszeit"))
+                            || SterbefallHistorieResolver.IstImAnschluss(fields.GetValueOrDefault("imAnschluss")));
+                    if (!beisetzungImAnschluss
+                        && fields.ContainsKey(zeitKey)
                         && string.IsNullOrWhiteSpace(fields.GetValueOrDefault(zeitKey)))
                     {
                         fields[zeitKey] = dt.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture);
@@ -135,6 +139,20 @@ public sealed class AlamidaMaskWatcher
             fields["imAnschluss"] = "ja";
 
         CoalesceImAnschlussBeisetzung(fields);
+        SanitizeImAnschlussBeisetzung(fields);
+    }
+
+    /// <summary>Beisetzung „Im Anschluss“: kein erfundenes Uhrzeit-Feld aus Datum/Sync.</summary>
+    private static void SanitizeImAnschlussBeisetzung(Dictionary<string, string?> fields)
+    {
+        var imAnschluss = SterbefallHistorieResolver.IstImAnschluss(fields.GetValueOrDefault("imAnschluss"))
+            || SterbefallHistorieResolver.IstImAnschluss(fields.GetValueOrDefault("beisetzungszeit"));
+        if (!imAnschluss) return;
+
+        fields["imAnschluss"] = "ja";
+        fields["beisetzungszeit"] = null;
+        if (!string.IsNullOrWhiteSpace(fields.GetValueOrDefault("beisetzungsdatum")))
+            fields["beisetzungsdatum"] = AlamidaFieldNormalizer.NormalizeDatum(fields["beisetzungsdatum"]);
     }
 
     private static void CoalesceImAnschlussBeisetzung(Dictionary<string, string?> fields)
