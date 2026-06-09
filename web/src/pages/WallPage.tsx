@@ -6,7 +6,7 @@ import { ThemeSwitch } from '../components/ThemeSwitch';
 import { useCalendarDay } from '../hooks/useCalendarDay';
 import { useSterbefaelle } from '../hooks/useSterbefaelle';
 import { firebaseConfigured } from '../firebase';
-import { buildPrimaerKuehlraumSlots, flattenOffene } from '../board/boardUtils';
+import { buildAlleEigeneKuehlraumSlots, flattenOffene, kuehlraumGesamtBelegung } from '../board/boardUtils';
 import { useDispositionSettings } from '../settings/SettingsProvider';
 import { filterAktiveSterbefaelle, filterSterbefaelleFuerKalender } from '../board/historieLogic';
 import {
@@ -145,9 +145,13 @@ export function WallPage({
     [sterbefaelleKalender, calendarAnchorDate]
   );
 
-  const { cfg, slots } = useMemo(
-    () => buildPrimaerKuehlraumSlots(sterbefaelle),
-    [sterbefaelle, settings]
+  const kuehlraumGrids = useMemo(
+    () => buildAlleEigeneKuehlraumSlots(sterbefaelle, settings.eigeneKuehlraeume),
+    [sterbefaelle, settings.eigeneKuehlraeume]
+  );
+  const kuehlraumBelegung = useMemo(
+    () => kuehlraumGesamtBelegung(kuehlraumGrids),
+    [kuehlraumGrids]
   );
   const externGruppen = useMemo(
     () => buildExternGruppen(sterbefaelle),
@@ -165,8 +169,8 @@ export function WallPage({
     () => new Map(sterbefaelle.map((s) => [s.id, s])),
     [sterbefaelle]
   );
-  const belegt = slots.filter(Boolean).length;
-  const kuehlraumRows = Math.max(1, Math.ceil(cfg.plaetze / 3));
+  const belegt = kuehlraumBelegung.belegt;
+  const kuehlraumPlaetze = kuehlraumBelegung.plaetze;
   const urnenListe = useMemo(() => buildUrnenListe(sterbefaelle), [sterbefaelle]);
 
   async function handleRetour(docId: string, retourVon?: string) {
@@ -321,7 +325,7 @@ export function WallPage({
           >
             {formatWallTabLabel(v, isNarrow, {
               belegt,
-              plaetze: cfg.plaetze,
+              plaetze: kuehlraumPlaetze,
               urnen: urnenListe.length,
               extern: externTotal,
               kalender: kalenderTermine7d,
@@ -349,62 +353,69 @@ export function WallPage({
         )}
         {view === 'kuehlraum' && (
           <div className="wall-kuehlraum-stage">
-            <h2 className="wall-stage-title">{cfg.label}</h2>
-            <div
-              className="wall-cool-grid"
-              style={
-                {
-                  '--kr-cols': 3,
-                  '--kr-rows': kuehlraumRows,
-                } as React.CSSProperties
-              }
-            >
-              {slots.map((fall, i) => (
-                <div
-                  key={i}
-                  className={`wall-cool-tile ${fall ? 'on' : 'off'} ${
-                    fall
-                      ? freigabePersonCssClass(fall.freigabeFrei, fall.freigabeDatum, now)
-                      : ''
-                  }`}
-                >
-                  <span className="wall-tile-nr">Platz {i + 1}</span>
-                  {fall ? (
-                    <>
-                      <span className="wall-tile-name">
-                        {fall.verstorbenerName || fall.sterbefallId}
-                      </span>
-                      <span className="wall-tile-pos">{fall.aktuellePosition}</span>
-                      {fall.freigabeFrei && fall.freigabeDatum && (
-                        <span className="wall-tile-freigabe-hint">
-                          {istFreigabeWirksam(fall.freigabeFrei, fall.freigabeDatum, now)
-                            ? `Freigabe ${fall.freigabeDatum}`
-                            : `Freigabe ab ${fall.freigabeDatum}`}
-                        </span>
-                      )}
-                      <div className="wall-cool-tile-footer">
-                        <KuehlraumTerminMarker
-                          fall={fall}
-                          now={now}
-                          className="wall-cool-termin-marker"
-                        />
-                        <WallFreigabeControl
-                          docId={fall.id}
-                          freigabeFrei={fall.freigabeFrei}
-                          freigabeDatum={fall.freigabeDatum}
-                          defaultDate={now}
-                          disabled={freigabePending === fall.id}
-                          onSave={saveFreigabe}
-                          onClear={clearFreigabe}
-                        />
+            {kuehlraumGrids.map(({ cfg, slots }) => {
+              const kuehlraumRows = Math.max(1, Math.ceil(cfg.plaetze / 3));
+              return (
+                <section key={cfg.id} className="wall-kuehlraum-block">
+                  <h2 className="wall-stage-title">{cfg.label}</h2>
+                  <div
+                    className="wall-cool-grid"
+                    style={
+                      {
+                        '--kr-cols': 3,
+                        '--kr-rows': kuehlraumRows,
+                      } as React.CSSProperties
+                    }
+                  >
+                    {slots.map((fall, i) => (
+                      <div
+                        key={i}
+                        className={`wall-cool-tile ${fall ? 'on' : 'off'} ${
+                          fall
+                            ? freigabePersonCssClass(fall.freigabeFrei, fall.freigabeDatum, now)
+                            : ''
+                        }`}
+                      >
+                        <span className="wall-tile-nr">Platz {i + 1}</span>
+                        {fall ? (
+                          <>
+                            <span className="wall-tile-name">
+                              {fall.verstorbenerName || fall.sterbefallId}
+                            </span>
+                            <span className="wall-tile-pos">{fall.aktuellePosition}</span>
+                            {fall.freigabeFrei && fall.freigabeDatum && (
+                              <span className="wall-tile-freigabe-hint">
+                                {istFreigabeWirksam(fall.freigabeFrei, fall.freigabeDatum, now)
+                                  ? `Freigabe ${fall.freigabeDatum}`
+                                  : `Freigabe ab ${fall.freigabeDatum}`}
+                              </span>
+                            )}
+                            <div className="wall-cool-tile-footer">
+                              <KuehlraumTerminMarker
+                                fall={fall}
+                                now={now}
+                                className="wall-cool-termin-marker"
+                              />
+                              <WallFreigabeControl
+                                docId={fall.id}
+                                freigabeFrei={fall.freigabeFrei}
+                                freigabeDatum={fall.freigabeDatum}
+                                defaultDate={now}
+                                disabled={freigabePending === fall.id}
+                                onSave={saveFreigabe}
+                                onClear={clearFreigabe}
+                              />
+                            </div>
+                          </>
+                        ) : (
+                          <span className="wall-tile-free">Frei</span>
+                        )}
                       </div>
-                    </>
-                  ) : (
-                    <span className="wall-tile-free">Frei</span>
-                  )}
-                </div>
-              ))}
-            </div>
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
 
             <UrnenBereichPanel
               liste={urnenListe}

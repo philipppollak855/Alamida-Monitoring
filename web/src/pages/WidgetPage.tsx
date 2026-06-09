@@ -70,7 +70,7 @@ export function WidgetPage() {
       {kind === 'summary' && (
         <div className="widget-summary-grid">
           <div className="widget-stat">
-            <span className="widget-stat-n">{snap.belegt}/{snap.cfg.plaetze}</span>
+            <span className="widget-stat-n">{snap.belegt}/{snap.plaetze}</span>
             <span className="widget-stat-l">Kühlraum</span>
           </div>
           <div className="widget-stat">
@@ -90,29 +90,33 @@ export function WidgetPage() {
 
       {kind === 'kuehlraum' && (
         <>
-          <p className="widget-sub">{snap.cfg.label}</p>
-          <div
-            className="widget-kr-grid"
-            style={
-              {
-                '--w-cols': 3,
-                '--w-rows': Math.max(1, Math.ceil(snap.cfg.plaetze / 3)),
-              } as React.CSSProperties
-            }
-          >
-            {snap.slots.map((fall, i) => (
-              <div key={i} className={`widget-kr-cell ${fall ? 'on' : 'off'}`}>
-                <span className="widget-kr-nr">{i + 1}</span>
-                {fall ? (
-                  <span className="widget-kr-name">
-                    {(fall.verstorbenerName ?? fall.sterbefallId ?? '').split(' ')[0]}
-                  </span>
-                ) : (
-                  <span className="widget-kr-free">·</span>
-                )}
+          {snap.kuehlraumGrids.map(({ cfg, slots }) => (
+            <div key={cfg.id} className="widget-kr-block">
+              <p className="widget-sub">{cfg.label}</p>
+              <div
+                className="widget-kr-grid"
+                style={
+                  {
+                    '--w-cols': 3,
+                    '--w-rows': Math.max(1, Math.ceil(cfg.plaetze / 3)),
+                  } as React.CSSProperties
+                }
+              >
+                {slots.map((fall, i) => (
+                  <div key={i} className={`widget-kr-cell ${fall ? 'on' : 'off'}`}>
+                    <span className="widget-kr-nr">{i + 1}</span>
+                    {fall ? (
+                      <span className="widget-kr-name">
+                        {(fall.verstorbenerName ?? fall.sterbefallId ?? '').split(' ')[0]}
+                      </span>
+                    ) : (
+                      <span className="widget-kr-free">·</span>
+                    )}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </>
       )}
 

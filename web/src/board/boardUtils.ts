@@ -61,10 +61,15 @@ export function buildPrimaerKuehlraumSlots(sterbefaelle: Sterbefall[]) {
 /** @deprecated Alias */
 export const buildGrafenbachSlots = buildPrimaerKuehlraumSlots;
 
+export type KuehlraumSlotGrid = {
+  cfg: EigenerKuehlraumConfig;
+  slots: (Sterbefall | null)[];
+};
+
 export function buildAlleEigeneKuehlraumSlots(
   sterbefaelle: Sterbefall[],
   kuehlraeume: EigenerKuehlraumConfig[]
-) {
+): KuehlraumSlotGrid[] {
   return kuehlraeume.map((cfg) => {
     const slots: (Sterbefall | null)[] = Array(cfg.plaetze).fill(null);
     for (const s of sterbefaelle) {
@@ -77,6 +82,12 @@ export function buildAlleEigeneKuehlraumSlots(
     }
     return { cfg, slots };
   });
+}
+
+export function kuehlraumGesamtBelegung(grids: KuehlraumSlotGrid[]) {
+  const belegt = grids.reduce((sum, g) => sum + g.slots.filter(Boolean).length, 0);
+  const plaetze = grids.reduce((sum, g) => sum + g.cfg.plaetze, 0);
+  return { belegt, plaetze };
 }
 
 export function boardStats(sterbefaelle: Sterbefall[], offene: OffeneUeberfuehrungRow[]) {

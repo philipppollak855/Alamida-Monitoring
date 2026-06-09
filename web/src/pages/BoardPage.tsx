@@ -9,8 +9,9 @@ import { useSterbefaelle } from '../hooks/useSterbefaelle';
 import { firebaseConfigured } from '../firebase';
 import {
   boardStats,
-  buildPrimaerKuehlraumSlots,
+  buildAlleEigeneKuehlraumSlots,
   flattenOffene,
+  kuehlraumGesamtBelegung,
 } from '../board/boardUtils';
 import {
   BOARD_SECTIONS,
@@ -93,9 +94,13 @@ export function BoardPage() {
     [sterbefaelle]
   );
   const stats = useMemo(() => boardStats(sterbefaelle, offene), [sterbefaelle, offene, calendarDay]);
-  const { cfg: grafenbachCfg, slots: grafenbachSlots } = useMemo(
-    () => buildPrimaerKuehlraumSlots(sterbefaelle),
-    [sterbefaelle, settings]
+  const kuehlraumGrids = useMemo(
+    () => buildAlleEigeneKuehlraumSlots(sterbefaelle, settings.eigeneKuehlraeume),
+    [sterbefaelle, settings.eigeneKuehlraeume]
+  );
+  const kuehlraumBelegung = useMemo(
+    () => kuehlraumGesamtBelegung(kuehlraumGrids),
+    [kuehlraumGrids]
   );
 
   const filteredOffene = useMemo(() => {
@@ -122,7 +127,7 @@ export function BoardPage() {
     return [...map.entries()];
   }, [sterbefaelle]);
 
-  const belegtGrafenbach = grafenbachSlots.filter(Boolean).length;
+  const belegtKuehlraeume = kuehlraumBelegung.belegt;
   const urnenListe = useMemo(() => buildUrnenListe(sterbefaelle), [sterbefaelle]);
   const urnenCount = useMemo(() => countUrnen(sterbefaelle), [sterbefaelle]);
 
@@ -131,12 +136,12 @@ export function BoardPage() {
       offen: stats.offen,
       heute: stats.heute,
       abholung: stats.abholung,
-      belegt: belegtGrafenbach,
-      plaetze: grafenbachCfg.plaetze,
+      belegt: belegtKuehlraeume,
+      plaetze: kuehlraumBelegung.plaetze,
       urnen: urnenCount,
       faelle: sterbefaelle.length,
     }),
-    [stats, belegtGrafenbach, grafenbachCfg.plaetze, urnenCount, sterbefaelle.length]
+    [stats, belegtKuehlraeume, kuehlraumBelegung.plaetze, urnenCount, sterbefaelle.length]
   );
 
   const goToSection = useCallback(
@@ -284,8 +289,12 @@ export function BoardPage() {
               />
               <StatCard
                 label="Kühlraum"
-                value={`${belegtGrafenbach}/${grafenbachCfg.plaetze}`}
-                hint={grafenbachCfg.label}
+                value={`${belegtKuehlraeume}/${kuehlraumBelegung.plaetze}`}
+                hint={
+                  kuehlraumGrids.length > 1
+                    ? `${kuehlraumGrids.length} Kühlräume`
+                    : kuehlraumGrids[0]?.cfg.label ?? 'Kühlraum'
+                }
                 accent="success"
                 onClick={() => goToSection('lager')}
               />
@@ -338,9 +347,9 @@ export function BoardPage() {
               <section className="panel board-overview-card">
                 <div className="board-overview-card-head">
                   <div>
-                    <h2>{grafenbachCfg.label}</h2>
+                    <h2>Kühlräume</h2>
                     <p>
-                      {belegtGrafenbach} von {grafenbachCfg.plaetze} belegt
+                      {belegtKuehlraeume} von {kuehlraumBelegung.plaetze} belegt
                     </p>
                   </div>
                   <button
@@ -351,28 +360,33 @@ export function BoardPage() {
                     Lager →
                   </button>
                 </div>
-                <div
-                  className="cool-grid board-overview-cool"
-                  style={{
-                    gridTemplateColumns: `repeat(${Math.min(grafenbachCfg.plaetze, 6)}, 1fr)`,
-                  }}
-                >
-                  {grafenbachSlots.map((fall, i) => (
+                {kuehlraumGrids.map(({ cfg, slots }) => (
+                  <div key={cfg.id} className="board-overview-kr-block">
+                    <p className="board-overview-kr-label">{cfg.label}</p>
                     <div
-                      key={i}
-                      className={`cool-cell ${fall ? 'occupied' : 'free'}`}
+                      className="cool-grid board-overview-cool"
+                      style={{
+                        gridTemplateColumns: `repeat(${Math.min(cfg.plaetze, 6)}, 1fr)`,
+                      }}
                     >
-                      <span className="cool-cell-nr">{i + 1}</span>
-                      {fall ? (
-                        <span className="cool-cell-name">
-                          {fall.verstorbenerName || fall.sterbefallId}
-                        </span>
-                      ) : (
-                        <span className="cool-cell-free">Frei</span>
-                      )}
+                      {slots.map((fall, i) => (
+                        <div
+                          key={i}
+                          className={`cool-cell ${fall ? 'occupied' : 'free'}`}
+                        >
+                          <span className="cool-cell-nr">{i + 1}</span>
+                          {fall ? (
+                            <span className="cool-cell-name">
+                              {fall.verstorbenerName || fall.sterbefallId}
+                            </span>
+                          ) : (
+                            <span className="cool-cell-free">Frei</span>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))}
               </section>
 
               <section className="panel board-overview-card">
@@ -488,47 +502,52 @@ export function BoardPage() {
 
         {section === 'lager' && (
           <div className="board-lager-grid">
-            <section className="panel">
-              <div className="panel-head compact">
-                <div>
-                  <h2>{grafenbachCfg.label}</h2>
-                  <p>
-                    {belegtGrafenbach} von {grafenbachCfg.plaetze} belegt
-                  </p>
-                </div>
-              </div>
-              <div
-                className="cool-grid"
-                style={{
-                  gridTemplateColumns: `repeat(${Math.min(grafenbachCfg.plaetze, 6)}, 1fr)`,
-                }}
-              >
-                {grafenbachSlots.map((fall, i) => (
-                  <div
-                    key={i}
-                    className={`cool-cell ${fall ? 'occupied' : 'free'}`}
-                  >
-                    <span className="cool-cell-nr">{i + 1}</span>
-                    {fall ? (
-                      <>
-                        <span className="cool-cell-name">
-                          {fall.verstorbenerName || fall.sterbefallId}
-                        </span>
-                        <span className="cool-cell-meta">{fall.aktuellePosition}</span>
-                        <KuehlraumTerminMarker fall={fall} now={calendarNow} />
-                        {(fall.naechsterSchrittNach ?? fall.naechsteUeberfuehrungNach) && (
-                          <span className="cool-cell-next">
-                            → {fall.naechsterSchrittNach ?? fall.naechsteUeberfuehrungNach}
-                          </span>
-                        )}
-                      </>
-                    ) : (
-                      <span className="cool-cell-free">Frei</span>
-                    )}
+            {kuehlraumGrids.map(({ cfg, slots }) => {
+              const belegt = slots.filter(Boolean).length;
+              return (
+                <section key={cfg.id} className="panel">
+                  <div className="panel-head compact">
+                    <div>
+                      <h2>{cfg.label}</h2>
+                      <p>
+                        {belegt} von {cfg.plaetze} belegt
+                      </p>
+                    </div>
                   </div>
-                ))}
-              </div>
-            </section>
+                  <div
+                    className="cool-grid"
+                    style={{
+                      gridTemplateColumns: `repeat(${Math.min(cfg.plaetze, 6)}, 1fr)`,
+                    }}
+                  >
+                    {slots.map((fall, i) => (
+                      <div
+                        key={i}
+                        className={`cool-cell ${fall ? 'occupied' : 'free'}`}
+                      >
+                        <span className="cool-cell-nr">{i + 1}</span>
+                        {fall ? (
+                          <>
+                            <span className="cool-cell-name">
+                              {fall.verstorbenerName || fall.sterbefallId}
+                            </span>
+                            <span className="cool-cell-meta">{fall.aktuellePosition}</span>
+                            <KuehlraumTerminMarker fall={fall} now={calendarNow} />
+                            {(fall.naechsterSchrittNach ?? fall.naechsteUeberfuehrungNach) && (
+                              <span className="cool-cell-next">
+                                → {fall.naechsterSchrittNach ?? fall.naechsteUeberfuehrungNach}
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          <span className="cool-cell-free">Frei</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
 
             <UrnenBereichPanel
               liste={urnenListe}
@@ -558,7 +577,7 @@ export function BoardPage() {
               </section>
             )}
 
-            {urnenListe.length === 0 && andereKuehlraeume.length === 0 && belegtGrafenbach === 0 && (
+            {urnenListe.length === 0 && andereKuehlraeume.length === 0 && belegtKuehlraeume === 0 && (
               <p className="empty-state">Keine Belegung in Lagerbereichen.</p>
             )}
           </div>

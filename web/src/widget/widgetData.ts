@@ -2,9 +2,11 @@ import type { Sterbefall } from '../types';
 import { filterAktiveSterbefaelle } from '../board/historieLogic';
 import {
   boardStats,
-  buildPrimaerKuehlraumSlots,
+  buildAlleEigeneKuehlraumSlots,
   flattenOffene,
+  kuehlraumGesamtBelegung,
 } from '../board/boardUtils';
+import { getDispositionSettings } from '../settings/dispositionSettingsStore';
 import { buildExternGruppen, externGesamt } from '../board/wallExternUtils';
 
 export type WidgetKind = 'summary' | 'kuehlraum' | 'extern' | 'heute';
@@ -20,7 +22,9 @@ export function buildWidgetSnapshot(sterbefaelleRaw: Sterbefall[]) {
   const sterbefaelle = filterAktiveSterbefaelle(sterbefaelleRaw);
   const offene = flattenOffene(sterbefaelle);
   const stats = boardStats(sterbefaelle, offene);
-  const { cfg, slots } = buildPrimaerKuehlraumSlots(sterbefaelle);
+  const settings = getDispositionSettings();
+  const kuehlraumGrids = buildAlleEigeneKuehlraumSlots(sterbefaelle, settings.eigeneKuehlraeume);
+  const { belegt, plaetze } = kuehlraumGesamtBelegung(kuehlraumGrids);
   const externGruppen = buildExternGruppen(sterbefaelle);
   const heute = offene.filter((o) => o.status === 'heute').slice(0, 6);
 
@@ -28,9 +32,9 @@ export function buildWidgetSnapshot(sterbefaelleRaw: Sterbefall[]) {
 
   return {
     stats,
-    cfg,
-    slots,
-    belegt: slots.filter(Boolean).length,
+    kuehlraumGrids,
+    belegt,
+    plaetze,
     externGruppen,
     externTotal: externGesamt(externGruppen),
     heute,
