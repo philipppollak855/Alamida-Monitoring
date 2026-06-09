@@ -5,7 +5,9 @@ export function calendarEventFlexClass(
   entry: WallCalendarEntry
 ): 'wall-cal-event--half' | 'wall-cal-event--full' {
   const group = calendarColorGroupFromArts(entry.arts);
-  return group === 'fahrt' || group === 'kremation' ? 'wall-cal-event--half' : 'wall-cal-event--full';
+  return group === 'fahrt' || group === 'kremation' || group === 'aufnahme'
+    ? 'wall-cal-event--half'
+    : 'wall-cal-event--full';
 }
 
 export type CalendarDensityMode = 'month' | 'strip' | 'stripCompact';
@@ -21,7 +23,7 @@ export function calendarDayLayout(
   let slotWeight = 0;
   for (const e of entries) {
     const group = calendarColorGroupFromArts(e.arts);
-    slotWeight += group === 'feier' || group === 'aufnahme' ? 2 : 1;
+    slotWeight += group === 'feier' ? 2 : 1;
   }
   if (slotWeight === 0) return { densityScale: 1, slotWeight: 0 };
 

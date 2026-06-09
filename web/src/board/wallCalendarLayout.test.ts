@@ -32,7 +32,7 @@ describe('wallCalendarLayout', () => {
       'wall-cal-event--half'
     );
     expect(calendarEventFlexClass(entry(['trauerfeier']))).toBe('wall-cal-event--full');
-    expect(calendarEventFlexClass(entry(['aufnahme']))).toBe('wall-cal-event--full');
+    expect(calendarEventFlexClass(entry(['aufnahme']))).toBe('wall-cal-event--half');
   });
 
   it('skaliert Schrift bei vielen gewichteten Slots runter', () => {
