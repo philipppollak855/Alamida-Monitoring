@@ -1,6 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DispositionSettings } from '../types/dispositionSettings';
-import { matchExternOrtZuKuehlraum, resolveFallKuehlraumId } from './kuehlraumZuordnung';
+import {
+  matchExternOrtZuKuehlraum,
+  resolveFallKuehlraumId,
+} from './kuehlraumZuordnung';
+import { setDispositionSettings } from '../settings/dispositionSettingsStore';
+import { DEFAULT_DISPOSITION_SETTINGS } from '../config/defaultDispositionSettings';
 import type { Sterbefall } from '../types';
 
 const settings: DispositionSettings = {
@@ -41,6 +46,35 @@ describe('matchExternOrtZuKuehlraum', () => {
 });
 
 describe('resolveFallKuehlraumId', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 5, 9, 12, 0, 0));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('ordnet im KR liegenden Fall per abgeschlossener Route zu (nicht aktuellePosition)', () => {
+    setDispositionSettings(DEFAULT_DISPOSITION_SETTINGS);
+    const fall = {
+      id: 'k1',
+      sterbefallId: '260200',
+      aktivInAlamida: true,
+      aktuellePosition: 'UK - Neunkirchen',
+      ausstehend: [
+        {
+          zeile: 1,
+          vonOrt: 'UK - Neunkirchen',
+          nachOrt: 'Kühl. Grafenbach',
+          terminAm: '05.06.2026',
+          status: 'geplant',
+        },
+      ],
+    } as Sterbefall;
+    expect(resolveFallKuehlraumId(fall)).toBe('grafenbach');
+  });
+
   it('nutzt externKeywords bei ausstehender Route', () => {
     const fall = {
       id: '1',

@@ -35,6 +35,7 @@ import {
 import type { DispositionSettings } from '../types/dispositionSettings';
 import { getDispositionSettings } from '../settings/dispositionSettingsStore';
 import { matchEigenerKuehlraum } from '../settings/ortMatchers';
+import { resolveFallKuehlraumId } from './kuehlraumZuordnung';
 import { filterKuehlraeumeFuerWandTab } from './kuehlraumWandTab';
 
 export type { ExternKartenKategorie } from './externKategorie';
@@ -538,8 +539,7 @@ function buildWandExternKuehlraumGruppen(
       if (!isAktiv(s) || istInUrnenBereich(s)) continue;
       if (!isImEigenenKuehlraum(s)) continue;
 
-      const matched = matchEigenerKuehlraum(s.kuehlraumId ?? s.aktuellePosition, settings);
-      if (matched?.id !== kr.id) continue;
+      if (resolveFallKuehlraumId(s, settings) !== kr.id) continue;
 
       const id = s.sterbefallId ?? s.id;
       const platz = s.kuehlplatz?.trim();

@@ -1,7 +1,7 @@
 import type { Sterbefall, OffeneUeberfuehrungRow } from '../types';
 import type { EigenerKuehlraumConfig } from '../types/dispositionSettings';
 import { getPrimaererKuehlraum } from '../settings/dispositionSettingsStore';
-import { matchEigenerKuehlraum } from '../settings/ortMatchers';
+import { resolveFallKuehlraumId } from './kuehlraumZuordnung';
 import { resolveAusstehendStatus } from './ausstehendStatus';
 import { isUeberfuehrungZeileErledigt } from './ueberfuehrungErledigt';
 import { parseDatumDe } from './dateUtils';
@@ -48,8 +48,7 @@ export function buildPrimaerKuehlraumSlots(sterbefaelle: Sterbefall[]) {
   const slots: (Sterbefall | null)[] = Array(cfg.plaetze).fill(null);
   for (const s of sterbefaelle) {
     if (!isImEigenenKuehlraum(s)) continue;
-    const matched = matchEigenerKuehlraum(s.kuehlraumId ?? s.aktuellePosition);
-    if (matched && matched.id !== cfg.id) continue;
+    if (resolveFallKuehlraumId(s) !== cfg.id) continue;
     const platz = parseInt(s.kuehlplatz ?? '', 10);
     const idx =
       platz >= 1 && platz <= cfg.plaetze ? platz - 1 : slots.findIndex((x) => x === null);
@@ -74,7 +73,7 @@ export function buildAlleEigeneKuehlraumSlots(
     const slots: (Sterbefall | null)[] = Array(cfg.plaetze).fill(null);
     for (const s of sterbefaelle) {
       if (!isImEigenenKuehlraum(s)) continue;
-      if (matchEigenerKuehlraum(s.kuehlraumId ?? s.aktuellePosition)?.id !== cfg.id) continue;
+      if (resolveFallKuehlraumId(s) !== cfg.id) continue;
       const platz = parseInt(s.kuehlplatz ?? '', 10);
       const idx =
         platz >= 1 && platz <= cfg.plaetze ? platz - 1 : slots.findIndex((x) => x === null);

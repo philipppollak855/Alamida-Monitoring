@@ -137,6 +137,29 @@ function abgeschlosseneKrUeberfuehrungIstImEigenenKuehlraum(s: Sterbefall): bool
   return zielIstEigenerKuehlraum(nach) || positionIstImKuehlraum(nach);
 }
 
+/** Kühlraum-Ort für Slot-Zuordnung, wenn Position in Alamida noch nicht aktualisiert ist. */
+export function resolveKuehlraumOrtWennImKr(s: Sterbefall): string | undefined {
+  const fromId = s.kuehlraumId?.trim();
+  if (fromId && matchEigenerKuehlraum(fromId)) return fromId;
+
+  const pos = s.aktuellePosition?.trim();
+  if (pos && matchEigenerKuehlraum(pos)) return pos;
+
+  const letzteKr = letzteAbgeschlosseneKrUeberfuehrung(s);
+  if (letzteKr) {
+    const nach = letzteKr.nachOrt ?? nachOrtAusSchritt(letzteKr.vonOrt, letzteKr.nachOrt);
+    if (nach?.trim()) return nach.trim();
+  }
+
+  const etappe = letzteAbgeschlosseneEtappe(s);
+  if (etappe) {
+    const ort = (etappe.nachOrt ?? etappe.ort)?.trim();
+    if (ort && matchEigenerKuehlraum(ort)) return ort;
+  }
+
+  return undefined;
+}
+
 /**
  * Überführung ins eigene Kühlraum abgeschlossen und Verstorbener noch nicht weiter (Kremation/Beisetzung).
  */

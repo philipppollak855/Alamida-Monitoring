@@ -5,7 +5,7 @@ import { keywordMatchesText } from '../settings/recognitionEngine';
 import { matchEigenerKuehlraum } from '../settings/ortMatchers';
 import { krankenhausOrtKey } from '../settings/krankenhausOrt';
 import { getEffectiveAusstehend } from './ausstehendEffective';
-import { isImEigenenKuehlraum } from './kuehlraumLogic';
+import { isImEigenenKuehlraum, resolveKuehlraumOrtWennImKr } from './kuehlraumLogic';
 import { parseUeberfuehrungRoute } from './routeParse';
 
 function ortTexteFuerExternMatch(ort: string): string[] {
@@ -56,7 +56,11 @@ export function resolveFallKuehlraum(
   if (cfg.eigeneKuehlraeume.length === 0) return null;
 
   if (isImEigenenKuehlraum(s)) {
-    return matchEigenerKuehlraum(s.kuehlraumId ?? s.aktuellePosition, cfg);
+    const ort = resolveKuehlraumOrtWennImKr(s);
+    if (ort) {
+      const matched = matchEigenerKuehlraum(ort, cfg);
+      if (matched) return matched;
+    }
   }
 
   for (const a of getEffectiveAusstehend(s)) {
