@@ -7,6 +7,15 @@ export function wallRotationTotalSec(
   return views.reduce((sum, v) => sum + Math.max(1, durations[v] ?? 1), 0);
 }
 
+/** Teilt Gesamtdauer gleichmäßig auf N Slides (Summe = totalSec). */
+export function splitDurationAcrossSlides(totalSec: number, slideCount: number): number[] {
+  const total = Math.max(1, Math.round(Number(totalSec)) || 1);
+  if (slideCount <= 1) return [total];
+  const base = Math.floor(total / slideCount);
+  const remainder = total % slideCount;
+  return Array.from({ length: slideCount }, (_, i) => base + (i < remainder ? 1 : 0));
+}
+
 /** Aktuelle Slide-Position aus Wanduhr (robust bei gedrosselten Timern im Hintergrund). */
 export function wallRotationPosition(
   epochMs: number,

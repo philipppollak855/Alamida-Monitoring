@@ -1,8 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { wallRotationEpochForSlide, wallRotationPosition } from './wallTabRotationClock';
+import { splitDurationAcrossSlides, wallRotationEpochForSlide, wallRotationPosition } from './wallTabRotationClock';
 
 const views = ['kuehlraum', 'extern', 'kalender'] as const;
 const durations = { kuehlraum: 10, extern: 20, kalender: 30, abholungen: 10, offen: 10 };
+
+describe('splitDurationAcrossSlides', () => {
+  it('teilt Gesamtzeit gleichmäßig auf', () => {
+    expect(splitDurationAcrossSlides(18, 2)).toEqual([9, 9]);
+    expect(splitDurationAcrossSlides(18, 3)).toEqual([6, 6, 6]);
+    expect(splitDurationAcrossSlides(18, 4)).toEqual([5, 5, 4, 4]);
+    expect(splitDurationAcrossSlides(18, 4).reduce((a, b) => a + b, 0)).toBe(18);
+  });
+});
 
 describe('wallRotationPosition', () => {
   const epoch = 0;

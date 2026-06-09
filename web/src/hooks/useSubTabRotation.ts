@@ -1,41 +1,37 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  splitDurationAcrossSlides,
   wallRotationEpochForSlide,
   wallRotationPosition,
   wallRotationTotalSec,
 } from './wallTabRotationClock';
 
-const MIN_SEC = 5;
 const TICK_MS_VISIBLE = 250;
 const TICK_MS_HIDDEN = 1_000;
-
-function clampSec(n: number): number {
-  if (!Number.isFinite(n)) return MIN_SEC;
-  return Math.max(MIN_SEC, Math.round(n));
-}
 
 /** Automatischer Wechsel zwischen Unter-Tabs (z. B. mehrere Kühlräume). */
 export function useSubTabRotation(
   slideIds: string[],
-  /** Gesamtdauer für einen kompletten Durchlauf aller Slides */
+  /** Gesamtdauer für einen kompletten Durchlauf aller Slides (wird gleichmäßig geteilt) */
   totalDurationSec: number,
   enabled: boolean,
   paused: boolean
 ) {
   const slides = slideIds.length > 0 ? slideIds : [''];
   const rotationOff = paused || !enabled || slides.length <= 1;
-  const perSlideSec =
-    slides.length <= 1
-      ? clampSec(totalDurationSec)
-      : clampSec(totalDurationSec / slides.length);
-  const durations = slides.reduce(
-    (acc, id) => {
-      acc[id] = perSlideSec;
-      return acc;
-    },
-    {} as Record<string, number>
+  const slideDurations = useMemo(
+    () => splitDurationAcrossSlides(totalDurationSec, slides.length),
+    [totalDurationSec, slides.length]
   );
+  const durations = useMemo(() => {
+    const map: Record<string, number> = {};
+    slides.forEach((id, i) => {
+      map[id] = slideDurations[i] ?? 1;
+    });
+    return map;
+  }, [slides, slideDurations]);
   const views = slides as unknown as import('./useWallTabRotation').WallView[];
+  const perSlideSec = slideDurations[0] ?? 1;
 
   const rotationEpochRef = useRef(Date.now());
   const [slide, setSlide] = useState(0);

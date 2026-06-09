@@ -422,7 +422,8 @@ export function DispositionSettingsPanel({ defaultOpen = false }: { defaultOpen?
                 </div>
                 <p className="settings-hint">
                   Erster Eintrag = Haupt-Kühlraum. Alamida-Name wird als Keyword übernommen. Bei
-                  mehreren Kühlräumen wechselt der Wandmonitor automatisch zwischen den Räumen.
+                  mehreren Kühlräumen wechselt der Wandmonitor im Tab „Kühlraum“ automatisch
+                  (Tabzeit ÷ Anzahl Räume).
                 </p>
                 {draft.eigeneKuehlraeume.map((kr, index) => (
                   <div key={kr.id} className="settings-kr-card">
@@ -477,8 +478,7 @@ export function DispositionSettingsPanel({ defaultOpen = false }: { defaultOpen?
                       />
                     </label>
                     <p className="settings-hint settings-hint--inline">
-                      z. B. UK-Neunkirchen, Senecura Wolfsberg — steuert die Extern-Wand pro
-                      Kühlraum.
+                      z. B. UK-Neunkirchen, Senecura Wolfsberg — Zuordnung für Disposition/Board.
                     </p>
                     {draft.eigeneKuehlraeume.length > 1 && (
                       <button
