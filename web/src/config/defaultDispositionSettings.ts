@@ -44,6 +44,7 @@ export const DEFAULT_DISPOSITION_SETTINGS: DispositionSettings = {
         'kühl. grafenbach',
         'kuehl. grafenbach',
       ],
+      externKeywords: [],
       plaetze: 9,
     },
   ],

@@ -7,6 +7,8 @@ import { useCalendarDay } from '../hooks/useCalendarDay';
 import { useSterbefaelle } from '../hooks/useSterbefaelle';
 import { firebaseConfigured } from '../firebase';
 import { buildAlleEigeneKuehlraumSlots, flattenOffene, kuehlraumGesamtBelegung } from '../board/boardUtils';
+import { wallKuehlraumGridLayout } from '../board/wallKuehlraumLayout';
+import { useSubTabRotation } from '../hooks/useSubTabRotation';
 import { useDispositionSettings } from '../settings/SettingsProvider';
 import { filterAktiveSterbefaelle, filterSterbefaelleFuerKalender } from '../board/historieLogic';
 import {
@@ -92,6 +94,41 @@ function formatWallTabLabel(
   }
 }
 
+function WallKuehlraumSubNav({
+  labels,
+  activeIndex,
+  secondsLeft,
+  auto,
+  onSelect,
+}: {
+  labels: string[];
+  activeIndex: number;
+  secondsLeft: number;
+  auto: boolean;
+  onSelect: (index: number) => void;
+}) {
+  if (labels.length <= 1) return null;
+  return (
+    <div className="wall-kr-subnav" role="tablist" aria-label="Kühlräume">
+      {labels.map((label, i) => (
+        <button
+          key={label + i}
+          type="button"
+          role="tab"
+          aria-selected={i === activeIndex}
+          className={`wall-kr-subtab ${i === activeIndex ? 'active' : ''} ${auto && i === activeIndex ? 'auto' : ''}`}
+          onClick={() => onSelect(i)}
+        >
+          <span className="wall-kr-subtab-label">{label}</span>
+          {i === activeIndex && auto && (
+            <span className="wall-kr-subtab-timer">{secondsLeft}s</span>
+          )}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function WallPage({
   publicAccess = false,
   legacyMode = false,
@@ -153,11 +190,47 @@ export function WallPage({
     () => kuehlraumGesamtBelegung(kuehlraumGrids),
     [kuehlraumGrids]
   );
-  const externGruppen = useMemo(
-    () => buildExternGruppen(sterbefaelle),
+  const kuehlraumIds = useMemo(
+    () => settings.eigeneKuehlraeume.map((k) => k.id),
+    [settings.eigeneKuehlraeume]
+  );
+  const kuehlraumLabels = useMemo(
+    () => settings.eigeneKuehlraeume.map((k) => k.label),
+    [settings.eigeneKuehlraeume]
+  );
+  const kuehlraumSub = useSubTabRotation(
+    kuehlraumIds,
+    tabDurations.kuehlraum,
+    view === 'kuehlraum' && !rotationOff,
+    rotationPaused
+  );
+  const externSub = useSubTabRotation(
+    kuehlraumIds,
+    tabDurations.extern,
+    view === 'extern' && !rotationOff,
+    rotationPaused
+  );
+  const activeKuehlraumGrid = useMemo(() => {
+    const idx = Math.max(0, kuehlraumGrids.findIndex((g) => g.cfg.id === kuehlraumSub.activeId));
+    return kuehlraumGrids[idx >= 0 ? idx : 0] ?? kuehlraumGrids[0];
+  }, [kuehlraumGrids, kuehlraumSub.activeId]);
+  const externGruppenAll = useMemo(
+    () => buildExternGruppen(sterbefaelle, { settings }),
     [sterbefaelle, settings]
   );
-  const externTotal = useMemo(() => externGesamt(externGruppen), [externGruppen]);
+  const externGruppen = useMemo(
+    () =>
+      buildExternGruppen(sterbefaelle, {
+        kuehlraumId: kuehlraumIds.length > 1 ? externSub.activeId : undefined,
+        settings,
+      }),
+    [sterbefaelle, settings, kuehlraumIds.length, externSub.activeId]
+  );
+  const activeExternKuehlraumLabel = useMemo(() => {
+    const kr = settings.eigeneKuehlraeume.find((k) => k.id === externSub.activeId);
+    return kr?.label;
+  }, [settings.eigeneKuehlraeume, externSub.activeId]);
+  const externTotal = useMemo(() => externGesamt(externGruppenAll), [externGruppenAll]);
   const offene = useMemo(() => flattenOffene(sterbefaelle), [sterbefaelle, calendarDay]);
   const heuteOffen = useMemo(() => offene.filter((o) => o.status === 'heute'), [offene, calendarDay]);
   const heuteFeier = useMemo(
@@ -351,19 +424,27 @@ export function WallPage({
             />
           </>
         )}
-        {view === 'kuehlraum' && (
-          <div className="wall-kuehlraum-stage">
-            {kuehlraumGrids.map(({ cfg, slots }) => {
-              const kuehlraumRows = Math.max(1, Math.ceil(cfg.plaetze / 3));
+        {view === 'kuehlraum' && activeKuehlraumGrid && (
+          <div className="wall-kuehlraum-stage wall-kuehlraum-stage--rotate">
+            <WallKuehlraumSubNav
+              labels={kuehlraumLabels}
+              activeIndex={kuehlraumSub.slide}
+              secondsLeft={kuehlraumSub.secondsLeft}
+              auto={!kuehlraumSub.rotationOff}
+              onSelect={kuehlraumSub.goToSlide}
+            />
+            {(() => {
+              const { cfg, slots } = activeKuehlraumGrid;
+              const { cols, rows } = wallKuehlraumGridLayout(cfg.plaetze);
               return (
-                <section key={cfg.id} className="wall-kuehlraum-block">
+                <>
                   <h2 className="wall-stage-title">{cfg.label}</h2>
                   <div
                     className="wall-cool-grid"
                     style={
                       {
-                        '--kr-cols': 3,
-                        '--kr-rows': kuehlraumRows,
+                        '--kr-cols': cols,
+                        '--kr-rows': rows,
                       } as React.CSSProperties
                     }
                   >
@@ -413,25 +494,40 @@ export function WallPage({
                       </div>
                     ))}
                   </div>
-                </section>
+                </>
               );
-            })}
+            })()}
 
-            <UrnenBereichPanel
-              liste={urnenListe}
-              pendingDocId={urnenPending}
-              onUndo={(id) => void handleUrnenUndo(id)}
-              variant="wall"
-            />
+            {kuehlraumSub.slide === 0 && (
+              <UrnenBereichPanel
+                liste={urnenListe}
+                pendingDocId={urnenPending}
+                onUndo={(id) => void handleUrnenUndo(id)}
+                variant="wall"
+              />
+            )}
           </div>
         )}
 
         {view === 'extern' && (
-          <div className="wall-extern-stage">
-            <h2 className="wall-stage-title">Extern — Krankenhäuser & Kremation</h2>
+          <div className={`wall-extern-stage ${kuehlraumIds.length > 1 ? 'wall-extern-stage--rotate' : ''}`}>
+            <WallKuehlraumSubNav
+              labels={kuehlraumLabels}
+              activeIndex={externSub.slide}
+              secondsLeft={externSub.secondsLeft}
+              auto={!externSub.rotationOff}
+              onSelect={externSub.goToSlide}
+            />
+            <h2 className="wall-stage-title">
+              Extern
+              {kuehlraumIds.length > 1 && activeExternKuehlraumLabel
+                ? ` — ${activeExternKuehlraumLabel}`
+                : ' — Krankenhäuser & Kremation'}
+            </h2>
             <p className="wall-stage-sub">
-              Verstorbene außerhalb des Firmenkühlraums, noch am Sterbeort oder im
-              Krematorium
+              {kuehlraumIds.length > 1
+                ? 'Abholungen und externe Standorte für diesen Kühlraum'
+                : 'Verstorbene außerhalb des Firmenkühlraums, noch am Sterbeort oder im Krematorium'}
             </p>
             {externActionError && (
               <p className="wall-retour-error" role="alert">

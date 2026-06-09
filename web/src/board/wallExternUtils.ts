@@ -32,6 +32,9 @@ import {
   externKategorieGruppenKey,
   type ExternKartenKategorie,
 } from './externKategorie';
+import type { DispositionSettings } from '../types/dispositionSettings';
+import { getDispositionSettings } from '../settings/dispositionSettingsStore';
+import { resolveFallKuehlraumIdOrPrimary } from './kuehlraumZuordnung';
 
 export type { ExternKartenKategorie } from './externKategorie';
 export { externKategorieBadgeLabel, externKategorieHatFreigabe } from './externKategorie';
@@ -521,7 +524,24 @@ function resolveExternStandorteWithAlle(
   return resolveExternStandorteCore(s, alle);
 }
 
-export function buildExternGruppen(sterbefaelle: Sterbefall[]): ExternOrtGruppe[] {
+export function buildExternGruppen(
+  sterbefaelle: Sterbefall[],
+  options?: { kuehlraumId?: string; settings?: DispositionSettings }
+): ExternOrtGruppe[] {
+  const settings = options?.settings ?? getDispositionSettings();
+  const primaryId = settings.eigeneKuehlraeume[0]?.id;
+  const filterKr = options?.kuehlraumId;
+
+  const sterbefallById = new Map(sterbefaelle.map((s) => [s.id, s]));
+
+  const faellePassenFilter = (docId: string, typ: ExternKartenKategorie): boolean => {
+    if (!filterKr) return true;
+    if (typ === 'kremation') return filterKr === primaryId;
+    const s = sterbefallById.get(docId);
+    if (!s) return false;
+    return resolveFallKuehlraumIdOrPrimary(s, settings) === filterKr;
+  };
+
   const map = new Map<string, ExternOrtGruppe>();
 
   for (const s of sterbefaelle) {
@@ -583,6 +603,11 @@ export function buildExternGruppen(sterbefaelle: Sterbefall[]): ExternOrtGruppe[
   }
 
   gruppen = mergeOrphanGenericKhGruppen(gruppen, sterbefaelle);
+
+  for (const g of gruppen) {
+    g.faelle = g.faelle.filter((f) => faellePassenFilter(f.docId, g.typ));
+  }
+  gruppen = gruppen.filter((g) => g.faelle.length > 0);
 
   const typOrder: Record<ExternKartenKategorie, number> = {
     krankenhaus: 0,

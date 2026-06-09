@@ -73,8 +73,18 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
-/* ─── Kühlraum: scrollbarer Bereich ─── */
-.wall--mobile .wall-kuehlraum-stage {
+.wall--mobile .wall-kuehlraum-stage--rotate {
+  overflow: hidden;
+}
+
+.wall--mobile .wall-kuehlraum-stage--rotate .wall-cool-grid {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+}
+
+/* ─── Kühlraum: scrollbarer Bereich (nur ohne Unter-Rotation) ─── */
+.wall--mobile .wall-kuehlraum-stage:not(.wall-kuehlraum-stage--rotate) {
   gap: 0.35rem;
   overflow-y: auto;
   overflow-x: hidden;

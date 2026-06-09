@@ -97,6 +97,7 @@ function emptyKuehlraum(): EigenerKuehlraumConfig {
     id: crypto.randomUUID(),
     label: 'Neuer Kühlraum',
     matchKeywords: [],
+    externKeywords: [],
     plaetze: 9,
   };
 }
@@ -420,8 +421,8 @@ export function DispositionSettingsPanel({ defaultOpen = false }: { defaultOpen?
                   </span>
                 </div>
                 <p className="settings-hint">
-                  Erster Eintrag = Haupt-Kühlraum (Board & Wand). Alamida-Name wird automatisch als
-                  Keyword übernommen.
+                  Erster Eintrag = Haupt-Kühlraum. Alamida-Name wird als Keyword übernommen. Bei
+                  mehreren Kühlräumen wechselt der Wandmonitor automatisch zwischen den Räumen.
                 </p>
                 {draft.eigeneKuehlraeume.map((kr, index) => (
                   <div key={kr.id} className="settings-kr-card">
@@ -467,6 +468,18 @@ export function DispositionSettingsPanel({ defaultOpen = false }: { defaultOpen?
                         rows={3}
                       />
                     </label>
+                    <label>
+                      Extern-Zuordnung — Abholorte für diesen Kühlraum
+                      <KeywordsTextarea
+                        value={kr.externKeywords ?? []}
+                        onChange={(externKeywords) => updateKuehlraum(index, { externKeywords })}
+                        rows={3}
+                      />
+                    </label>
+                    <p className="settings-hint settings-hint--inline">
+                      z. B. UK-Neunkirchen, Senecura Wolfsberg — steuert die Extern-Wand pro
+                      Kühlraum.
+                    </p>
                     {draft.eigeneKuehlraeume.length > 1 && (
                       <button
                         type="button"

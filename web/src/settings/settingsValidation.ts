@@ -93,6 +93,7 @@ function normalizeForCompare(s: DispositionSettings) {
       label: k.label,
       alamidaName: k.alamidaName ?? '',
       matchKeywords: [...k.matchKeywords].sort(),
+      externKeywords: [...(k.externKeywords ?? [])].sort(),
       plaetze: k.plaetze,
     })),
   };

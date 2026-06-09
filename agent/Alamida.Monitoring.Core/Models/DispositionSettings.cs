@@ -50,5 +50,6 @@ public sealed class EigenerKuehlraumConfig
     public string Label { get; init; } = "";
     public string? AlamidaName { get; init; }
     public List<string> MatchKeywords { get; init; } = [];
+    public List<string> ExternKeywords { get; init; } = [];
     public int Plaetze { get; init; } = 9;
 }

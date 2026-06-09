@@ -89,6 +89,7 @@ public static class OrtErkennung
             Label = kr.Label?.Trim() ?? "Kühlraum",
             AlamidaName = string.IsNullOrWhiteSpace(kr.AlamidaName) ? null : kr.AlamidaName.Trim(),
             MatchKeywords = Dedupe(kr.MatchKeywords),
+            ExternKeywords = Dedupe(kr.ExternKeywords),
             Plaetze = Math.Clamp(kr.Plaetze, 1, 99),
         }).ToList(),
     };

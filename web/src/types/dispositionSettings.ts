@@ -5,6 +5,8 @@ export interface EigenerKuehlraumConfig {
   alamidaName?: string;
   /** Erkennung in Ortsnamen (Kleinbuchstaben, enthält) */
   matchKeywords: string[];
+  /** Externe Abholorte (UK, Senecura …) → Zuordnung zu diesem Kühlraum */
+  externKeywords: string[];
   plaetze: number;
 }
 

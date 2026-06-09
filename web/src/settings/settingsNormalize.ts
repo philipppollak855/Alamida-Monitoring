@@ -26,6 +26,7 @@ export function normalizeDispositionSettings(
             label: (k.label || 'Kühlraum').trim(),
             alamidaName: alamida || undefined,
             matchKeywords: keywords,
+            externKeywords: dedupeKeywords(k.externKeywords ?? []),
             plaetze: Math.max(1, Math.min(99, Number(k.plaetze) || 1)),
           };
         })

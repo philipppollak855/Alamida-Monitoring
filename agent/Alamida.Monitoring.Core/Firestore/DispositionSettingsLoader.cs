@@ -100,6 +100,9 @@ public sealed class DispositionSettingsLoader
             var keywords = dict.TryGetValue("matchKeywords", out var mk) && mk is List<object> mkList
                 ? mkList.Select(o => o?.ToString()?.Trim() ?? "").Where(s => s.Length > 0).ToList()
                 : [];
+            var externKeywords = dict.TryGetValue("externKeywords", out var ek) && ek is List<object> ekList
+                ? ekList.Select(o => o?.ToString()?.Trim() ?? "").Where(s => s.Length > 0).ToList()
+                : [];
             var plaetze = 9;
             if (dict.TryGetValue("plaetze", out var p))
             {
@@ -118,6 +121,7 @@ public sealed class DispositionSettingsLoader
                 Label = dict.GetValueOrDefault("label")?.ToString() ?? "Kühlraum",
                 AlamidaName = dict.GetValueOrDefault("alamidaName")?.ToString(),
                 MatchKeywords = keywords,
+                ExternKeywords = externKeywords,
                 Plaetze = Math.Clamp(plaetze, 1, 99),
             });
         }
