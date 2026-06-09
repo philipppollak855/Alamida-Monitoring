@@ -24,7 +24,9 @@ import {
 import { filterAktiveSterbefaelle } from '../board/historieLogic';
 import { buildUrnenListe, countUrnen } from '../board/urnenLogic';
 import { UrnenBereichPanel } from '../components/UrnenBereichPanel';
-import { KuehlraumPlatzCard } from '../components/KuehlraumPlatzCard';
+import { KuehlraumPlatzGrid } from '../components/KuehlraumPlatzGrid';
+import { BoardGlobalSearchResults } from '../components/board/BoardGlobalSearchResults';
+import { buildBoardSearchHits, type BoardSearchHit } from '../board/boardGlobalSearch';
 import { FallAbschlussDialog } from '../components/FallAbschlussDialog';
 import { useFallAbschluss } from '../hooks/useFallAbschluss';
 import { getErledigteZeilen } from '../board/ueberfuehrungErledigt';
@@ -166,6 +168,7 @@ export function BoardPage() {
   );
 
   const lagerSearchActive = normalizeBoardSearch(searchQuery).length > 0;
+  const overviewSearchActive = section === 'uebersicht' && lagerSearchActive;
 
   const heuteOffene = useMemo(
     () => offene.filter((o) => o.status === 'heute'),
@@ -187,6 +190,18 @@ export function BoardPage() {
   const belegtKuehlraeume = kuehlraumBelegung.belegt;
   const urnenListe = useMemo(() => buildUrnenListe(sterbefaelle), [sterbefaelle]);
   const urnenCount = useMemo(() => countUrnen(sterbefaelle), [sterbefaelle]);
+
+  const globalSearchHits = useMemo(
+    () =>
+      buildBoardSearchHits(
+        searchQuery,
+        sterbefaelle,
+        offene,
+        urnenListe,
+        kuehlraumGrids
+      ),
+    [searchQuery, sterbefaelle, offene, urnenListe, kuehlraumGrids]
+  );
 
   const badgeStats = useMemo(
     () => ({
@@ -215,6 +230,13 @@ export function BoardPage() {
       );
     },
     [setSearchParams]
+  );
+
+  const openSearchHit = useCallback(
+    (hit: BoardSearchHit) => {
+      goToSection(hit.tab);
+    },
+    [goToSection]
   );
 
   async function handleRemoveFromDisposition(s: Sterbefall) {
@@ -321,16 +343,18 @@ export function BoardPage() {
         {error && <div className="alert alert-danger">{error}</div>}
         {urnenError && <div className="alert alert-danger">{urnenError}</div>}
 
-        {section !== 'einstellungen' && section !== 'uebersicht' && (
+        {section !== 'einstellungen' && (
           <BoardToolbar
             search={searchQuery}
             onSearchChange={setSearchQuery}
             placeholder={
-              section === 'lager'
-                ? 'Im Lager suchen — Name oder Fall-Nr.…'
-                : section === 'faelle'
-                  ? 'Fälle durchsuchen…'
-                  : 'Überführung suchen — Name, Ort, Fall-Nr.…'
+              section === 'uebersicht'
+                ? 'Alle Bereiche durchsuchen — Name, Fall-Nr., Ort…'
+                : section === 'lager'
+                  ? 'Im Lager suchen — Name oder Fall-Nr.…'
+                  : section === 'faelle'
+                    ? 'Fälle durchsuchen…'
+                    : 'Überführung suchen — Name, Ort, Fall-Nr.…'
             }
             chips={
               section === 'faelle'
@@ -347,34 +371,45 @@ export function BoardPage() {
               section === 'faelle' ? (id) => setFaelleFilter(id as FaelleFilter) : undefined
             }
             resultCount={
-              section === 'faelle'
-                ? faelleFiltered.length
-                : section === 'ueberfuehrungen'
-                  ? filteredOffene.length
-                  : section === 'lager'
-                    ? kuehlraumGrids.reduce(
-                        (n, g) =>
-                          n +
-                          g.slots.filter(
-                            (f) => f && matchSterbefallQuery(f, searchQuery)
-                          ).length,
-                        0
-                      )
-                    : undefined
+              section === 'uebersicht' && lagerSearchActive
+                ? globalSearchHits.length
+                : section === 'faelle'
+                  ? faelleFiltered.length
+                  : section === 'ueberfuehrungen'
+                    ? filteredOffene.length
+                    : section === 'lager' && lagerSearchActive
+                      ? kuehlraumGrids.reduce(
+                          (n, g) =>
+                            n +
+                            g.slots.filter(
+                              (f) => f && matchSterbefallQuery(f, searchQuery)
+                            ).length,
+                          0
+                        )
+                      : undefined
             }
             totalCount={
               section === 'faelle'
                 ? sterbefaelle.length
                 : section === 'ueberfuehrungen'
                   ? offene.length
-                  : section === 'lager'
+                  : section === 'lager' && lagerSearchActive
                     ? belegtKuehlraeume
                     : undefined
             }
           />
         )}
 
-        {section === 'uebersicht' && (
+        {section === 'uebersicht' && overviewSearchActive && (
+          <BoardGlobalSearchResults
+            hits={globalSearchHits}
+            query={searchQuery}
+            onOpen={openSearchHit}
+            onClear={() => setSearchQuery('')}
+          />
+        )}
+
+        {section === 'uebersicht' && !overviewSearchActive && (
           <div className="board-overview">
             <div className="board-overview-kpis kpi-grid">
               <StatCard
@@ -632,46 +667,26 @@ export function BoardPage() {
                       <h2>{cfg.label}</h2>
                       <p>
                         {belegt} von {cfg.plaetze} belegt
-                        {belegt > 0 && ' — Platz antippen für Details'}
+                        {belegt > 0 && ' — ziehen zum Verschieben, + für Details'}
                       </p>
                     </div>
                     <div className="kr-lager-meter" aria-hidden>
                       <div className="kr-lager-meter-fill" style={{ width: `${pct}%` }} />
                     </div>
                   </div>
-                  <div className="kr-platz-grid">
-                    {slots.map((fall, i) => {
-                      const key = `${cfg.id}:${i}`;
-                      const matches =
-                        !lagerSearchActive ||
-                        (fall ? matchSterbefallQuery(fall, searchQuery) : false);
-                      if (lagerSearchActive && fall && !matches) return null;
-                      if (!fall) {
-                        if (lagerSearchActive) return null;
-                        return (
-                          <div key={key} className="kr-platz-card kr-platz-card--free">
-                            <span className="kr-platz-nr">Platz {i + 1}</span>
-                            <span className="kr-platz-free-label">Frei</span>
-                          </div>
-                        );
-                      }
-                      return (
-                        <KuehlraumPlatzCard
-                          key={key}
-                          platzNr={i + 1}
-                          fall={fall}
-                          now={calendarNow}
-                          expanded={expandedKrKey === key || (lagerSearchActive && matches)}
-                          highlighted={lagerSearchActive && matches}
-                          pending={abschluss.pendingId === fall.id}
-                          onToggleExpand={() =>
-                            setExpandedKrKey((prev) => (prev === key ? null : key))
-                          }
-                          onAbschliessen={() => abschluss.open(fall)}
-                        />
-                      );
-                    })}
-                  </div>
+                  <KuehlraumPlatzGrid
+                    cfg={cfg}
+                    slots={slots}
+                    now={calendarNow}
+                    lagerSearchActive={lagerSearchActive}
+                    expandedKrKey={expandedKrKey}
+                    abschlussPendingId={abschluss.pendingId}
+                    matchFall={(fall) => matchSterbefallQuery(fall, searchQuery)}
+                    onToggleExpand={(key) =>
+                      setExpandedKrKey((prev) => (prev === key ? null : key))
+                    }
+                    onAbschliessen={(fall) => abschluss.open(fall)}
+                  />
                 </section>
               );
             })}

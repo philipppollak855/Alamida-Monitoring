@@ -105,6 +105,22 @@ service cloud.firestore {
         .hasOnly(['erledigteUeberfuehrungenZeilen']);
     }
 
+    function sterbefallKuehlplatzDispositionUpdateOnly() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly([
+          'kuehlplatzDisposition',
+          'kuehlraumIdDisposition',
+          'updatedAt',
+        ]);
+    }
+
+    function sterbefallKuehlplatzDispositionValid() {
+      return request.resource.data.kuehlraumIdDisposition is string
+        && request.resource.data.kuehlraumIdDisposition.size() > 0
+        && request.resource.data.kuehlplatzDisposition is string
+        && request.resource.data.kuehlplatzDisposition.size() > 0;
+    }
+
     match /sterbefaelle/{id} {
       allow read: if isActivatedUser() || isPublicWallRead();
       allow update: if isActivatedUser()
@@ -113,6 +129,7 @@ service cloud.firestore {
           || (sterbefallFreigabeUpdateOnly() && (sterbefallFreigabeSet() || sterbefallFreigabeClear()))
           || (sterbefallDispositionCloseOnly() && sterbefallDispositionCloseValid())
           || sterbefallErledigtUpdateOnly()
+          || (sterbefallKuehlplatzDispositionUpdateOnly() && sterbefallKuehlplatzDispositionValid())
         );
       allow create, delete: if false;
     }

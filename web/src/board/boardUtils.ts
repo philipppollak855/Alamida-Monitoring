@@ -1,11 +1,11 @@
 import type { Sterbefall, OffeneUeberfuehrungRow } from '../types';
 import type { EigenerKuehlraumConfig } from '../types/dispositionSettings';
 import { getPrimaererKuehlraum } from '../settings/dispositionSettingsStore';
-import { resolveFallKuehlraumId } from './kuehlraumZuordnung';
 import { resolveAusstehendStatus } from './ausstehendStatus';
 import { isUeberfuehrungZeileErledigt } from './ueberfuehrungErledigt';
 import { parseDatumDe } from './dateUtils';
 import { isImEigenenKuehlraum } from './kuehlraumLogic';
+import { belegeKuehlraumSlots } from './kuehlplatzSlots';
 
 export { parseDatumDe } from './dateUtils';
 
@@ -45,16 +45,7 @@ export function flattenOffene(sterbefaelle: Sterbefall[]): OffeneUeberfuehrungRo
 
 export function buildPrimaerKuehlraumSlots(sterbefaelle: Sterbefall[]) {
   const cfg = getPrimaererKuehlraum();
-  const slots: (Sterbefall | null)[] = Array(cfg.plaetze).fill(null);
-  for (const s of sterbefaelle) {
-    if (!isImEigenenKuehlraum(s)) continue;
-    if (resolveFallKuehlraumId(s) !== cfg.id) continue;
-    const platz = parseInt(s.kuehlplatz ?? '', 10);
-    const idx =
-      platz >= 1 && platz <= cfg.plaetze ? platz - 1 : slots.findIndex((x) => x === null);
-    if (idx >= 0 && idx < cfg.plaetze && slots[idx] === null) slots[idx] = s;
-  }
-  return { cfg, slots };
+  return { cfg, slots: belegeKuehlraumSlots(sterbefaelle, cfg) };
 }
 
 /** @deprecated Alias */
@@ -69,18 +60,10 @@ export function buildAlleEigeneKuehlraumSlots(
   sterbefaelle: Sterbefall[],
   kuehlraeume: EigenerKuehlraumConfig[]
 ): KuehlraumSlotGrid[] {
-  return kuehlraeume.map((cfg) => {
-    const slots: (Sterbefall | null)[] = Array(cfg.plaetze).fill(null);
-    for (const s of sterbefaelle) {
-      if (!isImEigenenKuehlraum(s)) continue;
-      if (resolveFallKuehlraumId(s) !== cfg.id) continue;
-      const platz = parseInt(s.kuehlplatz ?? '', 10);
-      const idx =
-        platz >= 1 && platz <= cfg.plaetze ? platz - 1 : slots.findIndex((x) => x === null);
-      if (idx >= 0 && idx < cfg.plaetze && slots[idx] === null) slots[idx] = s;
-    }
-    return { cfg, slots };
-  });
+  return kuehlraeume.map((cfg) => ({
+    cfg,
+    slots: belegeKuehlraumSlots(sterbefaelle, cfg),
+  }));
 }
 
 export function kuehlraumGesamtBelegung(grids: KuehlraumSlotGrid[]) {

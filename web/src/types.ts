@@ -62,6 +62,9 @@ export interface Sterbefall {
   aktuellePositionTyp?: string;
   kuehlraumId?: string;
   kuehlplatz?: string;
+  /** Manuelle Platz-Zuordnung aus Disposition (Drag & Drop). */
+  kuehlplatzDisposition?: string;
+  kuehlraumIdDisposition?: string;
   status?: string;
   naechsterSchrittAm?: string;
   naechsterSchrittVon?: string;

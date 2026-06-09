@@ -11,6 +11,10 @@ interface Props {
   highlighted?: boolean;
   dimmed?: boolean;
   pending?: boolean;
+  draggable?: boolean;
+  dragging?: boolean;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
   onToggleExpand?: () => void;
   onAbschliessen: () => void;
 }
@@ -23,6 +27,10 @@ export function KuehlraumPlatzCard({
   highlighted,
   dimmed,
   pending,
+  draggable,
+  dragging,
+  onDragStart,
+  onDragEnd,
   onToggleExpand,
   onAbschliessen,
 }: Props) {
@@ -38,12 +46,29 @@ export function KuehlraumPlatzCard({
         expanded ? 'expanded' : '',
         highlighted ? 'is-highlighted' : '',
         dimmed ? 'is-dimmed' : '',
+        dragging ? 'is-dragging' : '',
         freigabeWirksam ? 'has-freigabe' : fall.freigabeFrei ? 'has-freigabe-geplant' : '',
       ]
         .filter(Boolean)
         .join(' ')}
     >
       <div className="kr-platz-top">
+        {draggable && (
+          <span
+            className="kr-platz-drag"
+            title="Ziehen zum Verschieben"
+            aria-hidden
+            draggable
+            onDragStart={(e) => {
+              e.dataTransfer.effectAllowed = 'move';
+              e.dataTransfer.setData('text/plain', fall.id);
+              onDragStart?.();
+            }}
+            onDragEnd={() => onDragEnd?.()}
+          >
+            ⠿
+          </span>
+        )}
         <span className="kr-platz-nr">Platz {platzNr}</span>
         {fall.sterbefallId && <span className="kr-platz-id">#{fall.sterbefallId}</span>}
         {fall.freigabeFrei && fall.freigabeDatum && (
