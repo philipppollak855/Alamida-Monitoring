@@ -8,6 +8,8 @@ interface Props {
   fall: Sterbefall;
   now: Date;
   expanded?: boolean;
+  highlighted?: boolean;
+  dimmed?: boolean;
   pending?: boolean;
   onToggleExpand?: () => void;
   onAbschliessen: () => void;
@@ -18,6 +20,8 @@ export function KuehlraumPlatzCard({
   fall,
   now,
   expanded,
+  highlighted,
+  dimmed,
   pending,
   onToggleExpand,
   onAbschliessen,
@@ -29,9 +33,15 @@ export function KuehlraumPlatzCard({
 
   return (
     <article
-      className={`kr-platz-card ${expanded ? 'expanded' : ''} ${
-        freigabeWirksam ? 'has-freigabe' : fall.freigabeFrei ? 'has-freigabe-geplant' : ''
-      }`}
+      className={[
+        'kr-platz-card',
+        expanded ? 'expanded' : '',
+        highlighted ? 'is-highlighted' : '',
+        dimmed ? 'is-dimmed' : '',
+        freigabeWirksam ? 'has-freigabe' : fall.freigabeFrei ? 'has-freigabe-geplant' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
     >
       <div className="kr-platz-top">
         <span className="kr-platz-nr">Platz {platzNr}</span>
@@ -41,7 +51,7 @@ export function KuehlraumPlatzCard({
             className={`kr-platz-freigabe ${freigabeWirksam ? 'wirksam' : 'geplant'}`}
             title="Freigabe"
           >
-            {freigabeWirksam ? 'Frei' : `Frei ab ${fall.freigabeDatum}`}
+            {freigabeWirksam ? 'Frei' : `ab ${fall.freigabeDatum}`}
           </span>
         )}
       </div>
@@ -52,38 +62,50 @@ export function KuehlraumPlatzCard({
         onClick={onToggleExpand}
         aria-expanded={expanded}
       >
-        <span className="kr-platz-name">{name}</span>
-        {fall.aktuellePosition && (
-          <span className="kr-platz-pos">{fall.aktuellePosition}</span>
-        )}
-        {fall.endziel && (
-          <EndzielChip typ={fall.endzielTyp} ort={fall.endziel} />
+        <span className="kr-platz-name" title={name}>
+          {name}
+        </span>
+        {!expanded && fall.aktuellePosition && (
+          <span className="kr-platz-pos" title={fall.aktuellePosition}>
+            {fall.aktuellePosition}
+          </span>
         )}
       </button>
 
-      <KuehlraumTerminMarker fall={fall} now={now} className="kr-platz-termin" />
+      <KuehlraumTerminMarker
+        fall={fall}
+        now={now}
+        className="kr-platz-termin"
+        compact={!expanded}
+      />
 
-      {nextNach && (
-        <p className="kr-platz-next">
-          <span className="kr-platz-next-label">Nächster Schritt</span>
-          <span className="kr-platz-next-route">
-            {nextAm && <time>{nextAm}</time>}
-            <span>→ {nextNach}</span>
-          </span>
-        </p>
-      )}
-
-      {expanded && (fall.verlauf?.length ?? 0) > 0 && (
-        <ul className="kr-platz-verlauf">
-          {(fall.verlauf ?? []).slice(-3).map((v) => (
-            <li key={v.nummer}>
-              <time>{v.terminAm ?? v.abholungAm}</time>
-              <span>
-                {v.vonOrt && v.nachOrt ? `${v.vonOrt} → ${v.nachOrt}` : v.ort}
+      {expanded && (
+        <div className="kr-platz-expanded">
+          {fall.endziel && (
+            <EndzielChip typ={fall.endzielTyp} ort={fall.endziel} />
+          )}
+          {nextNach && (
+            <p className="kr-platz-next">
+              <span className="kr-platz-next-label">Nächster Schritt</span>
+              <span className="kr-platz-next-route">
+                {nextAm && <time>{nextAm}</time>}
+                <span>→ {nextNach}</span>
               </span>
-            </li>
-          ))}
-        </ul>
+            </p>
+          )}
+          {(fall.verlauf?.length ?? 0) > 0 && (
+            <ul className="kr-platz-verlauf">
+              {(fall.verlauf ?? []).slice(-3).map((v) => (
+                <li key={v.nummer}>
+                  <time>{v.terminAm ?? v.abholungAm}</time>
+                  <span>
+                    {v.vonOrt && v.nachOrt ? `${v.vonOrt} → ${v.nachOrt}` : v.ort}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
 
       <div className="kr-platz-actions">
@@ -102,7 +124,7 @@ export function KuehlraumPlatzCard({
             onClick={onToggleExpand}
             aria-expanded={expanded}
           >
-            {expanded ? 'Weniger' : 'Details'}
+            {expanded ? '−' : '+'}
           </button>
         )}
       </div>

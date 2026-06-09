@@ -1,7 +1,10 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { LiveDataBar } from '../components/LiveDataBar';
+import { BoardToolbar } from '../components/board/BoardToolbar';
 import { TransferCardItem } from '../components/board/TransferCardItem';
+import { matchSterbefallQuery, matchTransferQuery, normalizeBoardSearch } from '../board/boardSearch';
+import { isImEigenenKuehlraum } from '../board/kuehlraumLogic';
 import { useNarrowViewport } from '../hooks/useNarrowViewport';
 import { useCalendarDay } from '../hooks/useCalendarDay';
 import { useFirestoreCollection } from '../hooks/useFirestoreCollection';
@@ -36,6 +39,7 @@ import { matchEigenerKuehlraum } from '../settings/ortMatchers';
 import type { Sterbefall, MonitoringEvent } from '../types';
 
 type TransferFilter = 'alle' | 'heute' | 'abholung';
+type FaelleFilter = 'alle' | 'kuehlraum' | 'neu' | 'heute';
 
 function sectionBadge(
   section: BoardSection,
@@ -90,7 +94,22 @@ export function BoardPage() {
   const [erledigtPending, setErledigtPending] = useState<string | null>(null);
   const [erledigtError, setErledigtError] = useState<string | null>(null);
   const [expandedKrKey, setExpandedKrKey] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') ?? '');
+  const [faelleFilter, setFaelleFilter] = useState<FaelleFilter>('alle');
   const abschluss = useFallAbschluss();
+
+  useEffect(() => {
+    setSearchParams(
+      (prev) => {
+        const p = new URLSearchParams(prev);
+        const q = normalizeBoardSearch(searchQuery);
+        if (q) p.set('q', q);
+        else p.delete('q');
+        return p;
+      },
+      { replace: true }
+    );
+  }, [searchQuery, setSearchParams]);
 
   const offene = useMemo(() => flattenOffene(sterbefaelle), [sterbefaelle, calendarDay]);
   const sterbefallByDocId = useMemo(
@@ -108,11 +127,45 @@ export function BoardPage() {
   );
 
   const filteredOffene = useMemo(() => {
-    if (filter === 'heute') return offene.filter((o) => o.status === 'heute');
-    if (filter === 'abholung')
-      return offene.filter((o) => o.istAbholungVomSterbeort || o.status === 'abholung_noetig');
-    return offene;
-  }, [offene, filter]);
+    let rows = offene;
+    if (filter === 'heute') rows = rows.filter((o) => o.status === 'heute');
+    if (filter === 'abholung') {
+      rows = rows.filter((o) => o.istAbholungVomSterbeort || o.status === 'abholung_noetig');
+    }
+    if (searchQuery.trim()) {
+      rows = rows.filter((o) => matchTransferQuery(o, searchQuery));
+    }
+    return rows;
+  }, [offene, filter, searchQuery]);
+
+  const faelleFiltered = useMemo(() => {
+    let list = sterbefaelle;
+    if (faelleFilter === 'kuehlraum') list = list.filter((s) => isImEigenenKuehlraum(s));
+    if (faelleFilter === 'neu') list = list.filter((s) => s.istNeuerFall);
+    if (faelleFilter === 'heute') {
+      list = list.filter((s) =>
+        offene.some((o) => o.docId === s.id && o.status === 'heute')
+      );
+    }
+    if (searchQuery.trim()) {
+      list = list.filter((s) => matchSterbefallQuery(s, searchQuery));
+    }
+    return list;
+  }, [sterbefaelle, faelleFilter, searchQuery, offene]);
+
+  const faelleChipCounts = useMemo(
+    () => ({
+      alle: sterbefaelle.length,
+      kuehlraum: sterbefaelle.filter((s) => isImEigenenKuehlraum(s)).length,
+      neu: sterbefaelle.filter((s) => s.istNeuerFall).length,
+      heute: sterbefaelle.filter((s) =>
+        offene.some((o) => o.docId === s.id && o.status === 'heute')
+      ).length,
+    }),
+    [sterbefaelle, offene]
+  );
+
+  const lagerSearchActive = normalizeBoardSearch(searchQuery).length > 0;
 
   const heuteOffene = useMemo(
     () => offene.filter((o) => o.status === 'heute'),
@@ -267,6 +320,60 @@ export function BoardPage() {
       <main className="board-section-body">
         {error && <div className="alert alert-danger">{error}</div>}
         {urnenError && <div className="alert alert-danger">{urnenError}</div>}
+
+        {section !== 'einstellungen' && section !== 'uebersicht' && (
+          <BoardToolbar
+            search={searchQuery}
+            onSearchChange={setSearchQuery}
+            placeholder={
+              section === 'lager'
+                ? 'Im Lager suchen — Name oder Fall-Nr.…'
+                : section === 'faelle'
+                  ? 'Fälle durchsuchen…'
+                  : 'Überführung suchen — Name, Ort, Fall-Nr.…'
+            }
+            chips={
+              section === 'faelle'
+                ? [
+                    { id: 'alle', label: 'Alle', count: faelleChipCounts.alle },
+                    { id: 'kuehlraum', label: 'Kühlraum', count: faelleChipCounts.kuehlraum },
+                    { id: 'heute', label: 'Termin heute', count: faelleChipCounts.heute },
+                    { id: 'neu', label: 'Neu', count: faelleChipCounts.neu },
+                  ]
+                : undefined
+            }
+            activeChip={section === 'faelle' ? faelleFilter : undefined}
+            onChipChange={
+              section === 'faelle' ? (id) => setFaelleFilter(id as FaelleFilter) : undefined
+            }
+            resultCount={
+              section === 'faelle'
+                ? faelleFiltered.length
+                : section === 'ueberfuehrungen'
+                  ? filteredOffene.length
+                  : section === 'lager'
+                    ? kuehlraumGrids.reduce(
+                        (n, g) =>
+                          n +
+                          g.slots.filter(
+                            (f) => f && matchSterbefallQuery(f, searchQuery)
+                          ).length,
+                        0
+                      )
+                    : undefined
+            }
+            totalCount={
+              section === 'faelle'
+                ? sterbefaelle.length
+                : section === 'ueberfuehrungen'
+                  ? offene.length
+                  : section === 'lager'
+                    ? belegtKuehlraeume
+                    : undefined
+            }
+          />
+        )}
+
         {section === 'uebersicht' && (
           <div className="board-overview">
             <div className="board-overview-kpis kpi-grid">
@@ -505,7 +612,7 @@ export function BoardPage() {
         )}
 
         {section === 'lager' && (
-          <div className="board-lager-grid">
+          <div className={`board-lager-grid ${urnenListe.length > 0 ? 'has-urnen' : ''}`}>
             {abschluss.error && (
               <p className="board-inline-error board-lager-error" role="alert">
                 {abschluss.error}
@@ -514,6 +621,10 @@ export function BoardPage() {
             {kuehlraumGrids.map(({ cfg, slots }) => {
               const belegt = slots.filter(Boolean).length;
               const pct = cfg.plaetze > 0 ? Math.round((belegt / cfg.plaetze) * 100) : 0;
+              const roomHasMatch =
+                !lagerSearchActive ||
+                slots.some((f) => f && matchSterbefallQuery(f, searchQuery));
+              if (lagerSearchActive && !roomHasMatch) return null;
               return (
                 <section key={cfg.id} className="panel kr-lager-panel">
                   <div className="panel-head compact kr-lager-head">
@@ -528,15 +639,15 @@ export function BoardPage() {
                       <div className="kr-lager-meter-fill" style={{ width: `${pct}%` }} />
                     </div>
                   </div>
-                  <div
-                    className="kr-platz-grid"
-                    style={{
-                      gridTemplateColumns: `repeat(${Math.min(cfg.plaetze, 3)}, minmax(0, 1fr))`,
-                    }}
-                  >
+                  <div className="kr-platz-grid">
                     {slots.map((fall, i) => {
                       const key = `${cfg.id}:${i}`;
+                      const matches =
+                        !lagerSearchActive ||
+                        (fall ? matchSterbefallQuery(fall, searchQuery) : false);
+                      if (lagerSearchActive && fall && !matches) return null;
                       if (!fall) {
+                        if (lagerSearchActive) return null;
                         return (
                           <div key={key} className="kr-platz-card kr-platz-card--free">
                             <span className="kr-platz-nr">Platz {i + 1}</span>
@@ -550,7 +661,8 @@ export function BoardPage() {
                           platzNr={i + 1}
                           fall={fall}
                           now={calendarNow}
-                          expanded={expandedKrKey === key}
+                          expanded={expandedKrKey === key || (lagerSearchActive && matches)}
+                          highlighted={lagerSearchActive && matches}
                           pending={abschluss.pendingId === fall.id}
                           onToggleExpand={() =>
                             setExpandedKrKey((prev) => (prev === key ? null : key))
@@ -607,84 +719,99 @@ export function BoardPage() {
                   <p>Verlauf und Endziel — Erde: Beisetzung · Urne: Krematorium</p>
                 )}
               </div>
-              <span className="panel-badge">{sterbefaelle.length} Fälle</span>
             </div>
             {removeError && (
               <p className="board-remove-error" role="alert">
                 {removeError}
               </p>
             )}
-            <div className="case-list">
-              {sterbefaelle.map((s) => {
-                const open = expandedId === s.id;
-                return (
-                  <div key={s.id} className={`case-card ${open ? 'open' : ''}`}>
-                    <div className="case-card-header">
-                      <button
-                        type="button"
-                        className="case-card-trigger"
-                        onClick={() => setExpandedId(open ? null : s.id)}
-                        aria-expanded={open}
-                      >
-                        <div className="case-card-main">
-                          <span className="case-name">{s.verstorbenerName || s.sterbefallId}</span>
-                          <span className="case-id">{s.sterbefallId}</span>
-                        </div>
-                        <div className="case-card-meta">
-                          {s.istNeuerFall && <span className="chip chip-abholung">Neu</span>}
-                          <span className="case-position">{s.aktuellePosition ?? '—'}</span>
-                          {s.endziel && (
-                            <EndzielChip typ={s.endzielTyp} ort={s.endziel} />
-                          )}
-                        </div>
-                        <span className="case-chevron" aria-hidden />
-                      </button>
-                      <div className="case-card-actions">
+            {faelleFiltered.length === 0 ? (
+              <div className="empty-state">
+                {searchQuery.trim() || faelleFilter !== 'alle'
+                  ? 'Keine Fälle in dieser Ansicht.'
+                  : 'Keine aktiven Fälle.'}
+              </div>
+            ) : (
+              <div className="case-list">
+                {faelleFiltered.map((s) => {
+                  const open = expandedId === s.id;
+                  const imKr = isImEigenenKuehlraum(s);
+                  return (
+                    <div
+                      key={s.id}
+                      className={`case-card ${open ? 'open' : ''} ${imKr ? 'in-kuehlraum' : ''}`}
+                    >
+                      <div className="case-card-header">
+                        <button
+                          type="button"
+                          className="case-card-trigger"
+                          onClick={() => setExpandedId(open ? null : s.id)}
+                          aria-expanded={open}
+                        >
+                          <div className="case-card-main">
+                            <span className="case-name">{s.verstorbenerName || s.sterbefallId}</span>
+                            <span className="case-id">{s.sterbefallId}</span>
+                          </div>
+                          <div className="case-card-tags">
+                            {s.istNeuerFall && <span className="chip chip-abholung">Neu</span>}
+                            {imKr && <span className="chip chip-muted">Kühlraum</span>}
+                          </div>
+                          <div className="case-card-meta">
+                            <span className="case-position">{s.aktuellePosition ?? '—'}</span>
+                            {s.endziel && (
+                              <EndzielChip typ={s.endzielTyp} ort={s.endziel} />
+                            )}
+                          </div>
+                          <span className="case-chevron" aria-hidden />
+                        </button>
                         <button
                           type="button"
                           className="case-abschluss-btn"
                           disabled={abschluss.pendingId === s.id}
                           onClick={() => abschluss.open(s)}
                         >
-                          Abschließen
-                        </button>
-                        <button
-                          type="button"
-                          className="case-remove-btn"
-                          title="Aus Disposition entfernen (Testfall)"
-                          disabled={removePending === s.id}
-                          onClick={() => void handleRemoveFromDisposition(s)}
-                        >
-                          {removePending === s.id ? '…' : 'Test'}
+                          {abschluss.pendingId === s.id ? '…' : 'Abschließen'}
                         </button>
                       </div>
-                    </div>
-                    {open && (
-                      <div className="case-timeline">
-                        {(s.verlauf ?? []).map((v) => (
-                          <div key={v.nummer} className={`timeline-step typ-${v.typ}`}>
-                            <div className="timeline-dot" />
-                            <div className="timeline-body">
-                              <div className="timeline-head">
-                                <SchrittBadge typ={v.typ} />
-                                {(v.terminAm ?? v.abholungAm) && (
-                                  <time>{v.terminAm ?? v.abholungAm}</time>
-                                )}
+                      {open && (
+                        <div className="case-timeline">
+                          {(s.verlauf ?? []).map((v) => (
+                            <div key={v.nummer} className={`timeline-step typ-${v.typ}`}>
+                              <div className="timeline-dot" />
+                              <div className="timeline-body">
+                                <div className="timeline-head">
+                                  <SchrittBadge typ={v.typ} />
+                                  {(v.terminAm ?? v.abholungAm) && (
+                                    <time>{v.terminAm ?? v.abholungAm}</time>
+                                  )}
+                                </div>
+                                <p>
+                                  {v.vonOrt && v.nachOrt
+                                    ? `${v.vonOrt} → ${v.nachOrt}`
+                                    : v.ort}
+                                </p>
                               </div>
-                              <p>
-                                {v.vonOrt && v.nachOrt
-                                  ? `${v.vonOrt} → ${v.nachOrt}`
-                                  : v.ort}
-                              </p>
                             </div>
+                          ))}
+                          <div className="case-timeline-foot">
+                            <button
+                              type="button"
+                              className="case-remove-link"
+                              disabled={removePending === s.id}
+                              onClick={() => void handleRemoveFromDisposition(s)}
+                            >
+                              {removePending === s.id
+                                ? 'Entfernen…'
+                                : 'Als Testfall aus Disposition entfernen'}
+                            </button>
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </section>
         )}
 
