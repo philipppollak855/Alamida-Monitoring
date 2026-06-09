@@ -115,6 +115,7 @@ public sealed class FirestoreSyncService : IAsyncDisposable
         oldHash = FirestoreFieldHelpers.SafeString(existing!, "contentHash");
 
         var inHistory = ResolveInHistory(snapshot, existing!);
+        var historieGrund = ResolveHistorieGrund(snapshot, existing!, inHistory);
         Timestamp? sichtbarBis = snapshot.SichtbarBis.HasValue
             ? Timestamp.FromDateTime(snapshot.SichtbarBis.Value.ToUniversalTime())
             : null;
@@ -186,7 +187,7 @@ public sealed class FirestoreSyncService : IAsyncDisposable
             ["imAnschluss"] = snapshot.ImAnschluss,
             ["inHistory"] = inHistory,
             ["aktivInDisposition"] = !inHistory,
-            ["historieGrund"] = snapshot.HistorieGrund ?? "",
+            ["historieGrund"] = historieGrund,
             ["aktuellePosition"] = snapshot.AktuellePosition ?? "",
             ["aktuellePositionTyp"] = snapshot.AktuellePositionTyp ?? "",
             ["kuehlraumId"] = inHistory ? "" : kuehlraum,
@@ -422,13 +423,24 @@ public sealed class FirestoreSyncService : IAsyncDisposable
         return false;
     }
 
-    private const string ManuellEntferntGrund = "manuell_entfernt";
+    private static readonly HashSet<string> ManuelleHistorieGruende = new(StringComparer.Ordinal)
+    {
+        "manuell_entfernt",
+        "uebergabe_anderer_bestatter",
+        "beisetzung_durch_dritte",
+        "kremation_extern",
+        "storniert",
+        "sonstiges",
+    };
+
+    private static bool IsManuellerHistorieGrund(string? grund) =>
+        !string.IsNullOrEmpty(grund) && ManuelleHistorieGruende.Contains(grund);
 
     private static bool ResolveInHistory(DetailSnapshot snapshot, DocumentSnapshot existing)
     {
         if (existing.Exists)
         {
-            if (FirestoreFieldHelpers.SafeString(existing, "historieGrund") == ManuellEntferntGrund)
+            if (IsManuellerHistorieGrund(FirestoreFieldHelpers.SafeString(existing, "historieGrund")))
                 return true;
 
             if (existing.ContainsField("inHistory"))
@@ -441,6 +453,18 @@ public sealed class FirestoreSyncService : IAsyncDisposable
         return false;
     }
 
+    private static string ResolveHistorieGrund(DetailSnapshot snapshot, DocumentSnapshot existing, bool inHistory)
+    {
+        if (existing.Exists)
+        {
+            var existingGrund = FirestoreFieldHelpers.SafeString(existing, "historieGrund");
+            if (IsManuellerHistorieGrund(existingGrund))
+                return existingGrund!;
+        }
+
+        return inHistory ? snapshot.HistorieGrund ?? "" : snapshot.HistorieGrund ?? "";
+    }
+
     private static Dictionary<string, object> BuildLastSeenPayload(
         string sterbefallId,
         DetailSnapshot snapshot,
@@ -451,8 +475,6 @@ public sealed class FirestoreSyncService : IAsyncDisposable
         {
             ["sterbefallId"] = sterbefallId,
             ["aktivInAlamida"] = true,
-            ["aktivInDisposition"] = true,
-            ["inHistory"] = false,
             ["lastSeenAt"] = now,
             ["updatedAt"] = now,
             ["workstationId"] = workstationId,

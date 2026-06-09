@@ -1,4 +1,5 @@
 import type { Sterbefall } from '../types';
+import { istManuellAusgeschlossen } from './fallAbschluss';
 import { extractDeDatum } from './dateUtils';
 
 function hatGueltigesDatum(raw?: string): boolean {
@@ -37,7 +38,7 @@ export function hatFeierterminInDaten(s: Sterbefall): boolean {
 /** Kalender: auch archivierte Fälle mit Feierterminen (Wall-Tabs nutzen weiter filterAktive). */
 export function filterSterbefaelleFuerKalender(sterbefaelle: Sterbefall[]): Sterbefall[] {
   return sterbefaelle.filter((s) => {
-    if (s.historieGrund === 'manuell_entfernt') return false;
+    if (istManuellAusgeschlossen(s.historieGrund)) return false;
     if (!istInHistory(s)) return true;
     return hatFeierterminInDaten(s);
   });

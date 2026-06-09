@@ -41,6 +41,9 @@ import { WallCalendarPanel, wallCalendarTabCount } from '../components/WallCalen
 import { WallHeuteFeierRow } from '../components/WallHeuteFeierRow';
 import { buildWallFeierEntriesForDay } from '../board/wallCalendar';
 import { WallFreigabeControl } from '../components/WallFreigabeControl';
+import { WallFallAbschlussBtn } from '../components/WallFallAbschlussBtn';
+import { FallAbschlussDialog } from '../components/FallAbschlussDialog';
+import { useFallAbschluss } from '../hooks/useFallAbschluss';
 import { freigabePersonCssClass, istFreigabeWirksam } from '../board/freigabeLogic';
 import { WallUeberfuehrungErledigtBtn } from '../components/WallUeberfuehrungErledigtBtn';
 import { getErledigteZeilen } from '../board/ueberfuehrungErledigt';
@@ -138,7 +141,9 @@ export function WallPage({
   legacyMode?: boolean;
 }) {
   const { settings } = useDispositionSettings();
-  const { signOut } = useAuth();
+  const { signOut, status: authStatus } = useAuth();
+  const canDispositionWrite = !publicAccess && authStatus === 'activated';
+  const abschluss = useFallAbschluss();
   const isNarrow = useNarrowViewport();
   useScreenWakeLock(!isNarrow);
   const now = useWallClock(legacyMode ? 30_000 : 1000);
@@ -479,6 +484,13 @@ export function WallPage({
                                 onSave={saveFreigabe}
                                 onClear={clearFreigabe}
                               />
+                              {canDispositionWrite && (
+                                <WallFallAbschlussBtn
+                                  pending={abschluss.pendingId === fall.id}
+                                  disabled={freigabePending === fall.id}
+                                  onClick={() => abschluss.open(fall)}
+                                />
+                              )}
                             </div>
                           </>
                         ) : (
@@ -689,6 +701,14 @@ export function WallPage({
           )}
         </div>
       </footer>
+
+      <FallAbschlussDialog
+        fall={abschluss.target}
+        pending={!!abschluss.pendingId}
+        error={abschluss.error}
+        onClose={abschluss.close}
+        onConfirm={(grund, bemerkung) => void abschluss.confirm(grund, bemerkung)}
+      />
     </div>
   );
 }

@@ -636,6 +636,448 @@ code {
   min-width: 0;
 }
 
+.board-lager-error {
+  grid-column: 1 / -1;
+}
+
+.kr-lager-head {
+  gap: 0.75rem;
+}
+
+.kr-lager-meter {
+  flex-shrink: 0;
+  width: min(120px, 28%);
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  align-self: center;
+}
+
+.kr-lager-meter-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--success), var(--accent));
+  transition: width 0.35s ease;
+}
+
+.kr-platz-grid {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.kr-platz-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-height: 132px;
+  padding: 0.65rem 0.7rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(52, 211, 153, 0.35);
+  background: linear-gradient(165deg, var(--success-dim), rgba(0, 0, 0, 0.12));
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.kr-platz-card.expanded {
+  border-color: rgba(77, 159, 255, 0.45);
+  box-shadow: 0 0 0 1px rgba(77, 159, 255, 0.12);
+}
+
+.kr-platz-card.has-freigabe {
+  border-color: rgba(52, 211, 153, 0.55);
+}
+
+.kr-platz-card.has-freigabe-geplant {
+  border-color: rgba(251, 191, 36, 0.45);
+}
+
+.kr-platz-card--free {
+  opacity: 0.42;
+  border-style: dashed;
+  border-color: var(--border);
+  background: rgba(0, 0, 0, 0.12);
+  justify-content: center;
+}
+
+.kr-platz-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.kr-platz-nr {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.kr-platz-id {
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+.kr-platz-freigabe {
+  margin-left: auto;
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 0.12rem 0.4rem;
+  border-radius: 999px;
+}
+
+.kr-platz-freigabe.wirksam {
+  background: rgba(52, 211, 153, 0.2);
+  color: var(--success);
+}
+
+.kr-platz-freigabe.geplant {
+  background: rgba(251, 191, 36, 0.15);
+  color: var(--warn);
+}
+
+.kr-platz-main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.kr-platz-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  line-height: 1.2;
+}
+
+.kr-platz-pos {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.kr-platz-termin.cool-termin-markers {
+  margin-top: 0.15rem;
+}
+
+.kr-platz-next {
+  margin: 0;
+  font-size: 0.72rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.kr-platz-next-label {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.kr-platz-next-route {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.kr-platz-verlauf {
+  list-style: none;
+  margin: 0;
+  padding: 0.35rem 0 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.72rem;
+}
+
+.kr-platz-verlauf li {
+  display: flex;
+  gap: 0.45rem;
+  color: var(--muted);
+}
+
+.kr-platz-verlauf time {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.kr-platz-actions {
+  display: flex;
+  gap: 0.35rem;
+  margin-top: auto;
+  padding-top: 0.35rem;
+}
+
+.kr-platz-abschluss {
+  flex: 1;
+  padding: 0.38rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid rgba(77, 159, 255, 0.35);
+  background: rgba(77, 159, 255, 0.12);
+  color: var(--text);
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.kr-platz-abschluss:hover:not(:disabled) {
+  background: rgba(77, 159, 255, 0.22);
+}
+
+.kr-platz-details {
+  padding: 0.38rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.kr-platz-free-label {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.case-card-actions {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.3rem;
+  padding-right: 0.65rem;
+}
+
+.case-abschluss-btn {
+  flex-shrink: 0;
+  padding: 0.38rem 0.7rem;
+  border: 1px solid rgba(77, 159, 255, 0.4);
+  border-radius: 6px;
+  background: rgba(77, 159, 255, 0.14);
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.case-abschluss-btn:hover:not(:disabled) {
+  background: rgba(77, 159, 255, 0.24);
+}
+
+.fall-abschluss-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+}
+
+.fall-abschluss-dialog {
+  width: min(520px, 100%);
+  max-height: min(92vh, 720px);
+  overflow: auto;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  background: var(--surface-solid);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+  padding: 1.1rem 1.15rem 1rem;
+}
+
+.fall-abschluss-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.fall-abschluss-kicker {
+  margin: 0 0 0.15rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+}
+
+.fall-abschluss-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.fall-abschluss-sub {
+  margin: 0.25rem 0 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.fall-abschluss-close {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.15rem 0.35rem;
+}
+
+.fall-abschluss-lead {
+  margin: 0 0 0.85rem;
+  font-size: 0.84rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.fall-abschluss-gruende {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 0.85rem;
+}
+
+.fall-abschluss-grund {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.12);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.fall-abschluss-grund:hover:not(:disabled) {
+  border-color: rgba(77, 159, 255, 0.35);
+}
+
+.fall-abschluss-grund.active {
+  border-color: rgba(77, 159, 255, 0.55);
+  background: rgba(77, 159, 255, 0.12);
+  box-shadow: 0 0 0 1px rgba(77, 159, 255, 0.15);
+}
+
+.fall-abschluss-grund-icon {
+  flex-shrink: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 0.95rem;
+}
+
+.fall-abschluss-grund-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.fall-abschluss-grund-text strong {
+  font-size: 0.88rem;
+}
+
+.fall-abschluss-grund-text span {
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+
+.fall-abschluss-note-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.fall-abschluss-note {
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.15);
+  color: inherit;
+  font: inherit;
+  resize: vertical;
+  min-height: 3.25rem;
+}
+
+.fall-abschluss-error {
+  margin: 0.65rem 0 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: 8px;
+  background: rgba(180, 40, 40, 0.12);
+  color: #c44;
+  font-size: 0.84rem;
+}
+
+.fall-abschluss-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.fall-abschluss-submit {
+  padding: 0.55rem 1rem;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.fall-abschluss-submit:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.wall-abschluss-btn {
+  flex-shrink: 0;
+  padding: 0.28rem 0.45rem;
+  border-radius: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.wall-abschluss-btn:hover:not(:disabled) {
+  border-color: rgba(77, 159, 255, 0.45);
+  color: var(--text);
+}
+
 .stat-card--interactive {
   width: 100%;
   text-align: left;

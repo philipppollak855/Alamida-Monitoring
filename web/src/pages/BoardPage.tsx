@@ -21,7 +21,9 @@ import {
 import { filterAktiveSterbefaelle } from '../board/historieLogic';
 import { buildUrnenListe, countUrnen } from '../board/urnenLogic';
 import { UrnenBereichPanel } from '../components/UrnenBereichPanel';
-import { KuehlraumTerminMarker } from '../components/KuehlraumTerminMarker';
+import { KuehlraumPlatzCard } from '../components/KuehlraumPlatzCard';
+import { FallAbschlussDialog } from '../components/FallAbschlussDialog';
+import { useFallAbschluss } from '../hooks/useFallAbschluss';
 import { getErledigteZeilen } from '../board/ueberfuehrungErledigt';
 import { removeSterbefallFromDisposition } from '../services/dispositionFall';
 import { toggleUeberfuehrungErledigt } from '../services/ueberfuehrungErledigt';
@@ -87,6 +89,8 @@ export function BoardPage() {
   const [removeError, setRemoveError] = useState<string | null>(null);
   const [erledigtPending, setErledigtPending] = useState<string | null>(null);
   const [erledigtError, setErledigtError] = useState<string | null>(null);
+  const [expandedKrKey, setExpandedKrKey] = useState<string | null>(null);
+  const abschluss = useFallAbschluss();
 
   const offene = useMemo(() => flattenOffene(sterbefaelle), [sterbefaelle, calendarDay]);
   const sterbefallByDocId = useMemo(
@@ -502,48 +506,59 @@ export function BoardPage() {
 
         {section === 'lager' && (
           <div className="board-lager-grid">
+            {abschluss.error && (
+              <p className="board-inline-error board-lager-error" role="alert">
+                {abschluss.error}
+              </p>
+            )}
             {kuehlraumGrids.map(({ cfg, slots }) => {
               const belegt = slots.filter(Boolean).length;
+              const pct = cfg.plaetze > 0 ? Math.round((belegt / cfg.plaetze) * 100) : 0;
               return (
-                <section key={cfg.id} className="panel">
-                  <div className="panel-head compact">
+                <section key={cfg.id} className="panel kr-lager-panel">
+                  <div className="panel-head compact kr-lager-head">
                     <div>
                       <h2>{cfg.label}</h2>
                       <p>
                         {belegt} von {cfg.plaetze} belegt
+                        {belegt > 0 && ' — Platz antippen für Details'}
                       </p>
+                    </div>
+                    <div className="kr-lager-meter" aria-hidden>
+                      <div className="kr-lager-meter-fill" style={{ width: `${pct}%` }} />
                     </div>
                   </div>
                   <div
-                    className="cool-grid"
+                    className="kr-platz-grid"
                     style={{
-                      gridTemplateColumns: `repeat(${Math.min(cfg.plaetze, 6)}, 1fr)`,
+                      gridTemplateColumns: `repeat(${Math.min(cfg.plaetze, 3)}, minmax(0, 1fr))`,
                     }}
                   >
-                    {slots.map((fall, i) => (
-                      <div
-                        key={i}
-                        className={`cool-cell ${fall ? 'occupied' : 'free'}`}
-                      >
-                        <span className="cool-cell-nr">{i + 1}</span>
-                        {fall ? (
-                          <>
-                            <span className="cool-cell-name">
-                              {fall.verstorbenerName || fall.sterbefallId}
-                            </span>
-                            <span className="cool-cell-meta">{fall.aktuellePosition}</span>
-                            <KuehlraumTerminMarker fall={fall} now={calendarNow} />
-                            {(fall.naechsterSchrittNach ?? fall.naechsteUeberfuehrungNach) && (
-                              <span className="cool-cell-next">
-                                → {fall.naechsterSchrittNach ?? fall.naechsteUeberfuehrungNach}
-                              </span>
-                            )}
-                          </>
-                        ) : (
-                          <span className="cool-cell-free">Frei</span>
-                        )}
-                      </div>
-                    ))}
+                    {slots.map((fall, i) => {
+                      const key = `${cfg.id}:${i}`;
+                      if (!fall) {
+                        return (
+                          <div key={key} className="kr-platz-card kr-platz-card--free">
+                            <span className="kr-platz-nr">Platz {i + 1}</span>
+                            <span className="kr-platz-free-label">Frei</span>
+                          </div>
+                        );
+                      }
+                      return (
+                        <KuehlraumPlatzCard
+                          key={key}
+                          platzNr={i + 1}
+                          fall={fall}
+                          now={calendarNow}
+                          expanded={expandedKrKey === key}
+                          pending={abschluss.pendingId === fall.id}
+                          onToggleExpand={() =>
+                            setExpandedKrKey((prev) => (prev === key ? null : key))
+                          }
+                          onAbschliessen={() => abschluss.open(fall)}
+                        />
+                      );
+                    })}
                   </div>
                 </section>
               );
@@ -624,15 +639,25 @@ export function BoardPage() {
                         </div>
                         <span className="case-chevron" aria-hidden />
                       </button>
-                      <button
-                        type="button"
-                        className="case-remove-btn"
-                        title="Aus Disposition entfernen (Testfall)"
-                        disabled={removePending === s.id}
-                        onClick={() => void handleRemoveFromDisposition(s)}
-                      >
-                        {removePending === s.id ? '…' : 'Entfernen'}
-                      </button>
+                      <div className="case-card-actions">
+                        <button
+                          type="button"
+                          className="case-abschluss-btn"
+                          disabled={abschluss.pendingId === s.id}
+                          onClick={() => abschluss.open(s)}
+                        >
+                          Abschließen
+                        </button>
+                        <button
+                          type="button"
+                          className="case-remove-btn"
+                          title="Aus Disposition entfernen (Testfall)"
+                          disabled={removePending === s.id}
+                          onClick={() => void handleRemoveFromDisposition(s)}
+                        >
+                          {removePending === s.id ? '…' : 'Test'}
+                        </button>
+                      </div>
                     </div>
                     {open && (
                       <div className="case-timeline">
@@ -669,6 +694,14 @@ export function BoardPage() {
           </section>
         )}
       </main>
+
+      <FallAbschlussDialog
+        fall={abschluss.target}
+        pending={!!abschluss.pendingId}
+        error={abschluss.error}
+        onClose={abschluss.close}
+        onConfirm={(grund, bemerkung) => void abschluss.confirm(grund, bemerkung)}
+      />
     </div>
   );
 }

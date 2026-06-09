@@ -61,22 +61,43 @@ service cloud.firestore {
         && request.resource.data.urnenBereich == false;
     }
 
-    function sterbefallDispositionRemoveOnly() {
+    function sterbefallDispositionCloseOnly() {
       return request.resource.data.diff(resource.data).affectedKeys()
         .hasOnly([
           'inHistory',
           'aktivInDisposition',
           'historieGrund',
+          'abschlussGrund',
+          'abschlussBemerkung',
+          'abgeschlossenAm',
           'archiviertAm',
           'updatedAt',
           'sterbefallId',
         ]);
     }
 
-    function sterbefallDispositionRemoveValid() {
+    function sterbefallDispositionCloseGrundValid(grund) {
+      return grund in [
+        'manuell_entfernt',
+        'uebergabe_anderer_bestatter',
+        'beisetzung_durch_dritte',
+        'kremation_extern',
+        'storniert',
+        'sonstiges',
+      ];
+    }
+
+    function sterbefallDispositionCloseValid() {
       return request.resource.data.inHistory == true
         && request.resource.data.aktivInDisposition == false
-        && request.resource.data.historieGrund == 'manuell_entfernt';
+        && sterbefallDispositionCloseGrundValid(request.resource.data.historieGrund)
+        && (
+          request.resource.data.historieGrund == 'manuell_entfernt'
+          || (
+            request.resource.data.abschlussGrund == request.resource.data.historieGrund
+            && request.resource.data.abgeschlossenAm != null
+          )
+        );
     }
 
     function sterbefallErledigtUpdateOnly() {
@@ -90,7 +111,7 @@ service cloud.firestore {
         && (
           (sterbefallUrnenUpdateOnly() && (sterbefallUrnenSet() || sterbefallUrnenClear()))
           || (sterbefallFreigabeUpdateOnly() && (sterbefallFreigabeSet() || sterbefallFreigabeClear()))
-          || (sterbefallDispositionRemoveOnly() && sterbefallDispositionRemoveValid())
+          || (sterbefallDispositionCloseOnly() && sterbefallDispositionCloseValid())
           || sterbefallErledigtUpdateOnly()
         );
       allow create, delete: if false;

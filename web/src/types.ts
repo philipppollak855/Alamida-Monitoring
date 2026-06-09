@@ -53,6 +53,10 @@ export interface Sterbefall {
   aktivInDisposition?: boolean;
   sichtbarBis?: { seconds: number };
   historieGrund?: string;
+  /** Manueller Abschluss aus Disposition (maschinenlesbar, gleich historieGrund). */
+  abschlussGrund?: string;
+  abschlussBemerkung?: string;
+  abgeschlossenAm?: { seconds: number };
   archiviertAm?: { seconds: number };
   aktuellePosition?: string;
   aktuellePositionTyp?: string;
