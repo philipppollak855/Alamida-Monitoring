@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { DispositionSettings, EigenerKuehlraumConfig } from '../types/dispositionSettings';
+import type { DispositionSettings, EigenerKuehlraumConfig, KuehlraumWandTab } from '../types/dispositionSettings';
 import { useDispositionSettings } from '../settings/SettingsProvider';
 import { classifyOrt } from '../settings/recognitionEngine';
 import { dedupeKeywords } from '../settings/recognitionEngine';
@@ -98,6 +98,7 @@ function emptyKuehlraum(): EigenerKuehlraumConfig {
     label: 'Neuer Kühlraum',
     matchKeywords: [],
     externKeywords: [],
+    wandTab: 'kuehlraum',
     plaetze: 9,
   };
 }
@@ -421,9 +422,9 @@ export function DispositionSettingsPanel({ defaultOpen = false }: { defaultOpen?
                   </span>
                 </div>
                 <p className="settings-hint">
-                  Erster Eintrag = Haupt-Kühlraum. Alamida-Name wird als Keyword übernommen. Bei
-                  mehreren Kühlräumen wechselt der Wandmonitor im Tab „Kühlraum“ automatisch
-                  (Tabzeit ÷ Anzahl Räume).
+                  Erster Eintrag = Haupt-Kühlraum. Pro Raum wählbar: Anzeige im Wand-Tab „Kühlraum“
+                  (Platzraster) oder „Extern“ (Kartenliste). Bei mehreren Räumen im Kühlraum-Tab
+                  wechselt die Anzeige automatisch (Tabzeit ÷ Anzahl Räume).
                 </p>
                 {draft.eigeneKuehlraeume.map((kr, index) => (
                   <div key={kr.id} className="settings-kr-card">
@@ -452,6 +453,29 @@ export function DispositionSettingsPanel({ defaultOpen = false }: { defaultOpen?
                         />
                       </label>
                     </div>
+                    <fieldset className="settings-kr-wand-tab">
+                      <legend>Wandmonitor — Anzeige</legend>
+                      <div className="settings-kr-wand-tab-options">
+                        {(
+                          [
+                            ['kuehlraum', 'Tab Kühlraum'],
+                            ['extern', 'Tab Extern'],
+                          ] as const
+                        ).map(([value, label]) => (
+                          <label key={value} className="settings-kr-wand-tab-option">
+                            <input
+                              type="radio"
+                              name={`wand-tab-${kr.id}`}
+                              checked={(kr.wandTab ?? 'kuehlraum') === value}
+                              onChange={() =>
+                                updateKuehlraum(index, { wandTab: value as KuehlraumWandTab })
+                              }
+                            />
+                            {label}
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
                     <label>
                       Alamida-Name (optional)
                       <input

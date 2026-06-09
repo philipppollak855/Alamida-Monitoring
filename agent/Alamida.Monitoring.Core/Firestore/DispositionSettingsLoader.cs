@@ -115,6 +115,9 @@ public sealed class DispositionSettingsLoader
                 };
             }
 
+            var wandTab = dict.GetValueOrDefault("wandTab")?.ToString()?.Trim().ToLowerInvariant();
+            if (wandTab != "extern") wandTab = "kuehlraum";
+
             list.Add(new EigenerKuehlraumConfig
             {
                 Id = dict.GetValueOrDefault("id")?.ToString() ?? Guid.NewGuid().ToString("N")[..8],
@@ -122,6 +125,7 @@ public sealed class DispositionSettingsLoader
                 AlamidaName = dict.GetValueOrDefault("alamidaName")?.ToString(),
                 MatchKeywords = keywords,
                 ExternKeywords = externKeywords,
+                WandTab = wandTab,
                 Plaetze = Math.Clamp(plaetze, 1, 99),
             });
         }

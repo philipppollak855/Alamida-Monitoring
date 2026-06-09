@@ -408,6 +408,10 @@
   border-left: 4px solid rgba(120, 130, 135, 0.45);
 }
 
+[data-theme='alamida'] .wall-extern-card--kuehlraum {
+  border-left: 4px solid rgba(72, 160, 120, 0.5);
+}
+
 [data-theme='alamida'] .wall-extern-card--extern {
   border-left: 4px solid rgba(120, 158, 162, 0.35);
 }
@@ -436,6 +440,11 @@
 [data-theme='alamida'] .wall-extern-badge--bestattung {
   background: rgba(100, 110, 115, 0.15);
   color: #4a5558;
+}
+
+[data-theme='alamida'] .wall-extern-badge--kuehlraum {
+  background: rgba(72, 160, 120, 0.16);
+  color: #2d6b4a;
 }
 
 [data-theme='alamida'] .wall-extern-badge--extern {

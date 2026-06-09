@@ -13,6 +13,7 @@ export type ExternKartenKategorie =
   | 'pflegeheim'
   | 'bestattung'
   | 'kremation'
+  | 'kuehlraum'
   | 'extern';
 
 export function classifyExternKartenKategorie(
@@ -39,6 +40,8 @@ export function externKategorieBadgeLabel(typ: ExternKartenKategorie): string {
       return 'Bestattung';
     case 'kremation':
       return 'Kremation';
+    case 'kuehlraum':
+      return 'Kühlraum';
     default:
       return 'Extern';
   }
@@ -51,5 +54,5 @@ export function externKategorieGruppenKey(typ: ExternKartenKategorie, ort: strin
 
 /** Freigabe-Button auf Extern-Karten (KH, Pflegeheim, Bestattung). */
 export function externKategorieHatFreigabe(typ: ExternKartenKategorie): boolean {
-  return typ === 'krankenhaus' || typ === 'pflegeheim' || typ === 'bestattung';
+  return typ === 'krankenhaus' || typ === 'pflegeheim' || typ === 'bestattung' || typ === 'kuehlraum';
 }

@@ -45,6 +45,7 @@ export const DEFAULT_DISPOSITION_SETTINGS: DispositionSettings = {
         'kuehl. grafenbach',
       ],
       externKeywords: [],
+      wandTab: 'kuehlraum',
       plaetze: 9,
     },
   ],

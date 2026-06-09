@@ -1,3 +1,5 @@
+export type KuehlraumWandTab = 'kuehlraum' | 'extern';
+
 export interface EigenerKuehlraumConfig {
   id: string;
   label: string;
@@ -7,6 +9,8 @@ export interface EigenerKuehlraumConfig {
   matchKeywords: string[];
   /** Externe Abholorte (UK, Senecura …) → Zuordnung zu diesem Kühlraum */
   externKeywords: string[];
+  /** Wandmonitor: Tab „Kühlraum“ (Platzraster) oder „Extern“ (Kartenliste) */
+  wandTab?: KuehlraumWandTab;
   plaetze: number;
 }
 

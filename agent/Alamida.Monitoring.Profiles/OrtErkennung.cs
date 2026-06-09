@@ -90,6 +90,9 @@ public static class OrtErkennung
             AlamidaName = string.IsNullOrWhiteSpace(kr.AlamidaName) ? null : kr.AlamidaName.Trim(),
             MatchKeywords = Dedupe(kr.MatchKeywords),
             ExternKeywords = Dedupe(kr.ExternKeywords),
+            WandTab = string.IsNullOrWhiteSpace(kr.WandTab) || kr.WandTab.Equals("extern", StringComparison.OrdinalIgnoreCase)
+                ? "extern"
+                : "kuehlraum",
             Plaetze = Math.Clamp(kr.Plaetze, 1, 99),
         }).ToList(),
     };

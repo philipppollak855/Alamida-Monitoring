@@ -94,6 +94,7 @@ function normalizeForCompare(s: DispositionSettings) {
       alamidaName: k.alamidaName ?? '',
       matchKeywords: [...k.matchKeywords].sort(),
       externKeywords: [...(k.externKeywords ?? [])].sort(),
+      wandTab: k.wandTab ?? 'kuehlraum',
       plaetze: k.plaetze,
     })),
   };

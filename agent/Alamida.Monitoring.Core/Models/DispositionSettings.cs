@@ -51,5 +51,6 @@ public sealed class EigenerKuehlraumConfig
     public string? AlamidaName { get; init; }
     public List<string> MatchKeywords { get; init; } = [];
     public List<string> ExternKeywords { get; init; } = [];
+    public string WandTab { get; init; } = "kuehlraum";
     public int Plaetze { get; init; } = 9;
 }

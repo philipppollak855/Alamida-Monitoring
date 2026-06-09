@@ -134,4 +134,38 @@ describe('buildExternGruppen', () => {
     expect(kh?.faelle.some((f) => f.name.includes('Touahria'))).toBe(true);
     expect(krem?.faelle.some((f) => f.name.includes('Touahria'))).toBe(true);
   });
+
+  it('listet Kühlraum mit wandTab extern auf dem Extern-Tab', () => {
+    setDispositionSettings({
+      ...DEFAULT_DISPOSITION_SETTINGS,
+      eigeneKuehlraeume: [
+        ...DEFAULT_DISPOSITION_SETTINGS.eigeneKuehlraeume,
+        {
+          id: 'wien',
+          label: 'Kühlraum Wien',
+          alamidaName: 'Kühlr. Wien',
+          matchKeywords: ['wien', 'kühlr. wien'],
+          externKeywords: [],
+          wandTab: 'extern',
+          plaetze: 4,
+        },
+      ],
+    });
+
+    const gruppen = buildExternGruppen([
+      baseFall({
+        id: 'w1',
+        verstorbenerName: 'Muster Wien',
+        status: 'im_kuehlraum',
+        kuehlraumId: 'Kühlr. Wien',
+        kuehlplatz: '2',
+        aktuellePosition: 'Kühlr. Wien',
+        aktuellePositionTyp: 'ueberfuehrung',
+      }),
+    ]);
+
+    const kr = gruppen.find((g) => g.typ === 'kuehlraum' && g.ort === 'Kühlraum Wien');
+    expect(kr?.faelle.some((f) => f.name.includes('Muster Wien'))).toBe(true);
+    expect(kr?.faelle[0]?.hinweis).toContain('Platz 2');
+  });
 });

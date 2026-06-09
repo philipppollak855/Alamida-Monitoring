@@ -7,6 +7,7 @@ import { useCalendarDay } from '../hooks/useCalendarDay';
 import { useSterbefaelle } from '../hooks/useSterbefaelle';
 import { firebaseConfigured } from '../firebase';
 import { buildAlleEigeneKuehlraumSlots, flattenOffene, kuehlraumGesamtBelegung } from '../board/boardUtils';
+import { filterKuehlraeumeFuerWandTab } from '../board/kuehlraumWandTab';
 import { wallKuehlraumGridLayout } from '../board/wallKuehlraumLayout';
 import { useSubTabRotation } from '../hooks/useSubTabRotation';
 import { useDispositionSettings } from '../settings/SettingsProvider';
@@ -182,21 +183,25 @@ export function WallPage({
     [sterbefaelleKalender, calendarAnchorDate]
   );
 
+  const kuehlraeumeWandKuehlraum = useMemo(
+    () => filterKuehlraeumeFuerWandTab(settings.eigeneKuehlraeume, 'kuehlraum'),
+    [settings.eigeneKuehlraeume]
+  );
   const kuehlraumGrids = useMemo(
-    () => buildAlleEigeneKuehlraumSlots(sterbefaelle, settings.eigeneKuehlraeume),
-    [sterbefaelle, settings.eigeneKuehlraeume]
+    () => buildAlleEigeneKuehlraumSlots(sterbefaelle, kuehlraeumeWandKuehlraum),
+    [sterbefaelle, kuehlraeumeWandKuehlraum]
   );
   const kuehlraumBelegung = useMemo(
     () => kuehlraumGesamtBelegung(kuehlraumGrids),
     [kuehlraumGrids]
   );
   const kuehlraumIds = useMemo(
-    () => settings.eigeneKuehlraeume.map((k) => k.id),
-    [settings.eigeneKuehlraeume]
+    () => kuehlraeumeWandKuehlraum.map((k) => k.id),
+    [kuehlraeumeWandKuehlraum]
   );
   const kuehlraumLabels = useMemo(
-    () => settings.eigeneKuehlraeume.map((k) => k.label),
-    [settings.eigeneKuehlraeume]
+    () => kuehlraeumeWandKuehlraum.map((k) => k.label),
+    [kuehlraeumeWandKuehlraum]
   );
   const kuehlraumSub = useSubTabRotation(
     kuehlraumIds,
@@ -406,7 +411,10 @@ export function WallPage({
             />
           </>
         )}
-        {view === 'kuehlraum' && activeKuehlraumGrid && (
+        {view === 'kuehlraum' && kuehlraeumeWandKuehlraum.length === 0 && (
+          <p className="wall-empty">Kein Kühlraum für den Tab „Kühlraum“ konfiguriert.</p>
+        )}
+        {view === 'kuehlraum' && kuehlraeumeWandKuehlraum.length > 0 && activeKuehlraumGrid && (
           <div
             className={`wall-kuehlraum-stage ${kuehlraumIds.length > 1 ? 'wall-kuehlraum-stage--rotate' : ''}`}
           >

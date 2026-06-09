@@ -1837,6 +1837,10 @@ code {
   border-top: 3px solid var(--muted);
 }
 
+.wall-extern-card--kuehlraum {
+  border-top: 3px solid var(--success);
+}
+
 .wall-extern-card--extern {
   border-top: 3px solid var(--border);
 }
@@ -1874,6 +1878,10 @@ code {
 
 .wall-extern-badge--bestattung {
   color: var(--muted);
+}
+
+.wall-extern-badge--kuehlraum {
+  color: var(--success);
 }
 
 .wall-extern-badge--extern {
@@ -3568,6 +3576,33 @@ code {
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
+}
+
+.settings-kr-wand-tab {
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+.settings-kr-wand-tab legend {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 0.35rem;
+}
+
+.settings-kr-wand-tab-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+}
+
+.settings-kr-wand-tab-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.88rem;
+  cursor: pointer;
 }
 
 .settings-wall-tabs-grid {

@@ -4,6 +4,7 @@ import type {
   WallTabRotationEnabled,
   WallTabWechselSekunden,
 } from '../types/dispositionSettings';
+import { normalizeKuehlraumWandTab } from '../board/kuehlraumWandTab';
 import { wallDurationsFromSettings } from '../hooks/useWallTabRotation';
 import { DEFAULT_DISPOSITION_SETTINGS } from '../config/defaultDispositionSettings';
 import { dedupeKeywords } from './recognitionEngine';
@@ -27,6 +28,7 @@ export function normalizeDispositionSettings(
             alamidaName: alamida || undefined,
             matchKeywords: keywords,
             externKeywords: dedupeKeywords(k.externKeywords ?? []),
+            wandTab: normalizeKuehlraumWandTab(k.wandTab),
             plaetze: Math.max(1, Math.min(99, Number(k.plaetze) || 1)),
           };
         })

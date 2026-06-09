@@ -34,7 +34,8 @@ import {
 } from './externKategorie';
 import type { DispositionSettings } from '../types/dispositionSettings';
 import { getDispositionSettings } from '../settings/dispositionSettingsStore';
-import { resolveFallKuehlraumIdOrPrimary } from './kuehlraumZuordnung';
+import { matchEigenerKuehlraum } from '../settings/ortMatchers';
+import { filterKuehlraeumeFuerWandTab } from './kuehlraumWandTab';
 
 export type { ExternKartenKategorie } from './externKategorie';
 export { externKategorieBadgeLabel, externKategorieHatFreigabe } from './externKategorie';
@@ -524,23 +525,53 @@ function resolveExternStandorteWithAlle(
   return resolveExternStandorteCore(s, alle);
 }
 
+function buildWandExternKuehlraumGruppen(
+  sterbefaelle: Sterbefall[],
+  settings: DispositionSettings
+): ExternOrtGruppe[] {
+  const gruppen: ExternOrtGruppe[] = [];
+
+  for (const kr of filterKuehlraeumeFuerWandTab(settings.eigeneKuehlraeume, 'extern')) {
+    const faelle: ExternFallEintrag[] = [];
+
+    for (const s of sterbefaelle) {
+      if (!isAktiv(s) || istInUrnenBereich(s)) continue;
+      if (!isImEigenenKuehlraum(s)) continue;
+
+      const matched = matchEigenerKuehlraum(s.kuehlraumId ?? s.aktuellePosition, settings);
+      if (matched?.id !== kr.id) continue;
+
+      const id = s.sterbefallId ?? s.id;
+      const platz = s.kuehlplatz?.trim();
+      faelle.push({
+        docId: s.id,
+        sterbefallId: id,
+        name: s.verstorbenerName ?? id,
+        hinweis: platz ? `Platz ${platz}` : (s.aktuellePosition?.trim() || 'Im Kühlraum'),
+        terminAm: s.naechsterSchrittAm,
+        freigabeFrei: s.freigabeFrei === true,
+        freigabeDatum: s.freigabeDatum?.trim() || undefined,
+      });
+    }
+
+    if (faelle.length === 0) continue;
+    faelle.sort((a, b) => a.name.localeCompare(b.name, 'de'));
+    gruppen.push({
+      key: `kuehlraum-wand:${kr.id}`,
+      typ: 'kuehlraum',
+      ort: kr.label,
+      faelle,
+    });
+  }
+
+  return gruppen;
+}
+
 export function buildExternGruppen(
   sterbefaelle: Sterbefall[],
-  options?: { kuehlraumId?: string; settings?: DispositionSettings }
+  options?: { settings?: DispositionSettings }
 ): ExternOrtGruppe[] {
   const settings = options?.settings ?? getDispositionSettings();
-  const primaryId = settings.eigeneKuehlraeume[0]?.id;
-  const filterKr = options?.kuehlraumId;
-
-  const sterbefallById = new Map(sterbefaelle.map((s) => [s.id, s]));
-
-  const faellePassenFilter = (docId: string, typ: ExternKartenKategorie): boolean => {
-    if (!filterKr) return true;
-    if (typ === 'kremation') return filterKr === primaryId;
-    const s = sterbefallById.get(docId);
-    if (!s) return false;
-    return resolveFallKuehlraumIdOrPrimary(s, settings) === filterKr;
-  };
 
   const map = new Map<string, ExternOrtGruppe>();
 
@@ -604,17 +635,15 @@ export function buildExternGruppen(
 
   gruppen = mergeOrphanGenericKhGruppen(gruppen, sterbefaelle);
 
-  for (const g of gruppen) {
-    g.faelle = g.faelle.filter((f) => faellePassenFilter(f.docId, g.typ));
-  }
-  gruppen = gruppen.filter((g) => g.faelle.length > 0);
+  gruppen.push(...buildWandExternKuehlraumGruppen(sterbefaelle, settings));
 
   const typOrder: Record<ExternKartenKategorie, number> = {
     krankenhaus: 0,
     pflegeheim: 1,
-    bestattung: 2,
-    extern: 3,
-    kremation: 4,
+    kuehlraum: 2,
+    bestattung: 3,
+    extern: 4,
+    kremation: 5,
   };
 
   return gruppen.sort((a, b) => {
