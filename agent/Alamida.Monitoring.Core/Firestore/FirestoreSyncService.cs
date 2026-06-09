@@ -184,6 +184,9 @@ public sealed class FirestoreSyncService : IAsyncDisposable
             ["rosenkranzdatum"] = snapshot.RosenkranzDatum ?? "",
             ["rosenkranzzeit"] = snapshot.RosenkranzZeit ?? "",
             ["rosenkranzort"] = snapshot.RosenkranzOrt ?? "",
+            ["aufnahmedatum"] = snapshot.AufnahmeDatum ?? "",
+            ["aufnahmezeit"] = snapshot.AufnahmeZeit ?? "",
+            ["aufnahmeort"] = snapshot.AufnahmeOrt ?? "",
             ["imAnschluss"] = snapshot.ImAnschluss,
             ["inHistory"] = inHistory,
             ["aktivInDisposition"] = !inHistory,
@@ -537,6 +540,9 @@ public sealed class FirestoreSyncService : IAsyncDisposable
         AddStringIfPresent(payload, "trauerfeier2zeit", snapshot.Trauerfeier2Zeit);
         AddStringIfPresent(payload, "trauerfeier2ort", snapshot.Trauerfeier2Ort);
         AddStringIfPresent(payload, "rosenkranzort", snapshot.RosenkranzOrt);
+        AddStringIfPresent(payload, "aufnahmedatum", snapshot.AufnahmeDatum);
+        AddStringIfPresent(payload, "aufnahmezeit", snapshot.AufnahmeZeit);
+        AddStringIfPresent(payload, "aufnahmeort", snapshot.AufnahmeOrt);
         if (snapshot.ImAnschluss)
             payload["imAnschluss"] = true;
 
@@ -579,6 +585,9 @@ public sealed class FirestoreSyncService : IAsyncDisposable
             RosenkranzDatum = MergeTerminField(snapshot.RosenkranzDatum, existing, "rosenkranzdatum"),
             RosenkranzZeit = MergeTerminField(snapshot.RosenkranzZeit, existing, "rosenkranzzeit"),
             RosenkranzOrt = MergeTerminField(snapshot.RosenkranzOrt, existing, "rosenkranzort"),
+            AufnahmeDatum = MergeTerminField(snapshot.AufnahmeDatum, existing, "aufnahmedatum"),
+            AufnahmeZeit = MergeTerminField(snapshot.AufnahmeZeit, existing, "aufnahmezeit"),
+            AufnahmeOrt = MergeTerminField(snapshot.AufnahmeOrt, existing, "aufnahmeort"),
         };
     }
 
@@ -738,6 +747,9 @@ public sealed class FirestoreSyncService : IAsyncDisposable
             ["rosenkranzdatum"] = snapshot.RosenkranzDatum ?? "",
             ["rosenkranzzeit"] = snapshot.RosenkranzZeit ?? "",
             ["rosenkranzort"] = snapshot.RosenkranzOrt ?? "",
+            ["aufnahmedatum"] = snapshot.AufnahmeDatum ?? "",
+            ["aufnahmezeit"] = snapshot.AufnahmeZeit ?? "",
+            ["aufnahmeort"] = snapshot.AufnahmeOrt ?? "",
             ["imAnschluss"] = snapshot.ImAnschluss,
             ["inHistory"] = inHistory,
             ["aktivInDisposition"] = !inHistory,

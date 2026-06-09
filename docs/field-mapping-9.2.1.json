@@ -190,6 +190,47 @@
           ],
           "controlTypes": ["ComboBox", "Edit"]
         },
+        "aufnahmedatum": {
+          "automationIdContains": [
+            "Field: sfl 2::Termin_Trauergespräch_Datum",
+            "Field: sfl 2::Termin_Trauergespraech_Datum",
+            "Termin_Trauergespräch_Datum",
+            "Termin_Trauergespraech_Datum",
+            "Trauergespräch_Datum",
+            "Trauergespraech_Datum"
+          ],
+          "controlTypes": ["Calendar", "Edit"]
+        },
+        "aufnahmezeit": {
+          "automationIdContains": [
+            "Field: sfl 2::Termin_Trauergespräch_Zeit",
+            "Field: sfl 2::Termin_Trauergespraech_Zeit",
+            "Termin_Trauergespräch_Zeit",
+            "Termin_Trauergespraech_Zeit",
+            "Trauergespräch_Zeit",
+            "Trauergespraech_Zeit"
+          ],
+          "controlTypes": ["Edit", "Text", "ComboBox"]
+        },
+        "aufnahmeort": {
+          "automationIdContains": [
+            "Termin_Trauergespräch_Ort",
+            "Termin_Trauergespraech_Ort",
+            "Trauergespräch_Ort",
+            "Trauergespraech_Ort"
+          ],
+          "automationIdExcludes": ["Zusatz", "_Zusatz"],
+          "controlTypes": ["ComboBox", "Edit"]
+        },
+        "aufnahmeortZusatz": {
+          "automationIdContains": [
+            "Termin_Trauergespräch_Ort_Zusatz",
+            "Termin_Trauergespräch_Zusatz",
+            "Termin_Trauergespraech_Ort_Zusatz",
+            "Termin_Trauergespraech_Zusatz"
+          ],
+          "controlTypes": ["ComboBox", "Edit"]
+        },
         "imAnschluss": {
           "automationIdContains": [
             "Field: sfl 2::Termin_Bestattung_Anschließend",
@@ -453,6 +494,47 @@
           "Termin_Rosenkranz_Zusatz",
           "Rosenkranz_Ort_Zusatz",
           "Rosenkranz_Zusatz"
+        ],
+        "controlTypes": ["ComboBox", "Edit"]
+      },
+      "aufnahmedatum": {
+        "automationIdContains": [
+          "Field: sfl 2::Termin_Trauergespräch_Datum",
+          "Field: sfl 2::Termin_Trauergespraech_Datum",
+          "Termin_Trauergespräch_Datum",
+          "Termin_Trauergespraech_Datum",
+          "Trauergespräch_Datum",
+          "Trauergespraech_Datum"
+        ],
+        "controlTypes": ["Calendar", "Edit"]
+      },
+      "aufnahmezeit": {
+        "automationIdContains": [
+          "Field: sfl 2::Termin_Trauergespräch_Zeit",
+          "Field: sfl 2::Termin_Trauergespraech_Zeit",
+          "Termin_Trauergespräch_Zeit",
+          "Termin_Trauergespraech_Zeit",
+          "Trauergespräch_Zeit",
+          "Trauergespraech_Zeit"
+        ],
+        "controlTypes": ["Edit", "Text", "ComboBox"]
+      },
+      "aufnahmeort": {
+        "automationIdContains": [
+          "Termin_Trauergespräch_Ort",
+          "Termin_Trauergespraech_Ort",
+          "Trauergespräch_Ort",
+          "Trauergespraech_Ort"
+        ],
+        "automationIdExcludes": ["Zusatz", "_Zusatz"],
+        "controlTypes": ["ComboBox", "Edit"]
+      },
+      "aufnahmeortZusatz": {
+        "automationIdContains": [
+          "Termin_Trauergespräch_Ort_Zusatz",
+          "Termin_Trauergespräch_Zusatz",
+          "Termin_Trauergespraech_Ort_Zusatz",
+          "Termin_Trauergespraech_Zusatz"
         ],
         "controlTypes": ["ComboBox", "Edit"]
       },

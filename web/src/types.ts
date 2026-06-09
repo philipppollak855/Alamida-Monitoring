@@ -48,6 +48,10 @@ export interface Sterbefall {
   rosenkranzdatum?: string;
   rosenkranzzeit?: string;
   rosenkranzort?: string;
+  /** Trauergespräch / Aufnahmetermin (Tab Termine). */
+  aufnahmedatum?: string;
+  aufnahmezeit?: string;
+  aufnahmeort?: string;
   imAnschluss?: boolean;
   inHistory?: boolean;
   aktivInDisposition?: boolean;

@@ -52,6 +52,12 @@ public static class UeberfuehrungSnapshotBuilder
 
         string? rosenkranzOrt,
 
+        string? aufnahmeDatum,
+
+        string? aufnahmeZeit,
+
+        string? aufnahmeOrt,
+
         string? imAnschlussRaw,
 
         IReadOnlyList<(string? RouteText, string? Datum)> rohdaten)
@@ -216,6 +222,12 @@ public static class UeberfuehrungSnapshotBuilder
             RosenkranzZeit = rosenkranzZeit,
 
             RosenkranzOrt = rosenkranzOrt,
+
+            AufnahmeDatum = aufnahmeDatum,
+
+            AufnahmeZeit = aufnahmeZeit,
+
+            AufnahmeOrt = aufnahmeOrt,
 
             ImAnschluss = SterbefallHistorieResolver.IstImAnschluss(imAnschlussRaw),
 

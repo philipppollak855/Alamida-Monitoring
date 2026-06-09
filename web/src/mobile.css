@@ -227,7 +227,7 @@
     grid-template-columns: unset;
   }
 
-  .board--narrow .board-lager-grid {
+  .board--narrow .board-lager-kr-row {
     grid-template-columns: 1fr;
   }
 
@@ -1021,6 +1021,12 @@
     background: rgba(192, 132, 252, 0.3);
     border-color: rgba(126, 34, 206, 0.55);
     border-left: 4px solid #7e22ce;
+  }
+
+  [data-theme='alamida'] .wall-cal-card--mobile.wall-cal-card--color-aufnahme {
+    border-color: rgba(37, 99, 235, 0.7);
+    border-left-width: 3px;
+    background: rgba(96, 165, 250, 0.22);
   }
 
   [data-theme='alamida'] .wall-cal-card--mobile.wall-cal-card--color-feier {

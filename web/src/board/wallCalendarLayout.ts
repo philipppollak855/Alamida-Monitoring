@@ -21,7 +21,7 @@ export function calendarDayLayout(
   let slotWeight = 0;
   for (const e of entries) {
     const group = calendarColorGroupFromArts(e.arts);
-    slotWeight += group === 'feier' ? 2 : 1;
+    slotWeight += group === 'feier' || group === 'aufnahme' ? 2 : 1;
   }
   if (slotWeight === 0) return { densityScale: 1, slotWeight: 0 };
 

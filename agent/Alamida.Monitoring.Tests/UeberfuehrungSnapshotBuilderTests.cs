@@ -29,6 +29,9 @@ public sealed class UeberfuehrungSnapshotBuilderTests
             rosenkranzDatum: null,
             rosenkranzZeit: null,
             rosenkranzOrt: null,
+            aufnahmeDatum: null,
+            aufnahmeZeit: null,
+            aufnahmeOrt: null,
             imAnschlussRaw: null,
             rohdaten: [("UK - Wiener Neustadt nach Kühl. Grafenbach", null)]);
 
@@ -73,6 +76,9 @@ public sealed class UeberfuehrungSnapshotBuilderTests
             rosenkranzDatum: null,
             rosenkranzZeit: null,
             rosenkranzOrt: null,
+            aufnahmeDatum: null,
+            aufnahmeZeit: null,
+            aufnahmeOrt: null,
             imAnschlussRaw: null,
             rohdaten: [("Bestattung Kunz nach Kühlr. Grafenbach", null)]);
 
@@ -80,6 +86,41 @@ public sealed class UeberfuehrungSnapshotBuilderTests
         Assert.False(snap.AbholortIstKrankenhaus);
         Assert.Equal("Bestattung Kunz", snap.NaechsterSchrittVon);
         Assert.Equal("Kühlr. Grafenbach", snap.NaechsterSchrittNach);
+    }
+
+    [Fact]
+    public void Build_uebernimmt_trauergespraech_als_aufnahme()
+    {
+        var snap = UeberfuehrungSnapshotBuilder.Build(
+            sterbefallId: "260112",
+            verstorbenerName: "Hedwig Freis",
+            sterbeort: null,
+            bestattungsart: null,
+            beisetzungsort: null,
+            krematoriumOrt: null,
+            feuerbestattungOrt: null,
+            kuehlraumRaw: null,
+            kuehlplatzField: null,
+            beisetzungsDatum: null,
+            beisetzungsZeit: null,
+            trauerfeierDatum: null,
+            trauerfeierZeit: null,
+            trauerfeierOrt: null,
+            trauerfeier2Datum: null,
+            trauerfeier2Zeit: null,
+            trauerfeier2Ort: null,
+            rosenkranzDatum: null,
+            rosenkranzZeit: null,
+            rosenkranzOrt: null,
+            aufnahmeDatum: "10.06.2026",
+            aufnahmeZeit: "14:00",
+            aufnahmeOrt: "Grafenbach - Zentrale",
+            imAnschlussRaw: null,
+            rohdaten: []);
+
+        Assert.Equal("10.06.2026", snap.AufnahmeDatum);
+        Assert.Equal("14:00", snap.AufnahmeZeit);
+        Assert.Equal("Grafenbach - Zentrale", snap.AufnahmeOrt);
     }
 
     [Fact]
@@ -106,6 +147,9 @@ public sealed class UeberfuehrungSnapshotBuilderTests
             rosenkranzDatum: null,
             rosenkranzZeit: null,
             rosenkranzOrt: null,
+            aufnahmeDatum: null,
+            aufnahmeZeit: null,
+            aufnahmeOrt: null,
             imAnschlussRaw: null,
             rohdaten: [("UK - Wiener Neustadt nach Kühl. Grafenbach", null)]);
 

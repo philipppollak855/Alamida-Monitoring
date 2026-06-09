@@ -3,7 +3,7 @@ namespace Alamida.Monitoring.Core.Models;
 public sealed record DetailSnapshot
 {
     /// <summary>Erhöhen erzwingt einmalig volle Firestore-Synchronisation nach Agent-Update.</summary>
-    public const int SyncPayloadVersion = 4;
+    public const int SyncPayloadVersion = 5;
 
     public string? SterbefallId { get; init; }
     public string? VerstorbenerName { get; init; }
@@ -27,6 +27,10 @@ public sealed record DetailSnapshot
     public string? RosenkranzDatum { get; init; }
     public string? RosenkranzZeit { get; init; }
     public string? RosenkranzOrt { get; init; }
+    /// <summary>Trauergespräch / Aufnahmetermin (Tab Termine).</summary>
+    public string? AufnahmeDatum { get; init; }
+    public string? AufnahmeZeit { get; init; }
+    public string? AufnahmeOrt { get; init; }
     public bool ImAnschluss { get; init; }
     public bool InHistory { get; init; }
     public DateTime? SichtbarBis { get; init; }
@@ -91,6 +95,9 @@ public sealed record DetailSnapshot
             RosenkranzDatum ?? "",
             RosenkranzZeit ?? "",
             RosenkranzOrt ?? "",
+            AufnahmeDatum ?? "",
+            AufnahmeZeit ?? "",
+            AufnahmeOrt ?? "",
             ImAnschluss ? "1" : "",
             InHistory ? "hist" : "",
             Kuehlraum ?? "",

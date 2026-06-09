@@ -512,7 +512,7 @@ export function BoardPage() {
                     <div
                       className="cool-grid board-overview-cool"
                       style={{
-                        gridTemplateColumns: `repeat(${Math.min(cfg.plaetze, 6)}, 1fr)`,
+                        gridTemplateColumns: `repeat(${cfg.plaetze}, minmax(0, 1fr))`,
                       }}
                     >
                       {slots.map((fall, i) => (
@@ -555,7 +555,7 @@ export function BoardPage() {
                 </ul>
               </section>
 
-              <section className="panel board-overview-card board-overview-card--meta">
+              <section className="panel board-overview-card">
                 <h2>Schnellzugriff</h2>
                 <p className="board-overview-meta-text">
                   {sterbefaelle.length} aktive Fälle · {stats.offen} offene Schritte
@@ -647,55 +647,57 @@ export function BoardPage() {
         )}
 
         {section === 'lager' && (
-          <div className={`board-lager-grid ${urnenListe.length > 0 ? 'has-urnen' : ''}`}>
+          <div className="board-lager">
             {abschluss.error && (
               <p className="board-inline-error board-lager-error" role="alert">
                 {abschluss.error}
               </p>
             )}
-            {kuehlraumGrids.map(({ cfg, slots }) => {
-              const belegt = slots.filter(Boolean).length;
-              const pct = cfg.plaetze > 0 ? Math.round((belegt / cfg.plaetze) * 100) : 0;
-              const roomHasMatch =
-                !lagerSearchActive ||
-                slots.some((f) => f && matchSterbefallQuery(f, searchQuery));
-              if (lagerSearchActive && !roomHasMatch) return null;
-              return (
-                <section key={cfg.id} className="panel kr-lager-panel">
-                  <div className="panel-head compact kr-lager-head">
-                    <div>
-                      <h2>{cfg.label}</h2>
-                      <p>
-                        {belegt} von {cfg.plaetze} belegt
-                        {belegt > 0 && ' — ziehen zum Verschieben, + für Details'}
-                      </p>
+            <div className="board-lager-kr-row">
+              {kuehlraumGrids.map(({ cfg, slots }) => {
+                const belegt = slots.filter(Boolean).length;
+                const pct = cfg.plaetze > 0 ? Math.round((belegt / cfg.plaetze) * 100) : 0;
+                const roomHasMatch =
+                  !lagerSearchActive ||
+                  slots.some((f) => f && matchSterbefallQuery(f, searchQuery));
+                if (lagerSearchActive && !roomHasMatch) return null;
+                return (
+                  <section key={cfg.id} className="panel kr-lager-panel">
+                    <div className="panel-head compact kr-lager-head">
+                      <div>
+                        <h2>{cfg.label}</h2>
+                        <p title="Ziehen zum Verschieben, + für Details">
+                          {belegt}/{cfg.plaetze} belegt
+                        </p>
+                      </div>
+                      <div className="kr-lager-meter" aria-hidden>
+                        <div className="kr-lager-meter-fill" style={{ width: `${pct}%` }} />
+                      </div>
                     </div>
-                    <div className="kr-lager-meter" aria-hidden>
-                      <div className="kr-lager-meter-fill" style={{ width: `${pct}%` }} />
-                    </div>
-                  </div>
-                  <KuehlraumPlatzGrid
-                    cfg={cfg}
-                    slots={slots}
-                    now={calendarNow}
-                    lagerSearchActive={lagerSearchActive}
-                    expandedKrKey={expandedKrKey}
-                    abschlussPendingId={abschluss.pendingId}
-                    matchFall={(fall) => matchSterbefallQuery(fall, searchQuery)}
-                    onToggleExpand={(key) =>
-                      setExpandedKrKey((prev) => (prev === key ? null : key))
-                    }
-                    onAbschliessen={(fall) => abschluss.open(fall)}
-                  />
-                </section>
-              );
-            })}
+                    <KuehlraumPlatzGrid
+                      cfg={cfg}
+                      slots={slots}
+                      now={calendarNow}
+                      lagerSearchActive={lagerSearchActive}
+                      expandedKrKey={expandedKrKey}
+                      abschlussPendingId={abschluss.pendingId}
+                      matchFall={(fall) => matchSterbefallQuery(fall, searchQuery)}
+                      onToggleExpand={(key) =>
+                        setExpandedKrKey((prev) => (prev === key ? null : key))
+                      }
+                      onAbschliessen={(fall) => abschluss.open(fall)}
+                    />
+                  </section>
+                );
+              })}
+            </div>
 
             <UrnenBereichPanel
               liste={urnenListe}
               pendingDocId={urnenPending}
               onUndo={(id) => void handleUrnenUndo(id)}
               variant="board"
+              compact
             />
 
             {andereKuehlraeume.length > 0 && (

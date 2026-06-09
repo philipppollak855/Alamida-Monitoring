@@ -22,6 +22,7 @@ import { filterSterbefaelleFuerKalender, sterbefallImAnschluss } from './histori
 export type WallCalendarRange = 7 | 14 | 'month';
 
 export type CalendarTerminArt =
+  | 'aufnahme'
   | 'rosenkranz'
   | 'verabschiedung'
   | 'trauerfeier'
@@ -32,9 +33,10 @@ export type CalendarTerminArt =
   | 'trauerblock';
 
 /** Farbgruppen im Kalender (Filter bleiben bei den sichtbaren Terminarten). */
-export type CalendarColorGroup = 'fahrt' | 'kremation' | 'feier';
+export type CalendarColorGroup = 'fahrt' | 'kremation' | 'feier' | 'aufnahme';
 
 export function calendarColorGroupFromArts(arts: readonly CalendarTerminArt[]): CalendarColorGroup {
+  if (arts.some((a) => a === 'aufnahme')) return 'aufnahme';
   if (arts.some((a) => a === 'ueberfuehrung_kremation')) return 'kremation';
   if (arts.some((a) => a === 'ueberfuehrung')) return 'fahrt';
   return 'feier';
@@ -53,6 +55,7 @@ function artMatchesFilter(art: CalendarTerminArt, activeArts: ReadonlySet<Calend
 }
 
 export const ALL_CALENDAR_TERMIN_ARTEN: CalendarTerminArt[] = [
+  'aufnahme',
   'rosenkranz',
   'verabschiedung',
   'trauerfeier',
@@ -63,6 +66,7 @@ export const ALL_CALENDAR_TERMIN_ARTEN: CalendarTerminArt[] = [
 ];
 
 export const CALENDAR_TERMIN_ART_LABELS: Record<CalendarTerminArt, string> = {
+  aufnahme: 'Aufnahme',
   rosenkranz: 'Rosenkranz',
   verabschiedung: 'Verabschiedung',
   trauerfeier: 'Trauerfeier',
@@ -210,6 +214,10 @@ function collectAtomics(s: Sterbefall): AtomicTermin[] {
   const ortTf = s.trauerfeierort?.trim() || s.endziel?.trim() || undefined;
   const ortBeisetzung = s.endziel?.trim() || undefined;
 
+  if (s.aufnahmedatum?.trim()) {
+    add('aufnahme', 'Aufnahme', s.aufnahmedatum, s.aufnahmezeit, s.aufnahmeort);
+  }
+
   if (s.rosenkranzdatum?.trim()) {
     add('rosenkranz', 'Rosenkranz', s.rosenkranzdatum, s.rosenkranzzeit, s.rosenkranzort);
   }
@@ -288,6 +296,7 @@ function buildSearchText(s: Sterbefall, parts: AtomicTermin[]): string {
     s.bestattungsart,
     s.endziel,
     s.trauerfeierort,
+    s.aufnahmeort,
     s.kuehlraumId,
     s.kuehlplatz,
     ...parts.map((p) => [p.label, p.ort, p.route, p.zeit, p.dayKey].filter(Boolean).join(' ')),
@@ -440,7 +449,26 @@ function collectTrauerblockEntries(
 }
 
 function atomicToEntry(s: Sterbefall, a: AtomicTermin): WallCalendarEntry {
+  const name = fallName(s);
   const subtitle = a.route || a.ort || '';
+  if (a.art === 'aufnahme') {
+    return {
+      id: a.key,
+      docId: s.id,
+      sterbefallId: s.sterbefallId ?? s.id,
+      dayKey: a.dayKey,
+      dayLabel: formatDayLabelDe(a.dayKey),
+      timeLabel: a.zeit || '—',
+      sortMs: a.sortMs,
+      name: `Aufnahme - ${name}`,
+      title: 'Aufnahme',
+      subtitle,
+      badges: ['Aufnahme'],
+      grouped: false,
+      arts: ['aufnahme'],
+      searchText: buildSearchText(s, [a]),
+    };
+  }
   return withBestattungsMarker(s, {
     id: a.key,
     docId: s.id,
@@ -449,7 +477,7 @@ function atomicToEntry(s: Sterbefall, a: AtomicTermin): WallCalendarEntry {
     dayLabel: formatDayLabelDe(a.dayKey),
     timeLabel: a.zeit || '—',
     sortMs: a.sortMs,
-    name: fallName(s),
+    name,
     title: a.label,
     subtitle,
     badges: [a.label],

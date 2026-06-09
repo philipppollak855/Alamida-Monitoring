@@ -16,5 +16,8 @@ public static class TerminOrtFields
         fields["trauerfeier2ort"] = TerminOrtFormatter.Combine(
             fields.GetValueOrDefault("trauerfeier2ort"),
             fields.GetValueOrDefault("trauerfeier2ortZusatz"));
+        fields["aufnahmeort"] = TerminOrtFormatter.Combine(
+            fields.GetValueOrDefault("aufnahmeort"),
+            fields.GetValueOrDefault("aufnahmeortZusatz"));
     }
 }

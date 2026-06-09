@@ -87,6 +87,9 @@ public sealed class AlamidaMaskWatcher
                 fields.GetValueOrDefault("rosenkranzdatum"),
                 fields.GetValueOrDefault("rosenkranzzeit"),
                 fields.GetValueOrDefault("rosenkranzort"),
+                fields.GetValueOrDefault("aufnahmedatum"),
+                fields.GetValueOrDefault("aufnahmezeit"),
+                fields.GetValueOrDefault("aufnahmeort"),
                 fields.GetValueOrDefault("imAnschluss"),
                 rohdaten);
 

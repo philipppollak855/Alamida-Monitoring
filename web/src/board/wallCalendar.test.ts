@@ -3,6 +3,8 @@ import { currentWeekDayRange } from './monthScrollWindow';
 import {
   buildMonthOverviewGrid,
   buildWallCalendarDaysInRange,
+  buildWallCalendarEntries,
+  calendarColorGroupFromArts,
   filterEntriesInDayRange,
   summarizeWallCalendarDay,
   type WallCalendarEntry,
@@ -26,6 +28,27 @@ function entry(arts: WallCalendarEntry['arts']): WallCalendarEntry {
     searchText: '',
   };
 }
+
+describe('Aufnahme-Termine', () => {
+  it('erstellt Kalendereintrag aus Trauergespräch-Feldern', () => {
+    const entries = buildWallCalendarEntries([
+      {
+        id: 'doc-1',
+        sterbefallId: '260112',
+        verstorbenerName: 'Hedwig Freis',
+        aufnahmedatum: '10.06.2026',
+        aufnahmezeit: '14:00',
+        aufnahmeort: 'Grafenbach - Zentrale',
+      },
+    ]);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.name).toBe('Aufnahme - Hedwig Freis');
+    expect(entries[0]?.arts).toEqual(['aufnahme']);
+    expect(entries[0]?.timeLabel).toBe('14:00');
+    expect(entries[0]?.subtitle).toBe('Grafenbach - Zentrale');
+    expect(calendarColorGroupFromArts(['aufnahme'])).toBe('aufnahme');
+  });
+});
 
 describe('summarizeWallCalendarDay', () => {
   it('zählt Termine und Überführungen getrennt', () => {
