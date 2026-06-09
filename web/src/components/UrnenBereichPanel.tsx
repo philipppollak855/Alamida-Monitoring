@@ -23,10 +23,10 @@ export function UrnenBereichPanel({
       aria-label="Urnen"
     >
       {isWall ? (
-        <>
+        <div className="wall-urnen-head">
           <h3 className="wall-urnen-title">Urnen</h3>
-          <p className="wall-urnen-sub">Retour aus Kremation</p>
-        </>
+          <span className="wall-urnen-sub">Retour · {liste.length}</span>
+        </div>
       ) : (
         <div className="panel-head compact">
           <div>

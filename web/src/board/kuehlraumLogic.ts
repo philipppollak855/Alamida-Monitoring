@@ -3,6 +3,7 @@ import { getEffectiveAusstehend, schrittZielIstEigeneKr } from './ausstehendEffe
 import { isAusstehendHeuteOrGeplant } from './ausstehendStatus';
 import { matchEigenerKuehlraum } from '../settings/ortMatchers';
 import { parseDatumDe } from './dateUtils';
+import { parseUeberfuehrungRoute } from './routeParse';
 import { istKrankenhaus, istKrematorium } from './ortKeywords';
 import { istAktuellImKrematorium, letzteAbgeschlosseneEtappe } from './positionLogic';
 import { istInHistory } from './historieLogic';
@@ -54,6 +55,88 @@ function letzteEtappeIstImEigenenKuehlraum(s: Sterbefall): boolean {
   );
 }
 
+type KrSchrittRef = {
+  vonOrt?: string;
+  nachOrt?: string;
+  terminAm?: string;
+  zeile: number;
+};
+
+function nachOrtAusSchritt(vonOrt?: string, nachOrt?: string): string | undefined {
+  const nach = nachOrt?.trim();
+  if (nach) return nach;
+  return parseUeberfuehrungRoute(vonOrt ?? '').nach?.trim() || undefined;
+}
+
+/** Abgeschlossene KR-Überführung aus Terminen (auch wenn Verlauf/Position noch am KH hängen). */
+function collectAbgeschlosseneKrSchritte(s: Sterbefall): KrSchrittRef[] {
+  const heute = startOfTodayMs();
+  const out: KrSchrittRef[] = [];
+  const seen = new Set<string>();
+
+  const add = (ref: KrSchrittRef) => {
+    const nach = nachOrtAusSchritt(ref.vonOrt, ref.nachOrt);
+    if (!schrittZielIstEigeneKr({ vonOrt: ref.vonOrt, nachOrt: nach })) return;
+    const termin = ref.terminAm?.trim();
+    if (!termin) return;
+    if (parseDatumDe(termin) > heute) return;
+    const key = `${ref.zeile}:${termin}:${ref.vonOrt ?? ''}:${nach ?? ''}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push({ ...ref, nachOrt: nach });
+  };
+
+  for (const a of getEffectiveAusstehend(s)) {
+    add({
+      vonOrt: a.vonOrt,
+      nachOrt: a.nachOrt,
+      terminAm: a.terminAm ?? a.abholungAm,
+      zeile: a.zeile ?? 0,
+    });
+  }
+
+  const topLevel: [string | undefined, string | undefined, string | undefined, number][] = [
+    [s.naechsterSchrittVon, s.naechsterSchrittNach, s.naechsterSchrittAm, 9001],
+    [s.naechsteUeberfuehrungVon, s.naechsteUeberfuehrungNach, s.naechsteUeberfuehrungAm, 9002],
+  ];
+  for (const [von, nach, termin, zeile] of topLevel) {
+    if (!von?.trim() && !nach?.trim()) continue;
+    add({ vonOrt: von, nachOrt: nach, terminAm: termin, zeile });
+  }
+
+  const abhol = s.abholort?.trim();
+  if (abhol) {
+    const route = parseUeberfuehrungRoute(abhol);
+    add({
+      vonOrt: route.von || abhol,
+      nachOrt: route.nach ?? s.naechsterSchrittNach ?? s.naechsteUeberfuehrungNach,
+      terminAm: s.naechsterSchrittAm ?? s.naechsteUeberfuehrungAm,
+      zeile: 9000,
+    });
+  }
+
+  return out;
+}
+
+function letzteAbgeschlosseneKrUeberfuehrung(s: Sterbefall): KrSchrittRef | null {
+  const list = collectAbgeschlosseneKrSchritte(s);
+  if (list.length === 0) return null;
+  return list.reduce((best, cur) => {
+    const bestMs = parseDatumDe(best.terminAm ?? '');
+    const curMs = parseDatumDe(cur.terminAm ?? '');
+    if (curMs > bestMs) return cur;
+    if (curMs < bestMs) return best;
+    return (cur.zeile ?? 0) >= (best.zeile ?? 0) ? cur : best;
+  });
+}
+
+function abgeschlosseneKrUeberfuehrungIstImEigenenKuehlraum(s: Sterbefall): boolean {
+  const letzte = letzteAbgeschlosseneKrUeberfuehrung(s);
+  if (!letzte) return false;
+  const nach = letzte.nachOrt ?? nachOrtAusSchritt(letzte.vonOrt, letzte.nachOrt);
+  return zielIstEigenerKuehlraum(nach) || positionIstImKuehlraum(nach);
+}
+
 /**
  * Überführung ins eigene Kühlraum abgeschlossen und Verstorbener noch nicht weiter (Kremation/Beisetzung).
  */
@@ -61,6 +144,8 @@ export function hatAbgeschlosseneUeberfuehrungInsEigeneKr(s: Sterbefall): boolea
   if (istInHistory(s) || istAktuellImKrematorium(s)) return false;
 
   if (letzteEtappeIstImEigenenKuehlraum(s)) return true;
+
+  if (abgeschlosseneKrUeberfuehrungIstImEigenenKuehlraum(s)) return true;
 
   const pos = s.aktuellePosition?.trim() ?? '';
   if (pos && (positionIstImKuehlraum(pos) || matchEigenerKuehlraum(pos))) return true;

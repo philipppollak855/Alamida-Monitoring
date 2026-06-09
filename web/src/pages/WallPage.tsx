@@ -427,7 +427,8 @@ export function WallPage({
             />
             {(() => {
               const { cfg, slots } = activeKuehlraumGrid;
-              const { cols, rows } = wallKuehlraumGridLayout(cfg.plaetze);
+              const urnenSichtbar = urnenListe.length > 0;
+              const { cols, rows } = wallKuehlraumGridLayout(cfg.plaetze, { urnenSichtbar });
               return (
                 <>
                   <h2 className="wall-stage-title">{cfg.label}</h2>
@@ -490,7 +491,7 @@ export function WallPage({
               );
             })()}
 
-            {kuehlraumSub.slide === 0 && (
+            {urnenListe.length > 0 && (
               <UrnenBereichPanel
                 liste={urnenListe}
                 pendingDocId={urnenPending}
