@@ -18,6 +18,7 @@ import {
   dismissPlanEvent,
   moveCardAssignment,
   nextOrderInLane,
+  pickCeremonyHostForCard,
   planningCardId,
   resolveFreigabeState,
   scheduleToKuehlraum,
@@ -367,5 +368,63 @@ describe('transferPlanning board', () => {
     expect(result.mode).toBe('dismissed');
     expect(result.events).toHaveLength(0);
     expect(result.assignments[id]?.plannedDayKey).toBeNull();
+  });
+
+  it('pickCeremonyHostForCard wählt Beisetzung vor Trauerfeier', () => {
+    const card = {
+      id: 'c:1',
+      docId: 'fall1',
+      zeile: 1,
+      sterbefallId: 'SF',
+      name: 'Test',
+      schrittTyp: 'ueberfuehrung',
+      vonOrt: 'A',
+      nachOrt: 'B',
+      terminAm: '30.07.2026',
+      sourceDayKey: null,
+      plannedDayKey: '2026-07-30',
+      status: 'geplant',
+      targetsEigenerKr: false,
+      leavesEigenerKr: true,
+      kuehlraumId: null,
+      order: 10,
+      hasManualPlan: true,
+      source: 'alamida' as const,
+      ceremonies: [
+        {
+          kind: 'trauerfeier' as const,
+          datum: '30.07.2026',
+          dayKey: '2026-07-30',
+          label: 'TF',
+        },
+        {
+          kind: 'beisetzung' as const,
+          datum: '30.07.2026',
+          dayKey: '2026-07-30',
+          label: 'Beisetzung',
+        },
+      ],
+    };
+    const host = pickCeremonyHostForCard(card, [
+      {
+        docId: 'fall1',
+        ceremony: {
+          kind: 'trauerfeier',
+          datum: '30.07.2026',
+          dayKey: '2026-07-30',
+          label: 'TF',
+        },
+      },
+      {
+        docId: 'fall1',
+        ceremony: {
+          kind: 'beisetzung',
+          datum: '30.07.2026',
+          dayKey: '2026-07-30',
+          label: 'Beisetzung',
+        },
+      },
+    ]);
+    expect(host?.ceremony.kind).toBe('beisetzung');
   });
 });

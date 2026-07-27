@@ -758,6 +758,54 @@ export function isAttachableCeremonyKind(kind: CeremonyKind): boolean {
   return ATTACHABLE_CEREMONY_KINDS.includes(kind);
 }
 
+/** Ob die Karte an diesen Feiertermin gebunden ist (explizit oder gleiches Tag/Fall). */
+export function isCardAttachedToCeremony(
+  card: PlanningCard,
+  ceremony: Pick<CeremonyInfo, 'kind' | 'dayKey'>,
+  docId: string
+): boolean {
+  if (card.docId !== docId) return false;
+  if (!ceremony.dayKey || card.plannedDayKey !== ceremony.dayKey) return false;
+  if (!isAttachableCeremonyKind(ceremony.kind)) return false;
+  if (card.attachedCeremony) {
+    return (
+      card.attachedCeremony.kind === ceremony.kind &&
+      card.attachedCeremony.dayKey === ceremony.dayKey
+    );
+  }
+  return true;
+}
+
+/** Ob die Karte an irgendeinen Feiertermin am geplanten Tag hängt. */
+export function isCardAttachedToAnyCeremony(card: PlanningCard): boolean {
+  if (card.attachedCeremony) return true;
+  if (!card.plannedDayKey) return false;
+  return (card.ceremonies ?? []).some(
+    (c) =>
+      c.dayKey === card.plannedDayKey && isAttachableCeremonyKind(c.kind)
+  );
+}
+
+/** Beste Feiertermin-Zuordnung für eine Überführung (Beisetzung > Verabschiedung > TF). */
+export function pickCeremonyHostForCard(
+  card: PlanningCard,
+  ceremonies: Array<{ docId: string; ceremony: CeremonyInfo }>
+): { docId: string; ceremony: CeremonyInfo } | null {
+  const candidates = ceremonies.filter((c) =>
+    isCardAttachedToCeremony(card, c.ceremony, c.docId)
+  );
+  if (candidates.length === 0) return null;
+  const rank = (kind: CeremonyKind): number => {
+    if (kind === 'beisetzung') return 3;
+    if (kind === 'verabschiedung') return 2;
+    if (kind === 'trauerfeier') return 1;
+    return 0;
+  };
+  return candidates.sort(
+    (a, b) => rank(b.ceremony.kind) - rank(a.ceremony.kind)
+  )[0]!;
+}
+
 /** Überführung manuell an Feiertermin binden (gleicher Fall). */
 export function attachTransferToCeremony(
   assignments: Record<string, PlanAssignment>,

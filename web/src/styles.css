@@ -7690,6 +7690,57 @@ code {
   display: block;
 }
 
+.plan-center-ceremony.is-merged {
+  gap: 0.35rem;
+  padding-bottom: 0.45rem;
+  box-shadow: inset 0 0 0 1px rgba(167, 139, 250, 0.22);
+}
+
+.plan-ceremony-merged-badge {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+  background: var(--accent-dim);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.plan-center-ceremony-leg {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.1rem;
+  padding: 0.35rem 0.4rem;
+  border-radius: 6px;
+  border: 1px dashed rgba(167, 139, 250, 0.35);
+  background: rgba(0, 0, 0, 0.12);
+  cursor: grab;
+  min-width: 0;
+}
+
+.plan-center-ceremony-leg.is-dragging {
+  opacity: 0.55;
+}
+
+.plan-center-ceremony-leg .plan-card-grip {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.plan-center-ceremony-leg-route {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.68rem;
+}
+
+.plan-center-ceremony-leg .plan-reset-btn {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
 .plan-center-ceremony.is-clickable {
   padding: 0;
   background: transparent;

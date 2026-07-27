@@ -1,9 +1,15 @@
 import type { CeremonyInfo, KuehlraumDayCapacity, PlanningCard } from '../../planning/types';
 import type { PersonnelBooking } from '../../types/personnelBooking';
-import { isAttachableCeremonyKind } from '../../planning/transferPlanning';
+import {
+  isAttachableCeremonyKind,
+  isCardAttachedToAnyCeremony,
+  pickCeremonyHostForCard,
+} from '../../planning/transferPlanning';
 import { PlanningTransferCard } from './PlanningTransferCard';
 import { PlanningCapacityMeters } from './PlanningCapacityMeters';
 import { WallCalBestattungsBadge } from '../WallCalBestattungsBadge';
+import { RouteFlow } from '../../ui/RouteFlow';
+import { SchrittBadge } from '../../ui/SchrittBadge';
 
 type DayCeremony = {
   docId: string;
@@ -62,6 +68,10 @@ function ceremonyDropId(c: DayCeremony): string {
   return `${c.docId}|${c.ceremony.kind}|${c.ceremony.dayKey ?? ''}|${c.ceremony.zeit ?? ''}`;
 }
 
+function ceremonyHostKey(c: DayCeremony): string {
+  return `${c.docId}|${c.ceremony.kind}|${c.ceremony.dayKey ?? ''}`;
+}
+
 export function PlanningCenterDay({
   dayKey,
   title,
@@ -89,6 +99,27 @@ export function PlanningCenterDay({
     (a, b) => ceremonyTimeSortKey(a.ceremony) - ceremonyTimeSortKey(b.ceremony)
   );
 
+  const attachedByHost = new Map<string, PlanningCard[]>();
+  const looseTransfers: PlanningCard[] = [];
+
+  for (const card of transfers) {
+    if (!isCardAttachedToAnyCeremony(card)) {
+      looseTransfers.push(card);
+      continue;
+    }
+    const host = pickCeremonyHostForCard(card, sortedCeremonies);
+    if (!host) {
+      looseTransfers.push(card);
+      continue;
+    }
+    const key = `${host.docId}|${host.ceremony.kind}|${host.ceremony.dayKey ?? ''}`;
+    const list = attachedByHost.get(key) ?? [];
+    list.push(card);
+    attachedByHost.set(key, list);
+  }
+
+  const looseCount = looseTransfers.length;
+
   return (
     <section
       className={`plan-center-day${isToday ? ' is-today' : ''}${isDropTarget ? ' is-drop-target' : ''}`}
@@ -108,7 +139,7 @@ export function PlanningCenterDay({
           <h3>{title}</h3>
           {isToday && <p>Heute</p>}
         </div>
-        <span className="plan-column-count">{transfers.length}</span>
+        <span className="plan-column-count">{looseCount}</span>
       </header>
 
       {capacities.length > 0 && <PlanningCapacityMeters capacities={capacities} />}
@@ -127,6 +158,9 @@ export function PlanningCenterDay({
               const acceptDrop =
                 Boolean(onDropOnCeremony) && isAttachableCeremonyKind(ceremony.kind);
               const dropKey = ceremonyDropId(c);
+              const hostKey = ceremonyHostKey(c);
+              const attached = attachedByHost.get(hostKey) ?? [];
+              const isMerged = attached.length > 0;
               const isCeremonyDrop = acceptDrop && ceremonyDropKey === dropKey;
               const content = (
                 <>
@@ -134,6 +168,11 @@ export function PlanningCenterDay({
                     <span className={`plan-ceremony-kind is-${ceremony.kind}`}>
                       {ceremonyKindLabel(ceremony.kind)}
                     </span>
+                    {isMerged && (
+                      <span className="plan-ceremony-merged-badge" title="Überführung zugehörig">
+                        + Überf.
+                      </span>
+                    )}
                     {ceremony.bestattungsMarker && (
                       <WallCalBestattungsBadge marker={ceremony.bestattungsMarker} />
                     )}
@@ -159,7 +198,7 @@ export function PlanningCenterDay({
                   ) : (
                     <span className="plan-center-ceremony-personnel is-open">Personal offen</span>
                   )}
-                  {acceptDrop && (
+                  {acceptDrop && !isMerged && (
                     <span className="plan-center-ceremony-drop-hint">
                       Überführung hierher ziehen
                     </span>
@@ -174,7 +213,7 @@ export function PlanningCenterDay({
                     clickable ? ' is-clickable' : ''
                   }${isCeremonyDrop ? ' is-drop-target' : ''}${
                     acceptDrop ? ' is-droppable' : ''
-                  }`}
+                  }${isMerged ? ' is-merged' : ''}`}
                   onDragOver={
                     acceptDrop
                       ? (e) => {
@@ -213,6 +252,51 @@ export function PlanningCenterDay({
                   ) : (
                     content
                   )}
+
+                  {attached.map((card) => (
+                    <div
+                      key={card.id}
+                      className={`plan-center-ceremony-leg${
+                        draggingId === card.id ? ' is-dragging' : ''
+                      }`}
+                      draggable={!card.erledigt}
+                      onDragStart={(e) => {
+                        e.stopPropagation();
+                        e.dataTransfer.effectAllowed = 'move';
+                        e.dataTransfer.setData('text/plain', card.id);
+                        onCardDragStart(card);
+                      }}
+                      onDragEnd={onCardDragEnd}
+                    >
+                      <span className="plan-card-grip" aria-hidden title="Ziehen zum Lösen">
+                        ⠿
+                      </span>
+                      <SchrittBadge typ={card.schrittTyp} />
+                      <div className="plan-center-ceremony-leg-route">
+                        <RouteFlow von={card.vonOrt} nach={card.nachOrt} />
+                      </div>
+                      {card.plannedZeit && (
+                        <span className="plan-card-tag plan-card-tag--time">{card.plannedZeit}</span>
+                      )}
+                      {(card.hasManualPlan || card.plannedDayKey != null) && (
+                        <button
+                          type="button"
+                          className={`plan-reset-btn${card.canUndoUmplanung ? ' is-undo' : ''}`}
+                          title={
+                            card.canUndoUmplanung
+                              ? 'Umplanung rückgängig'
+                              : 'Zugehörigkeit lösen / zurücksetzen'
+                          }
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onResetCard(card);
+                          }}
+                        >
+                          ↺
+                        </button>
+                      )}
+                    </div>
+                  ))}
                 </li>
               );
             })}
@@ -220,10 +304,12 @@ export function PlanningCenterDay({
         )}
 
         <div className="plan-column-cards">
-          {transfers.length === 0 ? (
-            <p className="plan-column-empty">Überführung hierher ziehen (X → Y)</p>
+          {looseTransfers.length === 0 ? (
+            sortedCeremonies.length === 0 ? (
+              <p className="plan-column-empty">Überführung hierher ziehen (X → Y)</p>
+            ) : null
           ) : (
-            transfers.map((card) => (
+            looseTransfers.map((card) => (
               <PlanningTransferCard
                 key={card.id}
                 card={card}
