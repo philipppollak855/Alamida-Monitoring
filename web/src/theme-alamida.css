@@ -1058,6 +1058,11 @@
   background: rgba(184, 90, 104, 0.1);
 }
 
+[data-theme='alamida'] .zusatz-termin-scope {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: var(--border);
+}
+
 [data-theme='alamida'] .zusatz-termin-scope-btn.is-active {
   background: rgba(61, 122, 140, 0.14);
   color: var(--accent);

@@ -341,6 +341,8 @@ public sealed class FirestoreSyncService : IAsyncDisposable
             inHistory,
             fullWriteCompleted: true);
 
+        await TryArchiveNeuOrphansAsync(sterbefallId, snapshot, now, ct);
+
         return new SyncResult
         {
             Kind = SyncResultKind.Updated,
