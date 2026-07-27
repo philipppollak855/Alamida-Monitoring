@@ -585,8 +585,8 @@ export function DispositionSettingsPanel({ defaultOpen = false }: { defaultOpen?
                 </div>
                 <p className="settings-hint">
                   Poolliste für Einbuchung am Kalendertermin. Pro Person festlegen: Arrangeur und/oder
-                  Träger. Begräbnis braucht einen Arrangeur; bei Sarg ohne „Träger von Familie“ mind. 4
-                  Träger.
+                  Träger. Begräbnis braucht einen Arrangeur; eingebuchter Arrangeur steht nicht als
+                  Träger zur Verfügung. Bei Sarg ohne „Träger von Familie“ mind. 4 Träger.
                 </p>
                 {(draft.personnelPool ?? []).map((person, index) => (
                   <div key={person.id} className="settings-kr-card settings-person-card">
