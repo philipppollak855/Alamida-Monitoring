@@ -73,14 +73,16 @@ export function canUndoPlanEvent(
   assignments: Record<string, PlanAssignment>
 ): boolean {
   if (event.type === 'ueberfuehrung_entfernt') {
-    return Boolean(event.snapshot && event.assignmentId);
+    return Boolean(event.assignmentId && (event.snapshot || event.previousSnapshot));
   }
   if (event.type === 'ueberfuehrung_umgeplant') {
     if (event.previousSnapshot && event.assignmentId) return true;
     const id = event.assignmentId;
+    // Auch „zurück zum Abholort“ (plannedDayKey null) ist umkehrbar
+    if (id && event.previousSnapshot) return true;
     return Boolean(id && assignments[id]?.previous);
   }
-  // geplant → Zuordnung entfernen
+  // geplant → Zuordnung entfernen / Abholort
   return Boolean(event.assignmentId && assignments[event.assignmentId]);
 }
 
@@ -655,21 +657,72 @@ export function removeAssignment(
   return next;
 }
 
-/** Stellt die letzte Umplanung wieder her; ohne previous → Zuordnung löschen. */
-export function undoOrRemoveAssignment(
+/**
+ * Plant zurück zum Abholort / Ort-Pool:
+ * plannedDayKey = null (überschreibt auch Alamida-Termindatum),
+ * Fall erscheint wieder links bei den aktuellen Orten.
+ */
+export function clearCardToAbholort(
   assignments: Record<string, PlanAssignment>,
-  id: string
+  card: PlanningCard
 ): {
   assignments: Record<string, PlanAssignment>;
-  mode: 'restored' | 'removed';
-  restored?: PlanAssignment;
-  removed?: PlanAssignment;
+  assignment: PlanAssignment;
+  previous: PlanAssignment | null;
 } {
-  const current = assignments[id];
-  if (!current) {
-    return { assignments, mode: 'removed' };
-  }
-  if (current.previous) {
+  const prev = assignments[card.id] ?? null;
+  const previousSnap = prev
+    ? snapshotFromAssignment(prev)
+    : card.plannedDayKey != null
+      ? {
+          plannedDayKey: card.plannedDayKey,
+          plannedKuehlraumId: card.kuehlraumId,
+          plannedZeit: card.plannedZeit ?? null,
+          vonOrt: card.vonOrt,
+          nachOrt: card.nachOrt,
+          schrittTyp: card.schrittTyp,
+          order: card.order,
+          attachedCeremony: card.attachedCeremony ?? null,
+        }
+      : null;
+
+  const assignment: PlanAssignment = {
+    id: card.id,
+    docId: card.docId,
+    zeile: card.zeile,
+    plannedDayKey: null,
+    plannedKuehlraumId: card.kuehlraumId,
+    plannedZeit: null,
+    vonOrt: card.vonOrt,
+    nachOrt: card.nachOrt,
+    schrittTyp: card.schrittTyp,
+    source: card.source,
+    order: card.order,
+    previous: previousSnap,
+    attachedCeremony: null,
+    updatedAtMs: Date.now(),
+  };
+
+  return {
+    assignments: { ...assignments, [card.id]: assignment },
+    assignment,
+    previous: prev,
+  };
+}
+
+/** Stellt die letzte Umplanung wieder her; ohne previous → zurück zum Abholort. */
+export function undoOrRemoveAssignment(
+  assignments: Record<string, PlanAssignment>,
+  card: PlanningCard
+): {
+  assignments: Record<string, PlanAssignment>;
+  mode: 'restored' | 'cleared';
+  restored?: PlanAssignment;
+  cleared?: PlanAssignment;
+  previous?: PlanAssignment | null;
+} {
+  const current = assignments[card.id];
+  if (current?.previous) {
     const restored: PlanAssignment = {
       id: current.id,
       docId: current.docId,
@@ -680,16 +733,18 @@ export function undoOrRemoveAssignment(
       updatedAtMs: Date.now(),
     };
     return {
-      assignments: { ...assignments, [id]: restored },
+      assignments: { ...assignments, [card.id]: restored },
       mode: 'restored',
       restored,
-      removed: current,
+      previous: current,
     };
   }
+  const cleared = clearCardToAbholort(assignments, card);
   return {
-    assignments: removeAssignment(assignments, id),
-    mode: 'removed',
-    removed: current,
+    assignments: cleared.assignments,
+    mode: 'cleared',
+    cleared: cleared.assignment,
+    previous: cleared.previous,
   };
 }
 
@@ -750,18 +805,28 @@ export function undoPlanEvent(
   const id = event.assignmentId!;
 
   if (event.type === 'ueberfuehrung_entfernt') {
-    const snap = event.snapshot!;
+    const snap = event.snapshot ?? event.previousSnapshot;
+    if (!snap) return { assignments, events, mode: 'noop' };
+    const existing = assignments[id];
     const restored: PlanAssignment = {
       id,
       docId: event.docId,
-      zeile: typeof snap.zeile === 'number' ? snap.zeile : -1,
+      zeile:
+        typeof (snap as { zeile?: number }).zeile === 'number'
+          ? (snap as { zeile?: number }).zeile!
+          : (existing?.zeile ?? -1),
       plannedDayKey: snap.plannedDayKey,
       plannedKuehlraumId: snap.plannedKuehlraumId ?? null,
       plannedZeit: snap.plannedZeit ?? null,
       vonOrt: snap.vonOrt ?? null,
       nachOrt: snap.nachOrt ?? null,
       schrittTyp: snap.schrittTyp ?? null,
-      source: snap.source === 'alamida' ? 'alamida' : 'canvas',
+      source:
+        (snap as { source?: string }).source === 'alamida'
+          ? 'alamida'
+          : existing?.source === 'alamida'
+            ? 'alamida'
+            : 'canvas',
       order: snap.order,
       attachedCeremony: snap.attachedCeremony ?? null,
       previous: null,
@@ -776,13 +841,13 @@ export function undoPlanEvent(
 
   if (event.type === 'ueberfuehrung_umgeplant') {
     const prevSnap = event.previousSnapshot ?? assignments[id]?.previous;
-    if (prevSnap && assignments[id]) {
-      const current = assignments[id]!;
+    if (prevSnap) {
+      const current = assignments[id];
       const restored: PlanAssignment = {
-        id: current.id,
-        docId: current.docId,
-        zeile: current.zeile,
-        source: current.source,
+        id,
+        docId: current?.docId ?? event.docId,
+        zeile: current?.zeile ?? -1,
+        source: current?.source ?? 'canvas',
         ...prevSnap,
         previous: null,
         updatedAtMs: Date.now(),
@@ -795,7 +860,23 @@ export function undoPlanEvent(
     }
   }
 
-  // geplant (oder Umplanung ohne Vorzustand): Zuordnung entfernen
+  // geplant: zurück zum Abholort (null-Tag stub), sonst löschen
+  const current = assignments[id];
+  if (current) {
+    const cleared: PlanAssignment = {
+      ...current,
+      plannedDayKey: null,
+      plannedZeit: null,
+      attachedCeremony: null,
+      previous: snapshotFromAssignment(current),
+      updatedAtMs: Date.now(),
+    };
+    return {
+      assignments: { ...assignments, [id]: cleared },
+      events: withoutEvent,
+      mode: 'removed',
+    };
+  }
   return {
     assignments: removeAssignment(assignments, id),
     events: withoutEvent,

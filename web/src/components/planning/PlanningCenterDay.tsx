@@ -34,6 +34,8 @@ type Props = {
   onCeremonyDragOver?: (ceremony: DayCeremony) => void;
   onCeremonyDragLeave?: () => void;
   onDropOnCeremony?: (ceremony: DayCeremony) => void;
+  onOpenPersonnel?: (card: PlanningCard) => void;
+  personnelByCardId?: Record<string, string | null>;
 };
 
 function ceremonyKindLabel(kind: CeremonyInfo['kind']): string {
@@ -80,6 +82,8 @@ export function PlanningCenterDay({
   onCeremonyDragOver,
   onCeremonyDragLeave,
   onDropOnCeremony,
+  onOpenPersonnel,
+  personnelByCardId,
 }: Props) {
   const sortedCeremonies = [...ceremonies].sort(
     (a, b) => ceremonyTimeSortKey(a.ceremony) - ceremonyTimeSortKey(b.ceremony)
@@ -224,9 +228,11 @@ export function PlanningCenterDay({
                 key={card.id}
                 card={card}
                 dragging={draggingId === card.id}
+                personnelLine={personnelByCardId?.[card.id]}
                 onDragStart={onCardDragStart}
                 onDragEnd={onCardDragEnd}
                 onReset={onResetCard}
+                onOpenPersonnel={onOpenPersonnel}
               />
             ))
           )}

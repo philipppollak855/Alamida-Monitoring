@@ -6,17 +6,21 @@ import { RouteFlow } from '../../ui/RouteFlow';
 type Props = {
   card: PlanningCard;
   dragging?: boolean;
+  personnelLine?: string | null;
   onDragStart: (card: PlanningCard) => void;
   onDragEnd: () => void;
   onReset?: (card: PlanningCard) => void;
+  onOpenPersonnel?: (card: PlanningCard) => void;
 };
 
 export function PlanningTransferCard({
   card,
   dragging,
+  personnelLine,
   onDragStart,
   onDragEnd,
   onReset,
+  onOpenPersonnel,
 }: Props) {
   const attachedToCeremony =
     Boolean(card.attachedCeremony) ||
@@ -33,7 +37,10 @@ export function PlanningTransferCard({
 
   const undoTitle = card.canUndoUmplanung
     ? 'Umplanung rückgängig'
-    : 'Planung zurücksetzen';
+    : 'Zurück zum Abholort / Ort';
+
+  const canBookPersonnel =
+    Boolean(onOpenPersonnel) && Boolean(card.plannedDayKey) && !attachedToCeremony;
 
   return (
     <article
@@ -97,6 +104,14 @@ export function PlanningTransferCard({
             zugehörig · kein Extra-Personal
           </span>
         ) : null}
+        {!attachedToCeremony && personnelLine ? (
+          <span className="plan-ceremony-chip plan-personnel-chip" title={personnelLine}>
+            {personnelLine}
+          </span>
+        ) : null}
+        {!attachedToCeremony && !personnelLine && canBookPersonnel ? (
+          <span className="plan-ceremony-chip plan-personnel-chip is-open">Personal offen</span>
+        ) : null}
         <EndzielChip typ={card.endzielTyp} ort={card.endziel} />
       </div>
 
@@ -109,7 +124,20 @@ export function PlanningTransferCard({
         {card.leavesEigenerKr && !card.targetsEigenerKr && (
           <span className="plan-card-tag plan-card-tag--out">KR frei</span>
         )}
-        {card.hasManualPlan && onReset && (
+        {canBookPersonnel && (
+          <button
+            type="button"
+            className="plan-personnel-btn"
+            title="Personal für Überführung planen"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenPersonnel?.(card);
+            }}
+          >
+            Personal
+          </button>
+        )}
+        {(card.hasManualPlan || card.plannedDayKey != null) && onReset && (
           <button
             type="button"
             className={`plan-reset-btn${card.canUndoUmplanung ? ' is-undo' : ''}`}

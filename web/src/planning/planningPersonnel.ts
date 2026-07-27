@@ -1,12 +1,14 @@
-import type { CeremonyInfo } from '../planning/types';
+import type { CeremonyInfo, PlanningCard } from '../planning/types';
 import type { Sterbefall } from '../types';
 import type { DispositionPerson } from '../types/dispositionSettings';
 import type { PersonnelBooking } from '../types/personnelBooking';
 import type { CalendarTerminArt, WallCalendarEntry } from '../board/wallCalendar';
 import { formatDayLabelDe } from '../board/dateUtils';
+import { schrittTypLabel } from '../types';
 import {
   ceremonyBookingId,
   findBookingForCeremony,
+  findBookingForWallEntry,
   isBegraebnisEntry,
   minTraegerForEntry,
   personnelBookingTraegerLine,
@@ -38,6 +40,12 @@ function kindTitle(kind: CeremonyInfo['kind']): string {
   }
 }
 
+function transferArt(schrittTyp: string): CalendarTerminArt {
+  return schrittTyp.trim().toLowerCase() === 'kremation'
+    ? 'ueberfuehrung_kremation'
+    : 'ueberfuehrung';
+}
+
 /** WallCalendarEntry-Adapter für Personal-Dialog aus Planungs-Zeremonie. */
 export function wallEntryFromPlanningCeremony(
   fall: Sterbefall,
@@ -63,6 +71,33 @@ export function wallEntryFromPlanningCeremony(
     arts: [art],
     searchText: `${name} ${title}`,
     bestattungsMarker: ceremony.bestattungsMarker,
+  };
+}
+
+/** Personal-Dialog für geplante Überführung (gleiche ID wie Wandkalender). */
+export function wallEntryFromPlanningTransfer(
+  fall: Sterbefall,
+  card: PlanningCard
+): WallCalendarEntry | null {
+  if (!card.plannedDayKey) return null;
+  const art = transferArt(card.schrittTyp);
+  const title = schrittTypLabel(card.schrittTyp || 'ueberfuehrung');
+  const route = `${card.vonOrt} → ${card.nachOrt}`;
+  return {
+    id: `plan:${card.id}`,
+    docId: fall.id,
+    sterbefallId: fall.sterbefallId ?? fall.id,
+    dayKey: card.plannedDayKey,
+    dayLabel: formatDayLabelDe(card.plannedDayKey),
+    timeLabel: card.plannedZeit || card.terminAm || '—',
+    sortMs: 0,
+    name: card.name,
+    title,
+    subtitle: route,
+    badges: [title, 'Geplant'],
+    grouped: false,
+    arts: [art],
+    searchText: `${card.name} ${title} ${route} überführung`.toLowerCase(),
   };
 }
 
@@ -100,6 +135,11 @@ export function planningCeremonyNeedsLine(
   return `Bedarf${when}: ${parts.join(' · ')}`;
 }
 
+export function planningTransferNeedsLine(card: PlanningCard): string {
+  const when = card.plannedZeit ? ` um ${card.plannedZeit}` : '';
+  return `Bedarf${when}: Fahrer / Überführung`;
+}
+
 export function planningCeremonyPersonnelLine(
   booking: PersonnelBooking | null | undefined,
   pool: DispositionPerson[]
@@ -118,6 +158,20 @@ export function planningCeremonyPersonnelLine(
   const traeger = personnelBookingTraegerLine(booking, pool);
   if (traeger) parts.push(traeger);
   return parts.length > 0 ? parts.join(' · ') : null;
+}
+
+export function findBookingForPlanningTransfer(
+  bookings: Record<string, PersonnelBooking>,
+  card: PlanningCard
+): PersonnelBooking | null {
+  if (!card.plannedDayKey) return null;
+  return findBookingForWallEntry(bookings, {
+    id: `plan:${card.id}`,
+    docId: card.docId,
+    dayKey: card.plannedDayKey,
+    arts: [transferArt(card.schrittTyp)],
+    title: schrittTypLabel(card.schrittTyp || 'ueberfuehrung'),
+  });
 }
 
 export function enrichPlanningCeremonies(

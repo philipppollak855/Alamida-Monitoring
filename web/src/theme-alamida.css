@@ -637,7 +637,8 @@
 [data-theme='alamida'] .plan-column-head h2,
 [data-theme='alamida'] .plan-kr-panel-head h3,
 [data-theme='alamida'] .plan-schedule-head h2,
-[data-theme='alamida'] .plan-event-feed header h2 {
+[data-theme='alamida'] .plan-event-feed header h2,
+[data-theme='alamida'] .plan-event-feed-toggle-main strong {
   color: #2a4048;
   font-weight: 600;
 }

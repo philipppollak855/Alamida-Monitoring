@@ -14,6 +14,7 @@ import {
   buildSterbeortPool,
   canUndoPlanEvent,
   canvasPlanningId,
+  clearCardToAbholort,
   moveCardAssignment,
   nextOrderInLane,
   planningCardId,
@@ -199,6 +200,9 @@ describe('transferPlanning board', () => {
     const sterbefaelle = [
       fall({
         id: 'u1',
+        aktuellePosition: 'UK - Neunkirchen',
+        aktuellePositionTyp: 'sterbeort',
+        abholortIstKrankenhaus: true,
         ausstehend: [
           {
             zeile: 1,
@@ -215,14 +219,31 @@ describe('transferPlanning board', () => {
     const second = moveCardAssignment(first, { ...card, hasManualPlan: true }, '2026-07-29', 20);
     expect(second[card.id]!.previous?.plannedDayKey).toBe('2026-07-28');
 
-    const restored = undoOrRemoveAssignment(second, card.id);
+    const cardWithPlan = {
+      ...card,
+      hasManualPlan: true,
+      plannedDayKey: '2026-07-29',
+      canUndoUmplanung: true,
+    };
+    const restored = undoOrRemoveAssignment(second, cardWithPlan);
     expect(restored.mode).toBe('restored');
     expect(restored.restored?.plannedDayKey).toBe('2026-07-28');
     expect(restored.restored?.previous).toBeNull();
 
-    const removed = undoOrRemoveAssignment(restored.assignments, card.id);
-    expect(removed.mode).toBe('removed');
-    expect(removed.assignments[card.id]).toBeUndefined();
+    const cleared = undoOrRemoveAssignment(restored.assignments, {
+      ...cardWithPlan,
+      plannedDayKey: '2026-07-28',
+      canUndoUmplanung: false,
+    });
+    expect(cleared.mode).toBe('cleared');
+    expect(cleared.cleared?.plannedDayKey).toBeNull();
+
+    const pool = buildSterbeortPool(
+      sterbefaelle,
+      buildPlanningCards(sterbefaelle, cleared.assignments, settings),
+      settings
+    );
+    expect(pool.some((p) => p.docId === 'u1')).toBe(true);
 
     const events: DispositionPlanEvent[] = [
       {
@@ -240,8 +261,8 @@ describe('transferPlanning board', () => {
         createdAtMs: 1,
       },
     ];
-    expect(canUndoPlanEvent(events[0]!, removed.assignments)).toBe(true);
-    const undone = undoPlanEvent(removed.assignments, events, 'ev1');
+    expect(canUndoPlanEvent(events[0]!, cleared.assignments)).toBe(true);
+    const undone = undoPlanEvent(cleared.assignments, events, 'ev1');
     expect(undone.mode).toBe('restored');
     expect(undone.assignments[card.id]?.plannedDayKey).toBe('2026-07-28');
     expect(undone.events).toHaveLength(0);
@@ -282,5 +303,38 @@ describe('transferPlanning board', () => {
     const cards = buildPlanningCards(sterbefaelle, result!.assignments, settings);
     expect(cards[0]!.attachedCeremony?.kind).toBe('beisetzung');
     expect(cards[0]!.canUndoUmplanung).toBe(false);
+  });
+
+  it('clearCardToAbholort setzt Tag zurück und öffnet den Ort-Pool', () => {
+    const sterbefaelle = [
+      fall({
+        id: 'ab1',
+        aktuellePosition: 'UK Krems',
+        aktuellePositionTyp: 'sterbeort',
+        abholortIstKrankenhaus: true,
+        ausstehend: [
+          {
+            zeile: 1,
+            schrittTyp: 'abholung',
+            vonOrt: 'UK Krems',
+            nachOrt: 'Kühlr. Grafenbach',
+            terminAm: '28.07.2026',
+            status: 'geplant',
+          },
+        ],
+      }),
+    ];
+    const card = buildPlanningCards(sterbefaelle, {}, settings)[0]!;
+    const scheduled = moveCardAssignment({}, card, '2026-07-29', 10);
+    const cleared = clearCardToAbholort(scheduled, {
+      ...card,
+      plannedDayKey: '2026-07-29',
+      hasManualPlan: true,
+    });
+    expect(cleared.assignment.plannedDayKey).toBeNull();
+    const cards = buildPlanningCards(sterbefaelle, cleared.assignments, settings);
+    expect(cards[0]!.plannedDayKey).toBeNull();
+    const pool = buildSterbeortPool(sterbefaelle, cards, settings);
+    expect(pool.some((p) => p.docId === 'ab1')).toBe(true);
   });
 });

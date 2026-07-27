@@ -21,7 +21,10 @@ import { useTransferPlan } from '../hooks/useTransferPlan';
 import { useDispositionSettings } from '../settings/SettingsProvider';
 import {
   enrichPlanningCeremonies,
+  findBookingForPlanningTransfer,
+  planningCeremonyPersonnelLine,
   wallEntryFromPlanningCeremony,
+  wallEntryFromPlanningTransfer,
 } from '../planning/planningPersonnel';
 import {
   assignmentSnapshotPayload,
@@ -36,6 +39,7 @@ import {
   buildSterbeortPool,
   canUndoPlanEvent,
   cardsForLane,
+  clearCardToAbholort,
   formatTerminDisplay,
   moveCardAssignment,
   nextOrderInLane,
@@ -96,6 +100,7 @@ export function PlanningPage() {
   const [bookingEntry, setBookingEntry] = useState<WallCalendarEntry | null>(null);
   const [absenceOpen, setAbsenceOpen] = useState(false);
   const [markerPending, setMarkerPending] = useState(false);
+  const [eventsOpen, setEventsOpen] = useState(false);
 
   const sterbefaelle = useMemo(
     () => filterAktiveSterbefaelle(sterbefaelleRaw),
@@ -172,6 +177,20 @@ export function PlanningPage() {
 
   const recentEvents = useMemo(() => (plan.events ?? []).slice(0, 6), [plan.events]);
 
+  const personnelByCardId = useMemo(() => {
+    const pool = settings.personnelPool ?? [];
+    const out: Record<string, string | null> = {};
+    for (const card of cards) {
+      if (!card.plannedDayKey || card.attachedCeremony) {
+        out[card.id] = null;
+        continue;
+      }
+      const booking = findBookingForPlanningTransfer(bookings, card);
+      out[card.id] = planningCeremonyPersonnelLine(booking, pool);
+    }
+    return out;
+  }, [cards, bookings, settings.personnelPool]);
+
   const clearDrag = useCallback(() => {
     setDrag(null);
     setDropTarget(null);
@@ -187,6 +206,18 @@ export function PlanningPage() {
       if (!fall || !c.ceremony.dayKey) return;
       setBookingError(null);
       setBookingEntry(wallEntryFromPlanningCeremony(fall, c.ceremony, c.name));
+    },
+    [sterbefaelle, setBookingError]
+  );
+
+  const openTransferPersonnel = useCallback(
+    (card: PlanningCard) => {
+      const fall = sterbefaelle.find((s) => s.id === card.docId);
+      if (!fall) return;
+      const entry = wallEntryFromPlanningTransfer(fall, card);
+      if (!entry) return;
+      setBookingError(null);
+      setBookingEntry(entry);
     },
     [sterbefaelle, setBookingError]
   );
@@ -392,55 +423,98 @@ export function PlanningPage() {
     [cards, plan.assignments, savePlan]
   );
 
-  const resetCard = useCallback(
+  const returnCardToAbholort = useCallback(
     async (card: PlanningCard) => {
-      if (!card.hasManualPlan || saving) return;
-      const result = undoOrRemoveAssignment(plan.assignments, card.id);
+      if (saving) return;
+      const prev = plan.assignments[card.id];
+      const result = clearCardToAbholort(plan.assignments, card);
+      clearDrag();
       try {
-        if (result.mode === 'restored' && result.restored) {
-          await savePlan({
-            assignments: result.assignments,
-            publish: {
-              type: 'ueberfuehrung_umgeplant',
-              docId: card.docId,
-              sterbefallId: card.sterbefallId,
-              name: card.name,
-              vonOrt: result.restored.vonOrt ?? card.vonOrt,
-              nachOrt: result.restored.nachOrt ?? card.nachOrt,
-              kuehlraumId: result.restored.plannedKuehlraumId ?? undefined,
-              assignmentId: card.id,
-              plannedDayKey: result.restored.plannedDayKey,
-              plannedZeit: result.restored.plannedZeit,
-              previousSnapshot: result.removed
-                ? snapshotFromAssignment(result.removed)
+        await savePlan({
+          assignments: result.assignments,
+          publish: {
+            type: 'ueberfuehrung_entfernt',
+            docId: card.docId,
+            sterbefallId: card.sterbefallId,
+            name: card.name,
+            vonOrt: card.vonOrt,
+            nachOrt: card.nachOrt,
+            kuehlraumId: card.kuehlraumId ?? undefined,
+            assignmentId: card.id,
+            plannedDayKey: card.plannedDayKey,
+            plannedZeit: card.plannedZeit,
+            previousSnapshot: prev
+              ? snapshotFromAssignment(prev)
+              : result.assignment.previous ?? null,
+            snapshot: prev
+              ? assignmentSnapshotPayload(prev)
+              : card.plannedDayKey != null
+                ? {
+                    plannedDayKey: card.plannedDayKey,
+                    plannedKuehlraumId: card.kuehlraumId,
+                    plannedZeit: card.plannedZeit ?? null,
+                    vonOrt: card.vonOrt,
+                    nachOrt: card.nachOrt,
+                    schrittTyp: card.schrittTyp,
+                    order: card.order,
+                    zeile: card.zeile,
+                    source: card.source,
+                    attachedCeremony: card.attachedCeremony ?? null,
+                  }
                 : null,
-              snapshot: assignmentSnapshotPayload(result.restored),
-            },
-          });
-        } else {
-          const removed = result.removed;
-          await savePlan({
-            assignments: result.assignments,
-            publish: {
-              type: 'ueberfuehrung_entfernt',
-              docId: card.docId,
-              sterbefallId: card.sterbefallId,
-              name: card.name,
-              vonOrt: card.vonOrt,
-              nachOrt: card.nachOrt,
-              kuehlraumId: card.kuehlraumId ?? undefined,
-              assignmentId: card.id,
-              plannedDayKey: card.plannedDayKey,
-              plannedZeit: card.plannedZeit,
-              snapshot: removed ? assignmentSnapshotPayload(removed) : null,
-            },
-          });
-        }
+          },
+        });
       } catch {
         /* handled */
       }
     },
-    [plan.assignments, savePlan, saving]
+    [plan.assignments, savePlan, saving, clearDrag]
+  );
+
+  const handleDropOnAbholort = useCallback(() => {
+    if (!drag || drag.kind !== 'card' || saving) {
+      clearDrag();
+      return;
+    }
+    void returnCardToAbholort(drag.card);
+  }, [drag, saving, clearDrag, returnCardToAbholort]);
+
+  const resetCard = useCallback(
+    async (card: PlanningCard) => {
+      if (saving) return;
+      // Mit Vorzustand: Umplanung rückgängig; sonst zurück zum Abholort
+      if (card.canUndoUmplanung || plan.assignments[card.id]?.previous) {
+        const result = undoOrRemoveAssignment(plan.assignments, card);
+        try {
+          if (result.mode === 'restored' && result.restored) {
+            await savePlan({
+              assignments: result.assignments,
+              publish: {
+                type: 'ueberfuehrung_umgeplant',
+                docId: card.docId,
+                sterbefallId: card.sterbefallId,
+                name: card.name,
+                vonOrt: result.restored.vonOrt ?? card.vonOrt,
+                nachOrt: result.restored.nachOrt ?? card.nachOrt,
+                kuehlraumId: result.restored.plannedKuehlraumId ?? undefined,
+                assignmentId: card.id,
+                plannedDayKey: result.restored.plannedDayKey,
+                plannedZeit: result.restored.plannedZeit,
+                previousSnapshot: result.previous
+                  ? snapshotFromAssignment(result.previous)
+                  : null,
+                snapshot: assignmentSnapshotPayload(result.restored),
+              },
+            });
+            return;
+          }
+        } catch {
+          return;
+        }
+      }
+      await returnCardToAbholort(card);
+    },
+    [plan.assignments, savePlan, saving, returnCardToAbholort]
   );
 
   const undoEvent = useCallback(
@@ -549,8 +623,14 @@ export function PlanningPage() {
             <PlanningLocationRail
               groups={locationGroups}
               draggingId={draggingId}
+              isDropTarget={dropTarget === 'abholort'}
               onDragStart={(item) => setDrag({ kind: 'source', item })}
               onDragEnd={clearDrag}
+              onDragOver={() => setDropTarget('abholort')}
+              onDragLeave={() =>
+                setDropTarget((t) => (t === 'abholort' ? null : t))
+              }
+              onDrop={handleDropOnAbholort}
             />
 
             <div className="plan-center">
@@ -599,6 +679,8 @@ export function PlanningPage() {
                           setDropTarget((t) => (t?.startsWith('ceremony:') ? null : t))
                         }
                         onDropOnCeremony={(c) => handleDropOnCeremony(c)}
+                        onOpenPersonnel={openTransferPersonnel}
+                        personnelByCardId={personnelByCardId}
                       />
                     </div>
                   );
@@ -618,53 +700,73 @@ export function PlanningPage() {
           </div>
 
           {recentEvents.length > 0 && (
-            <section className="plan-event-feed" aria-label="Planungs-Events">
-              <header>
-                <h2>Weitergegebene Events</h2>
-                <p>Geplante Überführungen für Disposition & Monitoring</p>
-              </header>
-              <ul>
-                {recentEvents.map((ev) => {
-                  const undoable = canUndoPlanEvent(ev, plan.assignments);
-                  return (
-                    <li key={ev.id} className={`plan-event plan-event--${ev.type}`}>
-                      <span className="plan-event-type">
-                        {ev.type === 'ueberfuehrung_geplant'
-                          ? 'Geplant'
-                          : ev.type === 'ueberfuehrung_umgeplant'
-                            ? 'Umgeplant'
-                            : 'Entfernt'}
-                      </span>
-                      <strong>{ev.name ?? ev.sterbefallId ?? ev.docId}</strong>
-                      <span className="plan-event-route">
-                        {(ev.vonOrt ?? '—') + ' → ' + (ev.nachOrt ?? '—')}
-                      </span>
-                      <time>
-                        {ev.plannedDayKey
-                          ? formatTerminDisplay(ev.plannedDayKey, ev.plannedZeit)
-                          : 'ohne Tag'}
-                      </time>
-                      {undoable && (
-                        <button
-                          type="button"
-                          className="plan-event-undo"
-                          title={
-                            ev.type === 'ueberfuehrung_entfernt'
-                              ? 'Entfernen rückgängig'
+            <section
+              className={`plan-event-feed${eventsOpen ? ' is-open' : ' is-collapsed'}`}
+              aria-label="Planungs-Events"
+            >
+              <button
+                type="button"
+                className="plan-event-feed-toggle"
+                aria-expanded={eventsOpen}
+                onClick={() => setEventsOpen((o) => !o)}
+              >
+                <span className="plan-event-feed-toggle-main">
+                  <strong>Weitergegebene Events</strong>
+                  <span className="plan-event-feed-count">{recentEvents.length}</span>
+                </span>
+                <span className="plan-event-feed-chevron" aria-hidden>
+                  {eventsOpen ? '▾' : '▸'}
+                </span>
+              </button>
+              {eventsOpen && (
+                <>
+                  <p className="plan-event-feed-sub">
+                    Geplante Überführungen für Disposition & Monitoring
+                  </p>
+                  <ul>
+                    {recentEvents.map((ev) => {
+                      const undoable = canUndoPlanEvent(ev, plan.assignments);
+                      return (
+                        <li key={ev.id} className={`plan-event plan-event--${ev.type}`}>
+                          <span className="plan-event-type">
+                            {ev.type === 'ueberfuehrung_geplant'
+                              ? 'Geplant'
                               : ev.type === 'ueberfuehrung_umgeplant'
-                                ? 'Umplanung rückgängig'
-                                : 'Planung rückgängig'
-                          }
-                          disabled={saving}
-                          onClick={() => void undoEvent(ev)}
-                        >
-                          ↺ Rückgängig
-                        </button>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
+                                ? 'Umgeplant'
+                                : 'Entfernt'}
+                          </span>
+                          <strong>{ev.name ?? ev.sterbefallId ?? ev.docId}</strong>
+                          <span className="plan-event-route">
+                            {(ev.vonOrt ?? '—') + ' → ' + (ev.nachOrt ?? '—')}
+                          </span>
+                          <time>
+                            {ev.plannedDayKey
+                              ? formatTerminDisplay(ev.plannedDayKey, ev.plannedZeit)
+                              : 'ohne Tag'}
+                          </time>
+                          {undoable && (
+                            <button
+                              type="button"
+                              className="plan-event-undo"
+                              title={
+                                ev.type === 'ueberfuehrung_entfernt'
+                                  ? 'Entfernen rückgängig'
+                                  : ev.type === 'ueberfuehrung_umgeplant'
+                                    ? 'Umplanung rückgängig'
+                                    : 'Planung rückgängig'
+                              }
+                              disabled={saving}
+                              onClick={() => void undoEvent(ev)}
+                            >
+                              ↺ Rückgängig
+                            </button>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </>
+              )}
             </section>
           )}
         </>

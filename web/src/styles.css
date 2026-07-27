@@ -6693,6 +6693,27 @@ code {
   font-weight: 700;
 }
 
+.plan-personnel-btn {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--accent);
+  font-size: 0.65rem;
+  font-weight: 650;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.plan-personnel-btn:hover {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+}
+
+.plan-personnel-chip.is-open {
+  color: var(--warn);
+  opacity: 0.9;
+}
+
 @keyframes plan-card-enter {
   from {
     opacity: 0;
@@ -6998,11 +7019,80 @@ code {
 }
 
 .plan-event-feed {
-  margin-top: 0.5rem;
-  padding: 0.9rem 1rem;
+  margin-top: 0.35rem;
+  padding: 0;
   border-radius: var(--radius);
   border: 1px solid var(--border);
   background: var(--surface);
+  overflow: hidden;
+}
+
+.plan-event-feed.is-collapsed {
+  min-height: 0;
+}
+
+.plan-event-feed-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0.4rem 0.75rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+
+.plan-event-feed-toggle:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.plan-event-feed-toggle-main {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.plan-event-feed-toggle-main strong {
+  font-size: 0.88rem;
+  font-family: var(--font-display);
+  font-weight: 650;
+}
+
+.plan-event-feed-count {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.1rem 0.4rem;
+}
+
+.plan-event-feed-chevron {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.plan-event-feed-sub {
+  margin: 0;
+  padding: 0 0.75rem 0.45rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.plan-event-feed.is-open ul {
+  list-style: none;
+  margin: 0;
+  padding: 0 0.55rem 0.55rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
 }
 
 .plan-event-feed header h2 {
@@ -7177,6 +7267,24 @@ code {
 
 .plan-rail--locations {
   border-color: rgba(251, 113, 133, 0.2);
+}
+
+.plan-rail--locations.is-drop-target {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  background: var(--accent-dim);
+}
+
+.plan-rail-drop-hint {
+  margin: 0.25rem 0 0;
+  font-size: 0.68rem;
+  color: var(--muted);
+  line-height: 1.3;
+}
+
+.plan-rail--locations.is-drop-target .plan-rail-drop-hint {
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .plan-rail--kuehlraum {
