@@ -1113,6 +1113,12 @@
     font-weight: 700;
   }
 
+  .wall-retour-btn--subtle {
+    padding: 0.16rem 0.3rem;
+    font-size: 0.6rem;
+    font-weight: 500;
+  }
+
   .wall-cool-grid {
     flex: 1;
     min-height: 0;

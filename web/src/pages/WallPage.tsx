@@ -487,14 +487,14 @@ export function WallPage({
                               {canDispositionWrite && (
                                 <button
                                   type="button"
-                                  className="wall-retour-btn"
+                                  className="wall-retour-btn wall-retour-btn--subtle"
                                   disabled={urnenPending === fall.id || freigabePending === fall.id}
                                   title="Als Urne übernehmen (externe Kremation / Retour)"
                                   onClick={() =>
                                     void handleRetour(fall.id, fall.aktuellePosition ?? fall.endziel)
                                   }
                                 >
-                                  {urnenPending === fall.id ? '…' : 'Urne'}
+                                  {urnenPending === fall.id ? '…' : 'als Urne'}
                                 </button>
                               )}
                               {canDispositionWrite && (
