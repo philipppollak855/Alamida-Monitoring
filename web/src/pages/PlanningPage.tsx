@@ -837,7 +837,6 @@ export function PlanningPage() {
       <header className="plan-hero plan-hero--compact">
         <div>
           <h1>Planung</h1>
-          {isNarrow && <p className="plan-hero-sub">Tippen statt ziehen</p>}
         </div>
         <div className="plan-hero-actions">
           <button
@@ -860,7 +859,7 @@ export function PlanningPage() {
               Listen
             </Link>
           )}
-          <LiveDataBar />
+          {!isNarrow && <LiveDataBar />}
         </div>
       </header>
 
@@ -886,6 +885,7 @@ export function PlanningPage() {
         </p>
       )}
 
+      {!isNarrow && (
       <div className="plan-toolbar plan-toolbar--compact">
         <div className="plan-toolbar-nav">
           <button type="button" className="btn btn-ghost" onClick={() => setRangeStart((d) => addDays(d, -7))}>
@@ -899,16 +899,14 @@ export function PlanningPage() {
               setFocusDayKey(calendarDay);
             }}
           >
-            {isNarrow ? 'Heute' : 'Diese Woche'}
+            Diese Woche
           </button>
           <button type="button" className="btn btn-ghost" onClick={() => setRangeStart((d) => addDays(d, 7))}>
             →
           </button>
-          {!isNarrow && (
-            <span className="plan-toolbar-range">
-              {formatDayLabelDe(dayKeys[0])} – {formatDayLabelDe(dayKeys[dayKeys.length - 1])}
-            </span>
-          )}
+          <span className="plan-toolbar-range">
+            {formatDayLabelDe(dayKeys[0])} – {formatDayLabelDe(dayKeys[dayKeys.length - 1])}
+          </span>
           {(saving || bookingSaving) && <span className="plan-toolbar-saving">Speichert…</span>}
         </div>
         <label className="plan-toolbar-search">
@@ -917,10 +915,23 @@ export function PlanningPage() {
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={isNarrow ? 'Suche…' : 'Name, ID, Ort…'}
+            placeholder="Name, ID, Ort…"
           />
         </label>
       </div>
+      )}
+
+      {isNarrow && (
+        <label className="plan-mobile-search">
+          <span className="sr-only">Suchen</span>
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Suche…"
+          />
+        </label>
+      )}
 
       {loading ? (
         <p className="plan-loading">Lade Planung…</p>
@@ -965,10 +976,15 @@ export function PlanningPage() {
           onResetCard={(card) => void resetCard(card)}
           onCeremonyClick={(c) => openCeremonyBooking(c)}
           onOpenPersonnel={openTransferPersonnel}
-          onAddZusatz={() => openZusatzDialog(focusDayKey)}
           onZusatzPersonnel={openZusatzPersonnel}
           onZusatzEdit={(termin) => openZusatzDialog(termin.dayKey, termin)}
           onOccupantSelect={handleOccupantDragStart}
+          onPrevWeek={() => setRangeStart((d) => addDays(d, -7))}
+          onNextWeek={() => setRangeStart((d) => addDays(d, 7))}
+          onGoToday={() => {
+            setRangeStart(startOfWeekMonday(today));
+            setFocusDayKey(calendarDay);
+          }}
         />
       ) : (
         <>

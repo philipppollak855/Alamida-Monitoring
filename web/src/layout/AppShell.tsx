@@ -25,23 +25,29 @@ export function AppShell() {
             to="/disposition"
             className={({ isActive }) => (isActive ? 'nav-pill active' : 'nav-pill')}
           >
-            Disposition
+            <span className="nav-label-full">Disposition</span>
+            <span className="nav-label-short">Disp.</span>
           </NavLink>
           <NavLink
             to="/planung"
             className={({ isActive }) => (isActive ? 'nav-pill active' : 'nav-pill')}
           >
-            Planung
+            <span className="nav-label-full">Planung</span>
+            <span className="nav-label-short">Plan</span>
           </NavLink>
           <NavLink to="/wall" className={({ isActive }) => (isActive ? 'nav-pill active' : 'nav-pill')}>
-            Wandmonitor
+            <span className="nav-label-full">Wandmonitor</span>
+            <span className="nav-label-short">Wand</span>
           </NavLink>
           <NavLink to="/widgets" className={({ isActive }) => (isActive ? 'nav-pill active' : 'nav-pill')}>
-            Widgets
+            <span className="nav-label-full">Widgets</span>
+            <span className="nav-label-short">Widget</span>
           </NavLink>
         </nav>
-        <ThemeSwitch />
-        <UserMenu />
+        <div className="topbar-end">
+          <ThemeSwitch />
+          <UserMenu />
+        </div>
       </header>
       <main className="main-content">
         <Outlet />

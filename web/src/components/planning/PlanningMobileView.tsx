@@ -55,10 +55,12 @@ type Props = {
   onResetCard: (card: PlanningCard) => void;
   onCeremonyClick: (c: DayCeremony) => void;
   onOpenPersonnel: (card: PlanningCard) => void;
-  onAddZusatz: () => void;
   onZusatzPersonnel: (termin: ZusatzTermin) => void;
   onZusatzEdit: (termin: ZusatzTermin) => void;
   onOccupantSelect: (kr: KuehlraumRailState, occ: KuehlraumOccupant) => void;
+  onPrevWeek: () => void;
+  onNextWeek: () => void;
+  onGoToday: () => void;
 };
 
 const TAB_LABELS: Record<MobilePlanTab, string> = {
@@ -99,10 +101,12 @@ export function PlanningMobileView({
   onResetCard,
   onCeremonyClick,
   onOpenPersonnel,
-  onAddZusatz,
   onZusatzPersonnel,
   onZusatzEdit,
   onOccupantSelect,
+  onPrevWeek,
+  onNextWeek,
+  onGoToday,
 }: Props) {
   const [tab, setTab] = useState<MobilePlanTab>('tag');
   const selectionActive = Boolean(draggingId);
@@ -116,6 +120,18 @@ export function PlanningMobileView({
 
   return (
     <div className="plan-mobile" aria-label="Mobile Planung">
+      <div className="plan-mobile-week-row">
+        <button type="button" className="plan-mobile-week-btn" onClick={onPrevWeek} aria-label="Vorherige Woche">
+          ←
+        </button>
+        <button type="button" className="plan-mobile-week-btn" onClick={onGoToday}>
+          Heute
+        </button>
+        <button type="button" className="plan-mobile-week-btn" onClick={onNextWeek} aria-label="Nächste Woche">
+          →
+        </button>
+      </div>
+
       <PlanningDayStrip
         dayKeys={dayKeys}
         focusDayKey={focusDayKey}
@@ -208,7 +224,6 @@ export function PlanningMobileView({
             onDropOnKremation={onDropOnKremation}
             onOpenPersonnel={onOpenPersonnel}
             personnelByCardId={personnelByCardId}
-            onAddZusatz={onAddZusatz}
             onZusatzPersonnel={onZusatzPersonnel}
             onZusatzEdit={onZusatzEdit}
             tapSelect
