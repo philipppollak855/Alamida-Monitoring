@@ -55,7 +55,7 @@ export function PlanningLocationRail({ groups, draggingId, onDragStart, onDragEn
                     <strong className="plan-source-name">{item.name}</strong>
                     <span className="plan-source-id">{item.sterbefallId}</span>
                     {item.nextCeremony && (
-                      <span className="plan-ceremony-chip">
+                      <span className="plan-ceremony-chip" title={item.nextCeremony.label}>
                         {item.nextCeremony.kind === 'beisetzung'
                           ? 'Beisetzung'
                           : item.nextCeremony.kind === 'trauerfeier'
@@ -63,8 +63,12 @@ export function PlanningLocationRail({ groups, draggingId, onDragStart, onDragEn
                             : item.nextCeremony.kind === 'kremation'
                               ? 'Kremation'
                               : 'Verabschiedung'}
-                        {' · '}
-                        {item.nextCeremony.relativeLabel || item.nextCeremony.datum}
+                        {item.nextCeremony.zeit
+                          ? ` · ${item.nextCeremony.zeit}`
+                          : item.nextCeremony.relativeLabel
+                            ? ` · ${item.nextCeremony.relativeLabel}`
+                            : ''}
+                        {item.nextCeremony.ort ? ` · ${item.nextCeremony.ort}` : ''}
                       </span>
                     )}
                     {item.endziel && (
