@@ -835,6 +835,11 @@
   background: rgba(184, 90, 104, 0.12);
 }
 
+[data-theme='alamida'] .plan-freigabe-tage-chip {
+  background: rgba(61, 138, 98, 0.16);
+  color: #2f6b4f;
+}
+
 [data-theme='alamida'] .plan-center-ceremonies li,
 [data-theme='alamida'] .plan-center-ceremony {
   background: rgba(106, 122, 154, 0.12);

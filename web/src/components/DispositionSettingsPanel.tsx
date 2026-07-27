@@ -512,6 +512,21 @@ export function DispositionSettingsPanel({ defaultOpen = false }: { defaultOpen?
                         ))}
                       </div>
                     </fieldset>
+                    <label className="settings-kr-option">
+                      <input
+                        type="checkbox"
+                        checked={kr.zeigeTageSeitFreigabe === true}
+                        onChange={(e) =>
+                          updateKuehlraum(index, {
+                            zeigeTageSeitFreigabe: e.target.checked,
+                          })
+                        }
+                      />
+                      In Planung: Tage seit Freigabe anzeigen
+                    </label>
+                    <p className="settings-hint settings-hint--inline">
+                      Marker z. B. „3 T“ — Freigabetag zählt mit. Bei „Aktuelle Orte“ immer sichtbar.
+                    </p>
                     <label>
                       Alamida-Name (optional)
                       <input

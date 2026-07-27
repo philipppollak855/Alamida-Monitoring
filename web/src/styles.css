@@ -5236,6 +5236,21 @@ code {
   cursor: pointer;
 }
 
+.settings-kr-option {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0.35rem 0 0;
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.settings-kr-option input {
+  width: auto;
+}
+
 .settings-wall-tabs-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -6798,7 +6813,8 @@ code {
 .plan-freigabe-chip,
 .plan-ceremony-chip,
 .plan-endziel-chip,
-.plan-free-chip {
+.plan-free-chip,
+.plan-freigabe-tage-chip {
   display: inline-flex;
   align-items: center;
   margin-top: 0.3rem;
@@ -6808,6 +6824,24 @@ code {
   font-size: 0.65rem;
   font-weight: 650;
   line-height: 1.3;
+}
+
+.plan-freigabe-tage-chip {
+  margin-top: 0;
+  background: rgba(52, 211, 153, 0.16);
+  color: var(--success, #34d399);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.plan-source-top .plan-freigabe-tage-chip {
+  margin-top: 0;
+}
+
+.plan-kr-occupant-main .plan-freigabe-tage-chip {
+  flex-shrink: 0;
+  margin-top: 0;
+  margin-left: auto;
 }
 
 .plan-freigabe-chip.is-offen {

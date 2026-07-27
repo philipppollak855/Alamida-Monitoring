@@ -1,5 +1,9 @@
 import type { LocationGroup, SterbeortPoolItem } from '../../planning/types';
 import { freigabeLabel } from '../../planning/transferPlanning';
+import {
+  tageSeitFreigabeLabel,
+  tageSeitFreigabeTitle,
+} from '../../board/freigabeLogic';
 
 type Props = {
   groups: LocationGroup[];
@@ -51,6 +55,17 @@ export function PlanningLocationRail({ groups, draggingId, onDragStart, onDragEn
                       <span className={`plan-freigabe-chip is-${item.freigabeState}`}>
                         {freigabeLabel(item.freigabeState, item.freigabeDatum)}
                       </span>
+                      {item.tageSeitFreigabe != null && item.tageSeitFreigabe > 0 && (
+                        <span
+                          className="plan-freigabe-tage-chip"
+                          title={tageSeitFreigabeTitle(
+                            item.tageSeitFreigabe,
+                            item.freigabeDatum
+                          )}
+                        >
+                          {tageSeitFreigabeLabel(item.tageSeitFreigabe)}
+                        </span>
+                      )}
                     </div>
                     <strong className="plan-source-name">{item.name}</strong>
                     <span className="plan-source-id">{item.sterbefallId}</span>

@@ -54,6 +54,7 @@ export function normalizeDispositionSettings(
             externKeywords: dedupeKeywords(k.externKeywords ?? []),
             wandTab: normalizeKuehlraumWandTab(k.wandTab),
             plaetze: Math.max(1, Math.min(99, Number(k.plaetze) || 1)),
+            zeigeTageSeitFreigabe: k.zeigeTageSeitFreigabe === true,
           };
         })
       : [...DEFAULT_DISPOSITION_SETTINGS.eigeneKuehlraeume];

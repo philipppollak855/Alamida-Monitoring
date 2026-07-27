@@ -22,6 +22,8 @@ export interface EigenerKuehlraumConfig {
   /** Wandmonitor: Tab „Kühlraum“ (Platzraster) oder „Extern“ (Kartenliste) */
   wandTab?: KuehlraumWandTab;
   plaetze: number;
+  /** Planung: Tage seit Freigabe bei Belegung anzeigen (Freigabetag zählt mit). */
+  zeigeTageSeitFreigabe?: boolean;
 }
 
 /** Anzeigedauer je Wandmonitor-Tab vor dem automatischen Wechsel (Sekunden). */

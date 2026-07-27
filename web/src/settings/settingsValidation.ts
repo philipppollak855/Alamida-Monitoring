@@ -108,6 +108,7 @@ function normalizeForCompare(s: DispositionSettings) {
       externKeywords: [...(k.externKeywords ?? [])].sort(),
       wandTab: k.wandTab ?? 'kuehlraum',
       plaetze: k.plaetze,
+      zeigeTageSeitFreigabe: k.zeigeTageSeitFreigabe === true,
     })),
     personnelPool: (s.personnelPool ?? [])
       .map((p) => ({

@@ -7,7 +7,7 @@ import {
   dayKeyFromDate,
   extractZeitDe,
 } from '../board/dateUtils';
-import { istFreigabeWirksam } from '../board/freigabeLogic';
+import { istFreigabeWirksam, tageSeitFreigabe } from '../board/freigabeLogic';
 import {
   isAmKrankenhausOderSterbeort,
   isImEigenenKuehlraum,
@@ -366,6 +366,7 @@ export function buildSterbeortPool(
         null,
       freigabeState: resolveFreigabeState(s, now),
       freigabeDatum: s.freigabeDatum,
+      tageSeitFreigabe: tageSeitFreigabe(s.freigabeFrei, s.freigabeDatum, now),
       nextCeremony: ceremonies[0],
       endzielTyp: s.endzielTyp,
       endziel: s.endziel,
@@ -416,6 +417,7 @@ export function buildKuehlraumRailStates(
         platz: fall.kuehlplatzDisposition || fall.kuehlplatz || String(idx + 1),
         freigabeState: resolveFreigabeState(fall, now),
         freigabeDatum: fall.freigabeDatum,
+        tageSeitFreigabe: tageSeitFreigabe(fall.freigabeFrei, fall.freigabeDatum, now),
         nextCeremony: ceremonies[0],
         freesOnDayKey: freeEv?.dayKey ?? null,
         freesReason: freeEv?.reason,
@@ -450,6 +452,7 @@ export function buildKuehlraumRailStates(
       plannedDepartures,
       free: cfg.plaetze - projected,
       overbooked: projected > cfg.plaetze,
+      zeigeTageSeitFreigabe: cfg.zeigeTageSeitFreigabe === true,
       occupants,
       slotFrees: slotFrees.filter((e) => {
         const fall = sterbefaelle.find((s) => s.id === e.docId);

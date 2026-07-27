@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { freigabePersonCssClass, istFreigabeWirksam } from './freigabeLogic';
+import { freigabePersonCssClass, istFreigabeWirksam, tageSeitFreigabe, tageSeitFreigabeLabel } from './freigabeLogic';
 
 const heute = new Date(2026, 4, 27); // 27.05.2026
 
@@ -22,5 +22,18 @@ describe('freigabeLogic', () => {
   it('Freigabe in Vergangenheit → wirksam / grün', () => {
     expect(istFreigabeWirksam(true, '26.05.2026', heute)).toBe(true);
     expect(freigabePersonCssClass(true, '26.05.2026', heute)).toBe('is-frei-erfasst');
+  });
+
+  it('Tage seit Freigabe inkl. Freigabetag', () => {
+    expect(tageSeitFreigabe(true, '27.05.2026', heute)).toBe(1);
+    expect(tageSeitFreigabe(true, '26.05.2026', heute)).toBe(2);
+    expect(tageSeitFreigabe(true, '25.05.2026', heute)).toBe(3);
+    expect(tageSeitFreigabeLabel(3)).toBe('3 T');
+  });
+
+  it('keine Tage wenn Freigabe offen oder zukünftig', () => {
+    expect(tageSeitFreigabe(false, '20.05.2026', heute)).toBeNull();
+    expect(tageSeitFreigabe(true, '28.05.2026', heute)).toBeNull();
+    expect(tageSeitFreigabe(true, undefined, heute)).toBeNull();
   });
 });

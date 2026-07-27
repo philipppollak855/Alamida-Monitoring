@@ -1,6 +1,10 @@
 import { useMemo, useState } from 'react';
 import type { KuehlraumRailState } from '../../planning/types';
 import { formatDayLabelDe } from '../../board/dateUtils';
+import {
+  tageSeitFreigabeLabel,
+  tageSeitFreigabeTitle,
+} from '../../board/freigabeLogic';
 import { formatTerminDisplay, freigabeLabel } from '../../planning/transferPlanning';
 
 type Props = {
@@ -122,6 +126,19 @@ export function PlanningKuehlraumRail({
                             <div className="plan-kr-occupant-main">
                               <span className="plan-kr-occupant-platz">P{occ.platz}</span>
                               <strong title={occ.name}>{occ.name}</strong>
+                              {kr.zeigeTageSeitFreigabe &&
+                                occ.tageSeitFreigabe != null &&
+                                occ.tageSeitFreigabe > 0 && (
+                                  <span
+                                    className="plan-freigabe-tage-chip"
+                                    title={tageSeitFreigabeTitle(
+                                      occ.tageSeitFreigabe,
+                                      occ.freigabeDatum
+                                    )}
+                                  >
+                                    {tageSeitFreigabeLabel(occ.tageSeitFreigabe)}
+                                  </span>
+                                )}
                             </div>
                             <span className={`plan-freigabe-chip is-${occ.freigabeState}`}>
                               {freigabeLabel(occ.freigabeState, occ.freigabeDatum)}

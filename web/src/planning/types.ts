@@ -100,6 +100,8 @@ export type SterbeortPoolItem = {
   suggestedKuehlraumId: string | null;
   freigabeState: FreigabeState;
   freigabeDatum?: string;
+  /** Inklusive Tage seit Freigabe; nur wenn bereits frei. */
+  tageSeitFreigabe?: number | null;
   nextCeremony?: CeremonyInfo;
   endzielTyp?: string;
   endziel?: string;
@@ -128,6 +130,8 @@ export type KuehlraumOccupant = {
   platz?: string;
   freigabeState: FreigabeState;
   freigabeDatum?: string;
+  /** Inklusive Tage seit Freigabe; nur wenn bereits frei. */
+  tageSeitFreigabe?: number | null;
   nextCeremony?: CeremonyInfo;
   freesOnDayKey?: string | null;
   freesReason?: SlotFreeEvent['reason'];
@@ -143,6 +147,8 @@ export type KuehlraumRailState = {
   plannedDepartures: number;
   free: number;
   overbooked: boolean;
+  /** Einstellung: Freigabe-Tage-Marker bei Belegung zeigen. */
+  zeigeTageSeitFreigabe?: boolean;
   occupants: KuehlraumOccupant[];
   slotFrees: SlotFreeEvent[];
 };
