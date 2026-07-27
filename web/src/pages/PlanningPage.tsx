@@ -20,8 +20,11 @@ import { useSterbefaelle } from '../hooks/useSterbefaelle';
 import { useTransferPlan } from '../hooks/useTransferPlan';
 import { useDispositionSettings } from '../settings/SettingsProvider';
 import {
+  absencesForDay,
   enrichPlanningCeremonies,
+  planningTransferPersonnelLine,
   wallEntryFromPlanningCeremony,
+  wallEntryFromPlanningTransfer,
 } from '../planning/planningPersonnel';
 import {
   buildCeremoniesForFall,
@@ -163,6 +166,39 @@ export function PlanningPage() {
     return map;
   }, [sterbefaelle, today, dayKeys, bookings, settings.personnelPool]);
 
+  const absencesByDay = useMemo(() => {
+    const pool = settings.personnelPool ?? [];
+    const map = new Map<string, ReturnType<typeof absencesForDay>>();
+    for (const dayKey of dayKeys) {
+      map.set(dayKey, absencesForDay(absences, dayKey, pool));
+    }
+    return map;
+  }, [absences, dayKeys, settings.personnelPool]);
+
+  const weekAbsencesLine = useMemo(() => {
+    const pool = settings.personnelPool ?? [];
+    const seen = new Set<string>();
+    const names: string[] = [];
+    for (const dayKey of dayKeys) {
+      for (const a of absencesForDay(absences, dayKey, pool)) {
+        if (seen.has(a.personId)) continue;
+        seen.add(a.personId);
+        names.push(a.extern ? `${a.name} (extern)` : a.name);
+      }
+    }
+    return names.length > 0 ? names.join(', ') : null;
+  }, [absences, dayKeys, settings.personnelPool]);
+
+  const transferPersonnelById = useMemo(() => {
+    const pool = settings.personnelPool ?? [];
+    const map: Record<string, string | null> = {};
+    for (const card of cards) {
+      const booking = bookings[`transfer:${card.id}`];
+      map[card.id] = planningTransferPersonnelLine(booking, pool);
+    }
+    return map;
+  }, [cards, bookings, settings.personnelPool]);
+
   const recentEvents = useMemo(() => (plan.events ?? []).slice(0, 6), [plan.events]);
 
   const clearDrag = useCallback(() => {
@@ -180,6 +216,18 @@ export function PlanningPage() {
       if (!fall || !c.ceremony.dayKey) return;
       setBookingError(null);
       setBookingEntry(wallEntryFromPlanningCeremony(fall, c.ceremony, c.name));
+    },
+    [sterbefaelle, setBookingError]
+  );
+
+  const openTransferBooking = useCallback(
+    (card: PlanningCard) => {
+      const fall = sterbefaelle.find((s) => s.id === card.docId);
+      if (!fall || !card.plannedDayKey) return;
+      const entry = wallEntryFromPlanningTransfer(fall, card);
+      if (!entry) return;
+      setBookingError(null);
+      setBookingEntry(entry);
     },
     [sterbefaelle, setBookingError]
   );
@@ -413,6 +461,11 @@ export function PlanningPage() {
           </span>
           {(saving || bookingSaving) && <span className="plan-toolbar-saving">Speichert…</span>}
         </div>
+        {weekAbsencesLine && (
+          <p className="plan-toolbar-absences" title="Abwesend in dieser Woche (Firma & Extern)">
+            <span>Abwesend Woche:</span> {weekAbsencesLine}
+          </p>
+        )}
         <label className="plan-toolbar-search">
           <span className="sr-only">Suchen</span>
           <input
@@ -442,6 +495,7 @@ export function PlanningPage() {
                   const dayCards = cardsForLane(filteredCards, dayKey);
                   const dayCaps = capacities.filter((c) => c.dayKey === dayKey);
                   const dayCeremonies = ceremoniesByDay.get(dayKey) ?? [];
+                  const dayAbsences = absencesByDay.get(dayKey) ?? [];
                   return (
                     <div
                       key={dayKey}
@@ -455,7 +509,9 @@ export function PlanningPage() {
                         title={formatDayLabelDe(dayKey)}
                         isToday={dayKey === calendarDay}
                         transfers={dayCards}
+                        transferPersonnelLines={transferPersonnelById}
                         ceremonies={dayCeremonies}
+                        absences={dayAbsences}
                         capacities={dayCaps}
                         isDropTarget={dropTarget === `day:${dayKey}`}
                         draggingId={draggingId}
@@ -468,6 +524,7 @@ export function PlanningPage() {
                         onCardDragEnd={clearDrag}
                         onResetCard={(card) => void resetCard(card)}
                         onCeremonyClick={(c) => openCeremonyBooking(c)}
+                        onTransferPersonnelClick={(card) => openTransferBooking(card)}
                       />
                     </div>
                   );
@@ -541,14 +598,18 @@ export function PlanningPage() {
           onClose={() => {
             if (!bookingSaving && !markerPending) setBookingEntry(null);
           }}
-          onMarkerOverrideChange={async (marker: BestattungsMarker | null) => {
-            setMarkerPending(true);
-            try {
-              await setSterbefallBestattungsMarkerOverride(bookingEntry.docId, marker);
-            } finally {
-              setMarkerPending(false);
-            }
-          }}
+          onMarkerOverrideChange={
+            bookingEntry.id.startsWith('transfer:')
+              ? undefined
+              : async (marker: BestattungsMarker | null) => {
+                  setMarkerPending(true);
+                  try {
+                    await setSterbefallBestattungsMarkerOverride(bookingEntry.docId, marker);
+                  } finally {
+                    setMarkerPending(false);
+                  }
+                }
+          }
           onSave={(booking) => {
             void (async () => {
               try {

@@ -44,6 +44,8 @@ export type PersonnelBookingValidation = {
   minTraeger: number;
   requiresArrangeur: boolean;
   isBegraebnis: boolean;
+  isUeberfuehrung?: boolean;
+  maxPersonen?: number | null;
 };
 
 export type PersonUnavailableReason = 'absent' | 'booked-arrangeur' | 'booked-traeger';

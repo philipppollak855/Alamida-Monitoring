@@ -1,4 +1,5 @@
 import type { WallCalendarEntry } from '../board/wallCalendar';
+import type { DispositionPerson } from '../types/dispositionSettings';
 import type {
   PersonnelAbsence,
   PersonnelBooking,
@@ -8,6 +9,14 @@ import type {
 
 export function isBegraebnisEntry(entry: Pick<WallCalendarEntry, 'arts' | 'title'>): boolean {
   return entry.arts.includes('beisetzung') || entry.title === 'Beisetzung';
+}
+
+export function isUeberfuehrungEntry(entry: Pick<WallCalendarEntry, 'arts' | 'title'>): boolean {
+  if (entry.arts.includes('ueberfuehrung') || entry.arts.includes('ueberfuehrung_kremation')) {
+    return true;
+  }
+  const t = entry.title.trim().toLowerCase();
+  return t.includes('überführung') || t.includes('ueberfuehrung') || t === 'abholung';
 }
 
 /**
@@ -25,20 +34,45 @@ export function minTraegerForEntry(
   return 0;
 }
 
+/** Max. Personen (bei Überführung: 2). */
+export function maxPersonenForEntry(
+  entry: Pick<WallCalendarEntry, 'arts' | 'title'>
+): number | null {
+  if (isUeberfuehrungEntry(entry)) return 2;
+  return null;
+}
+
 export function defaultRequiredTraegerCount(
   entry: Pick<WallCalendarEntry, 'arts' | 'title' | 'bestattungsMarker'>,
   traegerVonFamilie: boolean
 ): number {
+  if (isUeberfuehrungEntry(entry)) return 1;
   return minTraegerForEntry(entry, traegerVonFamilie);
+}
+
+export function isTraegerOnlyArrangeur(
+  personId: string | null | undefined,
+  pool: Pick<DispositionPerson, 'id' | 'roles'>[]
+): boolean {
+  if (!personId) return false;
+  const p = pool.find((x) => x.id === personId);
+  if (!p) return false;
+  return !p.roles.includes('arrangeur') && p.roles.includes('traeger');
 }
 
 export function validatePersonnelBooking(
   entry: Pick<WallCalendarEntry, 'arts' | 'title' | 'bestattungsMarker'>,
-  draft: Pick<PersonnelBooking, 'arrangeurId' | 'traegerIds' | 'traegerVonFamilie' | 'requiredTraegerCount'>
+  draft: Pick<
+    PersonnelBooking,
+    'arrangeurId' | 'traegerIds' | 'traegerVonFamilie' | 'requiredTraegerCount'
+  >,
+  pool: Pick<DispositionPerson, 'id' | 'roles'>[] = []
 ): PersonnelBookingValidation {
   const isBegraebnis = isBegraebnisEntry(entry);
+  const isUeberfuehrung = isUeberfuehrungEntry(entry);
   const requiresArrangeur = isBegraebnis;
   const minTraeger = minTraegerForEntry(entry, draft.traegerVonFamilie);
+  const maxPersonen = maxPersonenForEntry(entry);
   const errors: string[] = [];
   const warnings: string[] = [];
 
@@ -57,12 +91,26 @@ export function validatePersonnelBooking(
     }
   }
 
+  if (isUeberfuehrung) {
+    const personen = draft.traegerIds.length + (draft.arrangeurId ? 1 : 0);
+    const max = maxPersonen ?? 2;
+    if (personen > max) {
+      errors.push(`Überführung: maximal ${max} Personen.`);
+    }
+  }
+
   if (draft.traegerVonFamilie && draft.traegerIds.length > 0) {
     warnings.push('Träger von Familie aktiv — Firmenträger sind optional.');
   }
 
   if (draft.arrangeurId && draft.traegerIds.includes(draft.arrangeurId)) {
     errors.push('Eingebuchter Arrangeur steht nicht als Träger zur Verfügung.');
+  }
+
+  if (isTraegerOnlyArrangeur(draft.arrangeurId, pool)) {
+    warnings.push(
+      'Gewählte Person ist nur als Träger hinterlegt — als Arrangeur möglich, aber nicht priorisiert.'
+    );
   }
 
   return {
@@ -72,6 +120,8 @@ export function validatePersonnelBooking(
     minTraeger,
     requiresArrangeur,
     isBegraebnis,
+    isUeberfuehrung,
+    maxPersonen,
   };
 }
 

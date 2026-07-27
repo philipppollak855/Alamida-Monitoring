@@ -1,13 +1,14 @@
-import type { CeremonyInfo } from '../planning/types';
+import type { CeremonyInfo, PlanningCard } from '../planning/types';
 import type { Sterbefall } from '../types';
 import type { DispositionPerson } from '../types/dispositionSettings';
-import type { PersonnelBooking } from '../types/personnelBooking';
+import type { PersonnelAbsence, PersonnelBooking } from '../types/personnelBooking';
 import type { CalendarTerminArt, WallCalendarEntry } from '../board/wallCalendar';
 import { formatDayLabelDe } from '../board/dateUtils';
 import {
   ceremonyBookingId,
   findBookingForCeremony,
   isBegraebnisEntry,
+  isPersonAbsentOnDay,
   minTraegerForEntry,
   personnelBookingTraegerLine,
 } from '../board/personnelBookingRules';
@@ -38,6 +39,19 @@ function kindTitle(kind: CeremonyInfo['kind']): string {
   }
 }
 
+function transferArt(schrittTyp?: string): CalendarTerminArt {
+  const t = (schrittTyp ?? '').trim().toLowerCase();
+  if (t.includes('krem')) return 'ueberfuehrung_kremation';
+  return 'ueberfuehrung';
+}
+
+function transferTitle(schrittTyp?: string): string {
+  const t = (schrittTyp ?? '').trim().toLowerCase();
+  if (t.includes('abholung')) return 'Abholung';
+  if (t.includes('krem')) return 'Überführung Kremation';
+  return 'Überführung';
+}
+
 /** WallCalendarEntry-Adapter für Personal-Dialog aus Planungs-Zeremonie. */
 export function wallEntryFromPlanningCeremony(
   fall: Sterbefall,
@@ -64,6 +78,95 @@ export function wallEntryFromPlanningCeremony(
     searchText: `${name} ${title}`,
     bestattungsMarker: ceremony.bestattungsMarker,
   };
+}
+
+/** WallCalendarEntry-Adapter für Personal an Überführungs-Karten. */
+export function wallEntryFromPlanningTransfer(
+  fall: Sterbefall,
+  card: PlanningCard
+): WallCalendarEntry | null {
+  const dayKey = card.plannedDayKey;
+  if (!dayKey) return null;
+  const title = transferTitle(card.schrittTyp);
+  const art = transferArt(card.schrittTyp);
+  return {
+    id: `transfer:${card.id}`,
+    docId: fall.id,
+    sterbefallId: card.sterbefallId || fall.sterbefallId || fall.id,
+    dayKey,
+    dayLabel: formatDayLabelDe(dayKey),
+    timeLabel: card.plannedZeit || card.terminAm || '—',
+    sortMs: 0,
+    name: card.name,
+    title,
+    subtitle: `${card.vonOrt} → ${card.nachOrt}`,
+    badges: [title],
+    grouped: false,
+    arts: [art],
+    searchText: `${card.name} ${title}`,
+  };
+}
+
+export function planningTransferPersonnelLine(
+  booking: PersonnelBooking | null | undefined,
+  pool: DispositionPerson[]
+): string | null {
+  if (!booking) return null;
+  const byId = new Map(pool.map((p) => [p.id, p]));
+  const names: string[] = [];
+  for (const id of booking.traegerIds) {
+    const p = byId.get(id);
+    if (!p?.name) continue;
+    names.push(p.extern ? `${p.name} (extern)` : p.name);
+  }
+  if (booking.arrangeurId) {
+    const p = byId.get(booking.arrangeurId);
+    if (p?.name) names.unshift(p.extern ? `${p.name} (extern)` : p.name);
+  }
+  if (names.length === 0) return null;
+  return names.join(' · ');
+}
+
+export type PlanningDayAbsence = {
+  personId: string;
+  name: string;
+  extern: boolean;
+  note?: string;
+  fromDayKey: string;
+  toDayKey: string;
+};
+
+export function absencesForDay(
+  absences: Record<string, PersonnelAbsence>,
+  dayKey: string,
+  pool: DispositionPerson[]
+): PlanningDayAbsence[] {
+  const byId = new Map(pool.map((p) => [p.id, p]));
+  const out: PlanningDayAbsence[] = [];
+  for (const a of Object.values(absences)) {
+    if (!(a.fromDayKey <= dayKey && dayKey <= a.toDayKey)) continue;
+    if (!isPersonAbsentOnDay(absences, a.personId, dayKey)) continue;
+    const person = byId.get(a.personId);
+    if (!person || person.active === false) continue;
+    if (out.some((x) => x.personId === a.personId)) continue;
+    out.push({
+      personId: a.personId,
+      name: person.name,
+      extern: person.extern === true,
+      note: a.note,
+      fromDayKey: a.fromDayKey,
+      toDayKey: a.toDayKey,
+    });
+  }
+  return out.sort((a, b) => {
+    if (a.extern !== b.extern) return a.extern ? 1 : -1;
+    return a.name.localeCompare(b.name, 'de');
+  });
+}
+
+export function formatDayAbsencesLine(items: PlanningDayAbsence[]): string | null {
+  if (items.length === 0) return null;
+  return items.map((p) => (p.extern ? `${p.name} (extern)` : p.name)).join(', ');
 }
 
 export function planningCeremonyNeedsLine(
@@ -93,7 +196,7 @@ export function planningCeremonyNeedsLine(
   } else if (ceremony.kind === 'trauerfeier' || ceremony.kind === 'verabschiedung') {
     parts.push('Arrangeur optional');
   } else if (ceremony.kind === 'kremation') {
-    parts.push('Fahrer / Überführung');
+    parts.push('Fahrer / Überführung (max. 2)');
   }
 
   const when = ceremony.zeit ? ` um ${ceremony.zeit}` : '';
