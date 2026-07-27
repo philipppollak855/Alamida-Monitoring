@@ -118,11 +118,6 @@ function emptyPerson(): DispositionPerson {
   };
 }
 
-const PERSONNEL_ROLE_OPTIONS: { id: PersonnelRole; label: string }[] = [
-  { id: 'arrangeur', label: 'Arrangeur' },
-  { id: 'traeger', label: 'Träger' },
-];
-
 export function DispositionSettingsPanel({ defaultOpen = false }: { defaultOpen?: boolean }) {
   const { settings, loading, saving, error, saveSettings } = useDispositionSettings();
   const [open, setOpen] = useState(defaultOpen);
