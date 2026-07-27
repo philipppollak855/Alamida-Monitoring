@@ -36,16 +36,17 @@ jobs:
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
         run: |
+          # Secrets überschreiben .env.production, falls gesetzt.
+          # Ohne Secrets greift web/.env.production (öffentliche Web-SDK-Config).
           if [ -z "$VITE_FIREBASE_API_KEY" ] || [ -z "$VITE_FIREBASE_APP_ID" ]; then
-            echo "VITE_FIREBASE_API_KEY / VITE_FIREBASE_APP_ID fehlen."
-            echo "In GitHub → Settings → Secrets and variables → Actions anlegen"
-            echo "(Werte aus Firebase Console → Projekteinstellungen → Web-App)."
-            exit 1
+            if [ ! -f .env.production ]; then
+              echo "Weder GitHub-Secrets noch web/.env.production vorhanden."
+              exit 1
+            fi
+            echo "Build mit web/.env.production"
+          else
+            echo "Build mit GitHub Secrets VITE_FIREBASE_*"
           fi
-          # Defaults, falls nur API_KEY + APP_ID gesetzt sind
-          export VITE_FIREBASE_PROJECT_ID="${VITE_FIREBASE_PROJECT_ID:-alamida---monitoring}"
-          export VITE_FIREBASE_AUTH_DOMAIN="${VITE_FIREBASE_AUTH_DOMAIN:-alamida---monitoring.firebaseapp.com}"
-          export VITE_FIREBASE_STORAGE_BUCKET="${VITE_FIREBASE_STORAGE_BUCKET:-alamida---monitoring.firebasestorage.app}"
           npm ci
           npm run build
 
