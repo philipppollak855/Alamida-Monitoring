@@ -2,6 +2,8 @@ import { useCallback, useState } from 'react';
 import type { Sterbefall } from '../types';
 import type { EigenerKuehlraumConfig } from '../types/dispositionSettings';
 import { applyKuehlplatzMoves } from '../services/kuehlplatzDisposition';
+import { setSterbefallBestattungsMarkerOverride } from '../services/bestattungsMarkerOverride';
+import type { BestattungsMarker } from '../board/feierterminLogic';
 import { KuehlraumPlatzCard } from './KuehlraumPlatzCard';
 
 type DragPayload = {
@@ -39,6 +41,7 @@ export function KuehlraumPlatzGrid({
   const [dropPlatz, setDropPlatz] = useState<number | null>(null);
   const [movePending, setMovePending] = useState(false);
   const [moveError, setMoveError] = useState<string | null>(null);
+  const [markerPendingId, setMarkerPendingId] = useState<string | null>(null);
 
   const handleDrop = useCallback(
     async (targetPlatz: number, occupant: Sterbefall | null) => {
@@ -155,6 +158,22 @@ export function KuehlraumPlatzGrid({
                 onToggleExpand={() => onToggleExpand(key)}
                 onAbschliessen={() => onAbschliessen(fall)}
                 onAlsUrne={onAlsUrne ? () => onAlsUrne(fall) : undefined}
+                markerPending={markerPendingId === fall.id}
+                onMarkerOverrideChange={async (marker: BestattungsMarker | null) => {
+                  setMarkerPendingId(fall.id);
+                  setMoveError(null);
+                  try {
+                    await setSterbefallBestattungsMarkerOverride(fall.id, marker);
+                  } catch (e) {
+                    setMoveError(
+                      e instanceof Error
+                        ? e.message
+                        : 'Sarg/Urne konnte nicht gespeichert werden'
+                    );
+                  } finally {
+                    setMarkerPendingId(null);
+                  }
+                }}
               />
             </div>
           );

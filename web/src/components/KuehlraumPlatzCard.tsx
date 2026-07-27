@@ -1,5 +1,11 @@
 import { EndzielChip } from '../ui/SchrittBadge';
 import { KuehlraumTerminMarker } from './KuehlraumTerminMarker';
+import { BestattungsMarkerSwitch } from './BestattungsMarkerSwitch';
+import {
+  kuehlraumBestattungsMarker,
+  resolveBestattungsMarkerOverride,
+  type BestattungsMarker,
+} from '../board/feierterminLogic';
 import { istFreigabeWirksam } from '../board/freigabeLogic';
 import type { Sterbefall } from '../types';
 
@@ -11,6 +17,7 @@ interface Props {
   highlighted?: boolean;
   dimmed?: boolean;
   pending?: boolean;
+  markerPending?: boolean;
   draggable?: boolean;
   dragging?: boolean;
   onDragStart?: () => void;
@@ -19,6 +26,7 @@ interface Props {
   onAbschliessen: () => void;
   /** Schon als Urne (externe Kremation) → Urnen-Bereich */
   onAlsUrne?: () => void;
+  onMarkerOverrideChange?: (marker: BestattungsMarker | null) => void | Promise<void>;
 }
 
 export function KuehlraumPlatzCard({
@@ -29,6 +37,7 @@ export function KuehlraumPlatzCard({
   highlighted,
   dimmed,
   pending,
+  markerPending,
   draggable,
   dragging,
   onDragStart,
@@ -36,11 +45,18 @@ export function KuehlraumPlatzCard({
   onToggleExpand,
   onAbschliessen,
   onAlsUrne,
+  onMarkerOverrideChange,
 }: Props) {
   const name = fall.verstorbenerName || fall.sterbefallId || fall.id;
   const nextNach = fall.naechsterSchrittNach ?? fall.naechsteUeberfuehrungNach;
   const nextAm = fall.naechsterSchrittAm ?? fall.naechsteUeberfuehrungAm;
   const freigabeWirksam = istFreigabeWirksam(fall.freigabeFrei, fall.freigabeDatum, now);
+  const markerOverride = resolveBestattungsMarkerOverride(fall);
+  const effectiveMarker = kuehlraumBestattungsMarker(
+    fall,
+    fall.beisetzungsdatum ? 'beisetzung' : 'trauerfeier',
+    now
+  );
 
   return (
     <article
@@ -109,6 +125,15 @@ export function KuehlraumPlatzCard({
 
       {expanded && (
         <div className="kr-platz-expanded">
+          {onMarkerOverrideChange && (
+            <BestattungsMarkerSwitch
+              override={markerOverride}
+              effective={effectiveMarker}
+              pending={markerPending}
+              disabled={pending}
+              onChange={(next) => void onMarkerOverrideChange(next)}
+            />
+          )}
           {fall.endziel && (
             <EndzielChip typ={fall.endzielTyp} ort={fall.endziel} />
           )}

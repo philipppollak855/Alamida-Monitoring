@@ -16,6 +16,36 @@ import type { Sterbefall } from '../types';
 const base: Sterbefall = { id: '1', sterbefallId: '260001' };
 
 describe('calendarBestattungsMarker', () => {
+  it('manuelle Sarg-Überschreibung schlägt Urnen-Regeln', () => {
+    expect(
+      calendarBestattungsMarker(
+        {
+          ...base,
+          bestattungsart: 'Feuerbestattung',
+          endzielTyp: 'krematorium',
+          beisetzungsdatum: '10.06.2026',
+          bestattungsMarkerOverride: 'S',
+        },
+        ['beisetzung'],
+        'Beisetzung'
+      )
+    ).toBe('S');
+  });
+
+  it('manuelle Urne-Überschreibung schlägt Sarg-Regeln', () => {
+    expect(
+      calendarBestattungsMarker(
+        {
+          ...base,
+          trauerfeierdatum: '08.06.2026',
+          bestattungsMarkerOverride: 'U',
+        },
+        ['trauerfeier'],
+        'Trauerfeier'
+      )
+    ).toBe('U');
+  });
+
   it('S bei Trauerfeier ohne Kremation', () => {
     expect(
       calendarBestattungsMarker(
@@ -251,6 +281,17 @@ describe('integration S/U markers', () => {
         ...base,
         bestattungsart: 'Feuerbestattung',
         ausstehend: [{ schrittTyp: 'kremation', status: 'geplant' }],
+      })
+    ).toBe(false);
+  });
+
+  it('manuelles Override überschreibt istBereitsAlsUrne', () => {
+    expect(istBereitsAlsUrne({ ...base, bestattungsMarkerOverride: 'U' })).toBe(true);
+    expect(
+      istBereitsAlsUrne({
+        ...base,
+        bestattungsart: 'Urne',
+        bestattungsMarkerOverride: 'S',
       })
     ).toBe(false);
   });

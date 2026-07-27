@@ -121,6 +121,17 @@ service cloud.firestore {
         && request.resource.data.kuehlplatzDisposition.size() > 0;
     }
 
+    function sterbefallBestattungsMarkerOverrideUpdateOnly() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['bestattungsMarkerOverride', 'updatedAt']);
+    }
+
+    function sterbefallBestattungsMarkerOverrideValid() {
+      return !('bestattungsMarkerOverride' in request.resource.data)
+        || request.resource.data.bestattungsMarkerOverride == null
+        || request.resource.data.bestattungsMarkerOverride in ['S', 'U'];
+    }
+
     match /sterbefaelle/{id} {
       allow read: if isActivatedUser() || isPublicWallRead();
       allow update: if isActivatedUser()
@@ -130,6 +141,8 @@ service cloud.firestore {
           || (sterbefallDispositionCloseOnly() && sterbefallDispositionCloseValid())
           || sterbefallErledigtUpdateOnly()
           || (sterbefallKuehlplatzDispositionUpdateOnly() && sterbefallKuehlplatzDispositionValid())
+          || (sterbefallBestattungsMarkerOverrideUpdateOnly()
+            && sterbefallBestattungsMarkerOverrideValid())
         );
       allow create, delete: if false;
     }

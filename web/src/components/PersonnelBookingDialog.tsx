@@ -2,6 +2,11 @@ import { useEffect, useId, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { WallCalendarEntry } from '../board/wallCalendar';
 import {
+  calendarBestattungsMarker,
+  resolveBestattungsMarkerOverride,
+  type BestattungsMarker,
+} from '../board/feierterminLogic';
+import {
   arrangeurIdsBookedOnDay,
   availableTraegerPool,
   defaultRequiredTraegerCount,
@@ -10,31 +15,39 @@ import {
 } from '../board/personnelBookingRules';
 import type { DispositionPerson } from '../types/dispositionSettings';
 import type { PersonnelBooking } from '../types/personnelBooking';
+import type { Sterbefall } from '../types';
+import { BestattungsMarkerSwitch } from './BestattungsMarkerSwitch';
 import { WallCalBestattungsBadge } from './WallCalBestattungsBadge';
 
 type Props = {
   entry: WallCalendarEntry | null;
+  sterbefall?: Sterbefall | null;
   personnelPool: DispositionPerson[];
   /** Alle Personalbuchungen — Arrangeure am gleichen Tag sind als Träger gesperrt. */
   allBookings?: Record<string, PersonnelBooking>;
   existing: PersonnelBooking | null;
   pending?: boolean;
+  markerPending?: boolean;
   error?: string | null;
   onClose: () => void;
   onSave: (booking: PersonnelBooking) => void;
   onClear?: () => void;
+  onMarkerOverrideChange?: (marker: BestattungsMarker | null) => void | Promise<void>;
 };
 
 export function PersonnelBookingDialog({
   entry,
+  sterbefall,
   personnelPool,
   allBookings = {},
   existing,
   pending,
+  markerPending,
   error,
   onClose,
   onSave,
   onClear,
+  onMarkerOverrideChange,
 }: Props) {
   const titleId = useId();
   const [arrangeurId, setArrangeurId] = useState<string>('');
@@ -42,29 +55,47 @@ export function PersonnelBookingDialog({
   const [traegerVonFamilie, setTraegerVonFamilie] = useState(false);
   const [requiredTraegerCount, setRequiredTraegerCount] = useState(0);
   const [note, setNote] = useState('');
+  const [markerOverride, setMarkerOverride] = useState<BestattungsMarker | null>(null);
+
+  const autoMarker = useMemo(() => {
+    if (!entry) return undefined;
+    return calendarBestattungsMarker(
+      { ...(sterbefall ?? { id: entry.docId }), bestattungsMarkerOverride: null },
+      entry.arts,
+      entry.title
+    );
+  }, [entry, sterbefall]);
+
+  const effectiveMarker = markerOverride ?? autoMarker ?? entry?.bestattungsMarker;
 
   useEffect(() => {
     if (!entry) return;
     const family = existing?.traegerVonFamilie === true;
     const nextArrangeur = existing?.arrangeurId ?? '';
     const nextTraeger = (existing?.traegerIds ?? []).filter((id) => id !== nextArrangeur);
+    const nextOverride = resolveBestattungsMarkerOverride(sterbefall ?? {});
+    const entryForRules = {
+      ...entry,
+      bestattungsMarker: nextOverride ?? autoMarker ?? entry.bestattungsMarker,
+    };
     setArrangeurId(nextArrangeur);
     setTraegerIds(nextTraeger);
     setTraegerVonFamilie(family);
     setRequiredTraegerCount(
-      existing?.requiredTraegerCount ?? defaultRequiredTraegerCount(entry, family)
+      existing?.requiredTraegerCount ?? defaultRequiredTraegerCount(entryForRules, family)
     );
     setNote(existing?.note ?? '');
-  }, [entry, existing]);
+    setMarkerOverride(nextOverride);
+  }, [entry, existing, sterbefall, autoMarker]);
 
   useEffect(() => {
     if (!entry) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !pending) onClose();
+      if (e.key === 'Escape' && !pending && !markerPending) onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [entry, onClose, pending]);
+  }, [entry, onClose, pending, markerPending]);
 
   const arrangeure = useMemo(
     () =>
@@ -87,8 +118,13 @@ export function PersonnelBookingDialog({
     });
   }, [personnelPool, arrangeurId, bookedArrangeurIds]);
 
+  const entryForValidation = useMemo(() => {
+    if (!entry) return null;
+    return { ...entry, bestattungsMarker: effectiveMarker };
+  }, [entry, effectiveMarker]);
+
   const validation = useMemo(() => {
-    if (!entry) {
+    if (!entryForValidation) {
       return {
         ok: false,
         errors: [],
@@ -98,15 +134,15 @@ export function PersonnelBookingDialog({
         isBegraebnis: false,
       };
     }
-    return validatePersonnelBooking(entry, {
+    return validatePersonnelBooking(entryForValidation, {
       arrangeurId: arrangeurId || null,
       traegerIds,
       traegerVonFamilie,
       requiredTraegerCount,
     });
-  }, [entry, arrangeurId, traegerIds, traegerVonFamilie, requiredTraegerCount]);
+  }, [entryForValidation, arrangeurId, traegerIds, traegerVonFamilie, requiredTraegerCount]);
 
-  if (!entry) return null;
+  if (!entry || !entryForValidation) return null;
 
   const begraebnis = isBegraebnisEntry(entry);
 
@@ -126,7 +162,18 @@ export function PersonnelBookingDialog({
 
   function handleFamilyToggle(next: boolean) {
     setTraegerVonFamilie(next);
-    setRequiredTraegerCount(defaultRequiredTraegerCount(entry!, next));
+    setRequiredTraegerCount(defaultRequiredTraegerCount(entryForValidation!, next));
+  }
+
+  async function handleMarkerChange(next: BestattungsMarker | null) {
+    setMarkerOverride(next);
+    const entryForRules = { ...entry!, bestattungsMarker: next ?? autoMarker };
+    setRequiredTraegerCount((prev) =>
+      Math.max(prev, defaultRequiredTraegerCount(entryForRules, traegerVonFamilie))
+    );
+    if (onMarkerOverrideChange) {
+      await onMarkerOverrideChange(next);
+    }
   }
 
   return createPortal(
@@ -134,7 +181,7 @@ export function PersonnelBookingDialog({
       className="personnel-booking-backdrop"
       role="presentation"
       onClick={() => {
-        if (!pending) onClose();
+        if (!pending && !markerPending) onClose();
       }}
     >
       <div
@@ -148,25 +195,38 @@ export function PersonnelBookingDialog({
           <div>
             <p className="personnel-booking-kicker">Personal einbuchen</p>
             <h2 id={titleId}>
-              {entry.bestattungsMarker && (
-                <WallCalBestattungsBadge marker={entry.bestattungsMarker} />
-              )}{' '}
+              {effectiveMarker && <WallCalBestattungsBadge marker={effectiveMarker} />}{' '}
               {entry.name}
             </h2>
             <p className="personnel-booking-sub">
               {entry.dayLabel} · {entry.timeLabel} · {entry.badges.join(' · ') || entry.title}
             </p>
           </div>
-          <button type="button" className="btn-ghost" onClick={onClose} disabled={pending}>
+          <button
+            type="button"
+            className="btn-ghost"
+            onClick={onClose}
+            disabled={pending || markerPending}
+          >
             Schließen
           </button>
         </header>
+
+        {onMarkerOverrideChange && (
+          <BestattungsMarkerSwitch
+            override={markerOverride}
+            effective={effectiveMarker ?? 'S'}
+            pending={markerPending}
+            disabled={pending}
+            onChange={(next) => void handleMarkerChange(next)}
+          />
+        )}
 
         {begraebnis && (
           <p className="personnel-booking-rule">
             Begräbnis: 1 Arrangeur erforderlich. Eingebuchter Arrangeur ist nicht als Träger
             wählbar.
-            {entry.bestattungsMarker === 'S' && !traegerVonFamilie
+            {effectiveMarker === 'S' && !traegerVonFamilie
               ? ' Sarg ohne Träger von Familie → mind. 4 Träger.'
               : null}
           </p>
@@ -280,19 +340,24 @@ export function PersonnelBookingDialog({
             <button
               type="button"
               className="btn-ghost"
-              disabled={pending}
+              disabled={pending || markerPending}
               onClick={onClear}
             >
               Einbuchung löschen
             </button>
           )}
-          <button type="button" className="btn-ghost" onClick={onClose} disabled={pending}>
+          <button
+            type="button"
+            className="btn-ghost"
+            onClick={onClose}
+            disabled={pending || markerPending}
+          >
             Abbrechen
           </button>
           <button
             type="button"
             className="btn-primary"
-            disabled={pending || !validation.ok}
+            disabled={pending || markerPending || !validation.ok}
             onClick={() => {
               const cleanTraeger = traegerIds.filter((id) => id !== arrangeurId);
               onSave({
@@ -304,7 +369,7 @@ export function PersonnelBookingDialog({
                 entryArts: entry.arts,
                 timeLabel: entry.timeLabel,
                 name: entry.name,
-                bestattungsMarker: entry.bestattungsMarker,
+                bestattungsMarker: effectiveMarker,
                 arrangeurId: arrangeurId || null,
                 traegerIds: cleanTraeger,
                 traegerVonFamilie,

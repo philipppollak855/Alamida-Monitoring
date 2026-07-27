@@ -85,6 +85,11 @@ export interface Sterbefall {
   urnenBereich?: boolean;
   urnenSeit?: { seconds: number };
   retourVon?: string;
+  /**
+   * Manuelle Sarg/Urne-Umschaltung — überschreibt automatische S/U-Regeln.
+   * null/undefined = Automatik.
+   */
+  bestattungsMarkerOverride?: 'S' | 'U' | null;
   /** Wandmonitor Extern: Freigabe erfasst */
   freigabeFrei?: boolean;
   freigabeDatum?: string;
