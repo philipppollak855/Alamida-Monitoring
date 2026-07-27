@@ -950,6 +950,25 @@
   border-color: var(--border);
 }
 
+[data-theme='alamida'] .personnel-absence-cal,
+[data-theme='alamida'] .personnel-absence-group {
+  background: rgba(255, 255, 255, 0.78);
+  border-color: var(--border);
+}
+
+[data-theme='alamida'] .personnel-absence-cal-day {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+[data-theme='alamida'] .personnel-absence-cal-day.has-absence {
+  background: rgba(184, 90, 104, 0.1);
+}
+
+[data-theme='alamida'] .personnel-absence-cal-day.is-selected {
+  background: rgba(61, 122, 140, 0.14);
+  border-color: var(--accent);
+}
+
 [data-theme='alamida'] .personnel-booking-pool-item.is-unavailable {
   color: var(--muted);
   opacity: 0.5;

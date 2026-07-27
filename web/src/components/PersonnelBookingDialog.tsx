@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { WallCalendarEntry } from '../board/wallCalendar';
 import {
@@ -54,6 +54,7 @@ export function PersonnelBookingDialog({
   onMarkerOverrideChange,
 }: Props) {
   const titleId = useId();
+  const closeOnBackdrop = useRef(false);
   const [arrangeurId, setArrangeurId] = useState<string>('');
   const [traegerIds, setTraegerIds] = useState<string[]>([]);
   const [traegerVonFamilie, setTraegerVonFamilie] = useState(false);
@@ -237,8 +238,12 @@ export function PersonnelBookingDialog({
     <div
       className="personnel-booking-backdrop"
       role="presentation"
+      onMouseDown={(e) => {
+        closeOnBackdrop.current = e.target === e.currentTarget;
+      }}
       onClick={() => {
-        if (!pending && !markerPending) onClose();
+        if (closeOnBackdrop.current && !pending && !markerPending) onClose();
+        closeOnBackdrop.current = false;
       }}
     >
       <div
@@ -246,6 +251,7 @@ export function PersonnelBookingDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        onMouseDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
       >
         <header className="personnel-booking-head">
