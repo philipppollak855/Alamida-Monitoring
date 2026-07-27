@@ -2,6 +2,7 @@ import type { Sterbefall } from '../types';
 import type { EigenerKuehlraumConfig } from '../types/dispositionSettings';
 import { resolveFallKuehlraumId } from './kuehlraumZuordnung';
 import { isImEigenenKuehlraum } from './kuehlraumLogic';
+import { istInUrnenBereich } from './urnenLogic';
 
 export function resolveSlotKuehlraumId(s: Sterbefall): string | undefined {
   const manual = s.kuehlraumIdDisposition?.trim();
@@ -15,7 +16,7 @@ function parsePlatz(raw?: string): number | null {
   return n;
 }
 
-/** Belegt Slots — Disposition-Platz hat Vorrang vor Alamida. */
+/** Belegt Slots — Disposition-Platz hat Vorrang vor Alamida. Urnen-Bereich zählt nicht als Sarg-Platz. */
 export function belegeKuehlraumSlots(
   sterbefaelle: Sterbefall[],
   cfg: EigenerKuehlraumConfig
@@ -24,6 +25,7 @@ export function belegeKuehlraumSlots(
   const deferred: Sterbefall[] = [];
 
   for (const s of sterbefaelle) {
+    if (istInUrnenBereich(s)) continue;
     if (!isImEigenenKuehlraum(s)) continue;
     if (resolveSlotKuehlraumId(s) !== cfg.id) continue;
 

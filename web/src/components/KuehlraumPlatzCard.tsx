@@ -17,6 +17,8 @@ interface Props {
   onDragEnd?: () => void;
   onToggleExpand?: () => void;
   onAbschliessen: () => void;
+  /** Schon als Urne (externe Kremation) → Urnen-Bereich */
+  onAlsUrne?: () => void;
 }
 
 export function KuehlraumPlatzCard({
@@ -33,6 +35,7 @@ export function KuehlraumPlatzCard({
   onDragEnd,
   onToggleExpand,
   onAbschliessen,
+  onAlsUrne,
 }: Props) {
   const name = fall.verstorbenerName || fall.sterbefallId || fall.id;
   const nextNach = fall.naechsterSchrittNach ?? fall.naechsteUeberfuehrungNach;
@@ -134,6 +137,17 @@ export function KuehlraumPlatzCard({
       )}
 
       <div className="kr-platz-actions">
+        {onAlsUrne && (
+          <button
+            type="button"
+            className="kr-platz-urne"
+            disabled={pending}
+            onClick={onAlsUrne}
+            title="Als Urne übernehmen (externe Kremation / Retour)"
+          >
+            {pending ? '…' : 'Urne'}
+          </button>
+        )}
         <button
           type="button"
           className="kr-platz-abschluss"

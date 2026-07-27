@@ -20,6 +20,7 @@ interface Props {
   matchFall: (fall: Sterbefall) => boolean;
   onToggleExpand: (key: string) => void;
   onAbschliessen: (fall: Sterbefall) => void;
+  onAlsUrne?: (fall: Sterbefall) => void;
 }
 
 export function KuehlraumPlatzGrid({
@@ -32,6 +33,7 @@ export function KuehlraumPlatzGrid({
   matchFall,
   onToggleExpand,
   onAbschliessen,
+  onAlsUrne,
 }: Props) {
   const [drag, setDrag] = useState<DragPayload | null>(null);
   const [dropPlatz, setDropPlatz] = useState<number | null>(null);
@@ -152,6 +154,7 @@ export function KuehlraumPlatzGrid({
                 }}
                 onToggleExpand={() => onToggleExpand(key)}
                 onAbschliessen={() => onAbschliessen(fall)}
+                onAlsUrne={onAlsUrne ? () => onAlsUrne(fall) : undefined}
               />
             </div>
           );
