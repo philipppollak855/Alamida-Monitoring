@@ -29,6 +29,7 @@ type Props = {
   onCardDragEnd: () => void;
   onResetCard: (card: PlanningCard) => void;
   onCeremonyClick?: (ceremony: DayCeremony) => void;
+  onAddLeg?: (card: PlanningCard) => void;
 };
 
 function ceremonyKindLabel(kind: CeremonyInfo['kind']): string {
@@ -67,6 +68,7 @@ export function PlanningCenterDay({
   onCardDragEnd,
   onResetCard,
   onCeremonyClick,
+  onAddLeg,
 }: Props) {
   const sortedCeremonies = [...ceremonies].sort(
     (a, b) => ceremonyTimeSortKey(a.ceremony) - ceremonyTimeSortKey(b.ceremony)
@@ -177,6 +179,7 @@ export function PlanningCenterDay({
                 onDragStart={onCardDragStart}
                 onDragEnd={onCardDragEnd}
                 onReset={onResetCard}
+                onAddLeg={onAddLeg}
               />
             ))
           )}

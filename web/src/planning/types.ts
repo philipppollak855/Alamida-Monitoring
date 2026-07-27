@@ -1,23 +1,42 @@
 /** Persistierte Zuordnung einer Überführung auf dem Planungs-Canvas. */
+export type PlanAssignmentSnapshot = {
+  plannedDayKey: string | null;
+  plannedKuehlraumId?: string | null;
+  fromKuehlraumId?: string | null;
+  plannedZeit?: string | null;
+  vonOrt?: string | null;
+  nachOrt?: string | null;
+  schrittTyp?: string | null;
+  richtung?: PlanRichtung | null;
+  order: number;
+};
+
+export type PlanRichtung = 'ankunft' | 'abgang' | 'umzug';
+
 export type PlanAssignment = {
-  /** `${docId}:${zeile}` oder `${docId}:canvas:${kuehlraumId}` */
+  /** `${docId}:${zeile}` oder `${docId}:canvas:…` */
   id: string;
   docId: string;
   /** Alamida-Zeile, oder -1 bei Canvas-Neuplanung. */
   zeile: number;
   /** yyyy-MM-dd oder null = Backlog / unzugewiesen */
   plannedDayKey: string | null;
-  /** Ziel-Kühlraum für Ressourcenplanung. */
+  /** Ziel-Kühlraum (Ankunft/Umzug) bzw. Quell-KR bei reinem Abgang. */
   plannedKuehlraumId?: string | null;
+  /** Quell-Kühlraum bei Abgang/Umzug (für Kapazität). */
+  fromKuehlraumId?: string | null;
   /** Optionale Uhrzeit HH:mm */
   plannedZeit?: string | null;
   vonOrt?: string | null;
   nachOrt?: string | null;
   schrittTyp?: string | null;
+  richtung?: PlanRichtung | null;
   /** Alamida-abgeleitet vs. manuell auf dem Canvas angelegt. */
   source?: 'alamida' | 'canvas';
   /** Manuelle Reihenfolge innerhalb des Tages. */
   order: number;
+  /** Vorheriger Zustand — Umplanung rückgängig machen. */
+  previous?: PlanAssignmentSnapshot | null;
   updatedAtMs?: number;
 };
 
@@ -30,6 +49,7 @@ export type DispositionPlanEvent = {
   vonOrt?: string;
   nachOrt?: string;
   kuehlraumId?: string;
+  assignmentId?: string;
   plannedDayKey?: string | null;
   plannedZeit?: string | null;
   createdAtMs: number;
@@ -79,8 +99,12 @@ export type PlanningCard = {
   targetsEigenerKr: boolean;
   leavesEigenerKr: boolean;
   kuehlraumId: string | null;
+  /** Quell-KR bei Abgang/Umzug. */
+  fromKuehlraumId?: string | null;
   order: number;
   hasManualPlan: boolean;
+  /** Umplanung hat gespeicherten Vorzustand → ↺ stellt ihn wieder her. */
+  canUndoUmplanung?: boolean;
   source: 'alamida' | 'canvas';
   amSterbeort?: boolean;
   freigabeState?: FreigabeState;
@@ -169,14 +193,19 @@ export type KuehlraumDayCapacity = {
 export type ScheduleDraft = {
   docId: string;
   cardId?: string;
+  /** Neue Überführungs-Etappe anlegen (nicht bestehende überschreiben). */
+  createNewLeg?: boolean;
   name: string;
+  sterbefallId?: string;
   vonOrt: string;
   nachOrt: string;
   kuehlraumId: string;
   kuehlraumLabel: string;
+  fromKuehlraumId?: string | null;
   dayKey: string;
   zeit: string;
   schrittTyp: string;
+  richtung: PlanRichtung;
   existingZeile?: number;
 };
 

@@ -26,6 +26,8 @@ import type {
   KuehlraumRailState,
   LocationGroup,
   PlanAssignment,
+  PlanAssignmentSnapshot,
+  PlanRichtung,
   PlanningCard,
   ScheduleDraft,
   SlotFreeEvent,
@@ -36,8 +38,44 @@ export function planningCardId(docId: string, zeile: number): string {
   return `${docId}:${zeile}`;
 }
 
+/** @deprecated Prefer newCanvasPlanningId — bleibt für Lesen alter IDs. */
 export function canvasPlanningId(docId: string, kuehlraumId: string): string {
   return `${docId}:canvas:${kuehlraumId}`;
+}
+
+/** Eindeutige Canvas-ID für eine neue Überführungs-Etappe. */
+export function newCanvasPlanningId(docId: string): string {
+  return `${docId}:canvas:${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function snapshotFromAssignment(a: PlanAssignment): PlanAssignmentSnapshot {
+  return {
+    plannedDayKey: a.plannedDayKey,
+    plannedKuehlraumId: a.plannedKuehlraumId ?? null,
+    fromKuehlraumId: a.fromKuehlraumId ?? null,
+    plannedZeit: a.plannedZeit ?? null,
+    vonOrt: a.vonOrt ?? null,
+    nachOrt: a.nachOrt ?? null,
+    schrittTyp: a.schrittTyp ?? null,
+    richtung: a.richtung ?? null,
+    order: a.order,
+  };
+}
+
+export function resolveRichtungFlags(richtung: PlanRichtung | null | undefined): {
+  targetsEigenerKr: boolean;
+  leavesEigenerKr: boolean;
+} {
+  switch (richtung) {
+    case 'abgang':
+      return { targetsEigenerKr: false, leavesEigenerKr: true };
+    case 'umzug':
+      return { targetsEigenerKr: true, leavesEigenerKr: true };
+    case 'ankunft':
+      return { targetsEigenerKr: true, leavesEigenerKr: false };
+    default:
+      return { targetsEigenerKr: true, leavesEigenerKr: false };
+  }
 }
 
 function nachOrtAusSchritt(vonOrt?: string, nachOrt?: string): string | undefined {
@@ -142,6 +180,16 @@ function cardFromAssignment(
     assignment.plannedZeit,
     'ohne Datum'
   );
+  const richtung =
+    assignment.richtung ??
+    (assignment.fromKuehlraumId && kuehlraumId && assignment.fromKuehlraumId !== kuehlraumId
+      ? 'umzug'
+      : assignment.fromKuehlraumId && !kuehlraumId
+        ? 'abgang'
+        : matchEigenerKuehlraum(nachOrt) || kuehlraumId
+          ? 'ankunft'
+          : 'abgang');
+  const flags = resolveRichtungFlags(richtung);
 
   return {
     id: assignment.id,
@@ -149,7 +197,7 @@ function cardFromAssignment(
     zeile: assignment.zeile,
     sterbefallId,
     name,
-    schrittTyp: assignment.schrittTyp?.trim() || 'abholung',
+    schrittTyp: assignment.schrittTyp?.trim() || (richtung === 'abgang' ? 'ueberfuehrung' : 'abholung'),
     vonOrt,
     nachOrt,
     terminAm,
@@ -160,12 +208,14 @@ function cardFromAssignment(
       ? resolveAusstehendStatus(terminAm, 'geplant')
       : 'geplant',
     erledigt: false,
-    istAbholungVomSterbeort: true,
-    targetsEigenerKr: true,
-    leavesEigenerKr: false,
+    istAbholungVomSterbeort: richtung === 'ankunft',
+    targetsEigenerKr: flags.targetsEigenerKr,
+    leavesEigenerKr: flags.leavesEigenerKr,
     kuehlraumId,
+    fromKuehlraumId: assignment.fromKuehlraumId ?? null,
     order: assignment.order,
     hasManualPlan: true,
+    canUndoUmplanung: Boolean(assignment.previous),
     source: 'canvas',
     amSterbeort: isAmKrankenhausOderSterbeort(s),
     ...enrichCardMeta(s, now),
@@ -245,8 +295,10 @@ export function buildPlanningCards(
         targetsEigenerKr,
         leavesEigenerKr,
         kuehlraumId,
+        fromKuehlraumId: assignment?.fromKuehlraumId ?? (leavesEigenerKr ? kuehlraumId : null),
         order: assignment?.order ?? zeile,
         hasManualPlan: assignment != null,
+        canUndoUmplanung: Boolean(assignment?.previous),
         source: assignment?.source === 'canvas' ? 'canvas' : 'alamida',
         amSterbeort: isAmKrankenhausOderSterbeort(s),
         ...meta,
@@ -432,12 +484,23 @@ export function buildKuehlraumRailStates(
         (focusDayKey ? c.plannedDayKey === focusDayKey : c.plannedDayKey != null)
     ).length;
 
-    const plannedDepartures = slotFrees.filter((e) => {
-      if (focusDayKey && e.dayKey !== focusDayKey) return false;
-      const fall = sterbefaelle.find((s) => s.id === e.docId);
-      if (!fall) return false;
-      return resolveSlotKuehlraumId(fall) === cfg.id || resolveFallKuehlraumId(fall, settings) === cfg.id;
-    }).length;
+    const plannedDepartures =
+      cards.filter((c) => {
+        if (c.erledigt || !c.leavesEigenerKr) return false;
+        if (focusDayKey && c.plannedDayKey !== focusDayKey) return false;
+        const fromId =
+          c.fromKuehlraumId ?? (c.leavesEigenerKr && !c.targetsEigenerKr ? c.kuehlraumId : null);
+        return fromId === cfg.id;
+      }).length +
+      slotFrees.filter((e) => {
+        if (e.reason !== 'beisetzung') return false;
+        if (focusDayKey && e.dayKey !== focusDayKey) return false;
+        const fall = sterbefaelle.find((s) => s.id === e.docId);
+        if (!fall) return false;
+        return (
+          resolveSlotKuehlraumId(fall) === cfg.id || resolveFallKuehlraumId(fall, settings) === cfg.id
+        );
+      }).length;
 
     const occupiedNow = occupants.length;
     const projected = Math.max(0, occupiedNow + plannedArrivals - plannedDepartures);
@@ -486,13 +549,19 @@ export function buildKuehlraumCapacities(
     const baseOccupied = running;
 
     for (const dayKey of dayKeys) {
-      const dayCards = cards.filter(
-        (c) => c.plannedDayKey === dayKey && c.kuehlraumId === cfg.id && !c.erledigt
-      );
-      const arrivals = dayCards.filter((c) => c.targetsEigenerKr).length;
-      const transferDeps = dayCards.filter(
-        (c) => c.leavesEigenerKr && !c.targetsEigenerKr
+      const arrivals = cards.filter(
+        (c) =>
+          c.plannedDayKey === dayKey &&
+          c.kuehlraumId === cfg.id &&
+          c.targetsEigenerKr &&
+          !c.erledigt
       ).length;
+      const transferDeps = cards.filter((c) => {
+        if (c.plannedDayKey !== dayKey || c.erledigt || !c.leavesEigenerKr) return false;
+        const fromId =
+          c.fromKuehlraumId ?? (c.leavesEigenerKr && !c.targetsEigenerKr ? c.kuehlraumId : null);
+        return fromId === cfg.id;
+      }).length;
       const beisetzungDeps = slotFrees.filter((e) => {
         if (e.dayKey !== dayKey || e.reason !== 'beisetzung') return false;
         const fall = sterbefaelle.find((s) => s.id === e.docId);
@@ -533,18 +602,22 @@ export function moveCardAssignment(
   extras?: Partial<PlanAssignment>
 ): Record<string, PlanAssignment> {
   const next = { ...assignments };
+  const prev = next[card.id];
   next[card.id] = {
     id: card.id,
     docId: card.docId,
     zeile: card.zeile,
     plannedDayKey: toDayKey,
     plannedKuehlraumId: extras?.plannedKuehlraumId ?? card.kuehlraumId,
+    fromKuehlraumId: extras?.fromKuehlraumId ?? card.fromKuehlraumId ?? null,
     plannedZeit: extras?.plannedZeit ?? card.plannedZeit ?? null,
     vonOrt: extras?.vonOrt ?? card.vonOrt,
     nachOrt: extras?.nachOrt ?? card.nachOrt,
     schrittTyp: extras?.schrittTyp ?? card.schrittTyp,
+    richtung: extras?.richtung ?? null,
     source: extras?.source ?? card.source,
     order,
+    previous: prev ? snapshotFromAssignment(prev) : null,
     updatedAtMs: Date.now(),
   };
   return next;
@@ -560,25 +633,37 @@ export function scheduleToKuehlraum(
   assignment: PlanAssignment;
   eventType: 'ueberfuehrung_geplant' | 'ueberfuehrung_umgeplant';
 } {
+  const reuseExisting = !draft.createNewLeg && (existingCard?.id || draft.cardId);
   const id =
-    existingCard?.id ??
-    (draft.existingZeile != null
+    (reuseExisting ? existingCard?.id ?? draft.cardId : undefined) ??
+    (draft.existingZeile != null && !draft.createNewLeg
       ? planningCardId(draft.docId, draft.existingZeile)
-      : canvasPlanningId(draft.docId, draft.kuehlraumId));
+      : newCanvasPlanningId(draft.docId));
 
   const prev = assignments[id];
+  const richtung = draft.richtung;
+  const plannedKuehlraumId =
+    richtung === 'abgang'
+      ? draft.fromKuehlraumId || draft.kuehlraumId || null
+      : draft.kuehlraumId || null;
+  const fromKuehlraumId =
+    richtung === 'ankunft' ? null : draft.fromKuehlraumId || draft.kuehlraumId || null;
+
   const assignment: PlanAssignment = {
     id,
     docId: draft.docId,
     zeile: existingCard?.zeile ?? draft.existingZeile ?? -1,
     plannedDayKey: draft.dayKey,
-    plannedKuehlraumId: draft.kuehlraumId,
+    plannedKuehlraumId,
+    fromKuehlraumId,
     plannedZeit: draft.zeit || null,
     vonOrt: draft.vonOrt,
     nachOrt: draft.nachOrt,
     schrittTyp: draft.schrittTyp,
-    source: existingCard?.source === 'alamida' ? 'alamida' : 'canvas',
+    richtung,
+    source: existingCard?.source === 'alamida' && !draft.createNewLeg ? 'alamida' : 'canvas',
     order,
+    previous: prev ? snapshotFromAssignment(prev) : null,
     updatedAtMs: Date.now(),
   };
 
@@ -598,6 +683,38 @@ export function removeAssignment(
   return next;
 }
 
+/** Stellt die letzte Umplanung wieder her; ohne previous → Zuordnung löschen. */
+export function undoOrRemoveAssignment(
+  assignments: Record<string, PlanAssignment>,
+  id: string
+): {
+  assignments: Record<string, PlanAssignment>;
+  mode: 'restored' | 'removed';
+  restored?: PlanAssignment;
+} {
+  const current = assignments[id];
+  if (!current) {
+    return { assignments, mode: 'removed' };
+  }
+  if (current.previous) {
+    const restored: PlanAssignment = {
+      id: current.id,
+      docId: current.docId,
+      zeile: current.zeile,
+      source: current.source,
+      ...current.previous,
+      previous: null,
+      updatedAtMs: Date.now(),
+    };
+    return {
+      assignments: { ...assignments, [id]: restored },
+      mode: 'restored',
+      restored,
+    };
+  }
+  return { assignments: removeAssignment(assignments, id), mode: 'removed' };
+}
+
 export function nextOrderInLane(cards: PlanningCard[], dayKey: string | null): number {
   const lane = cardsForLane(cards, dayKey);
   if (lane.length === 0) return 10;
@@ -615,14 +732,18 @@ export function buildScheduleDraftFromSterbeort(opts: {
   return {
     docId: item.docId,
     cardId: existingCard?.id ?? item.existingCardId,
+    createNewLeg: false,
     name: item.name,
+    sterbefallId: item.sterbefallId,
     vonOrt: existingCard?.vonOrt ?? item.vonOrt,
     nachOrt: kuehlraum.alamidaName?.trim() || kuehlraum.label,
     kuehlraumId: kuehlraum.id,
     kuehlraumLabel: kuehlraum.label,
+    fromKuehlraumId: null,
     dayKey,
     zeit: existingCard?.plannedZeit || defaultZeit,
     schrittTyp: existingCard?.schrittTyp || 'abholung',
+    richtung: 'ankunft',
     existingZeile: existingCard && existingCard.zeile > 0 ? existingCard.zeile : undefined,
   };
 }
@@ -632,20 +753,125 @@ export function buildScheduleDraftFromCard(opts: {
   dayKey: string;
   kuehlraum: EigenerKuehlraumConfig;
   defaultZeit?: string;
+  /** true = weitere Etappe, bestehende Karte bleibt. */
+  createNewLeg?: boolean;
+  richtung?: PlanRichtung;
 }): ScheduleDraft {
-  const { card, dayKey, kuehlraum, defaultZeit = '10:00' } = opts;
+  const {
+    card,
+    dayKey,
+    kuehlraum,
+    defaultZeit = '10:00',
+    createNewLeg = false,
+    richtung = card.leavesEigenerKr && !card.targetsEigenerKr ? 'abgang' : 'ankunft',
+  } = opts;
+  const krLabel = kuehlraum.alamidaName?.trim() || kuehlraum.label;
+  if (richtung === 'abgang') {
+    return {
+      docId: card.docId,
+      cardId: createNewLeg ? undefined : card.id,
+      createNewLeg,
+      name: card.name,
+      sterbefallId: card.sterbefallId,
+      vonOrt: createNewLeg ? card.nachOrt || krLabel : card.vonOrt,
+      nachOrt: createNewLeg ? '' : card.nachOrt,
+      kuehlraumId: kuehlraum.id,
+      kuehlraumLabel: kuehlraum.label,
+      fromKuehlraumId: kuehlraum.id,
+      dayKey,
+      zeit: card.plannedZeit || defaultZeit,
+      schrittTyp: 'ueberfuehrung',
+      richtung: 'abgang',
+      existingZeile: !createNewLeg && card.zeile > 0 ? card.zeile : undefined,
+    };
+  }
+  if (richtung === 'umzug') {
+    return {
+      docId: card.docId,
+      cardId: createNewLeg ? undefined : card.id,
+      createNewLeg,
+      name: card.name,
+      sterbefallId: card.sterbefallId,
+      vonOrt: card.nachOrt || card.vonOrt,
+      nachOrt: krLabel,
+      kuehlraumId: kuehlraum.id,
+      kuehlraumLabel: kuehlraum.label,
+      fromKuehlraumId: card.kuehlraumId ?? card.fromKuehlraumId ?? null,
+      dayKey,
+      zeit: card.plannedZeit || defaultZeit,
+      schrittTyp: 'ueberfuehrung',
+      richtung: 'umzug',
+      existingZeile: !createNewLeg && card.zeile > 0 ? card.zeile : undefined,
+    };
+  }
   return {
     docId: card.docId,
-    cardId: card.id,
+    cardId: createNewLeg ? undefined : card.id,
+    createNewLeg,
     name: card.name,
+    sterbefallId: card.sterbefallId,
     vonOrt: card.vonOrt,
-    nachOrt: kuehlraum.alamidaName?.trim() || kuehlraum.label,
+    nachOrt: krLabel,
     kuehlraumId: kuehlraum.id,
     kuehlraumLabel: kuehlraum.label,
+    fromKuehlraumId: null,
     dayKey,
     zeit: card.plannedZeit || defaultZeit,
     schrittTyp: card.schrittTyp || 'abholung',
-    existingZeile: card.zeile > 0 ? card.zeile : undefined,
+    richtung: 'ankunft',
+    existingZeile: !createNewLeg && card.zeile > 0 ? card.zeile : undefined,
+  };
+}
+
+export function buildScheduleDraftFromOccupant(opts: {
+  occupant: KuehlraumOccupant;
+  fromKuehlraum: EigenerKuehlraumConfig;
+  dayKey: string;
+  /** Ziel-KR bei Umzug; sonst Abgang/Retour. */
+  toKuehlraum?: EigenerKuehlraumConfig | null;
+  endziel?: string;
+  defaultZeit?: string;
+}): ScheduleDraft {
+  const {
+    occupant,
+    fromKuehlraum,
+    dayKey,
+    toKuehlraum,
+    endziel,
+    defaultZeit = '10:00',
+  } = opts;
+  const fromLabel = fromKuehlraum.alamidaName?.trim() || fromKuehlraum.label;
+  if (toKuehlraum) {
+    return {
+      docId: occupant.docId,
+      createNewLeg: true,
+      name: occupant.name,
+      sterbefallId: occupant.sterbefallId,
+      vonOrt: fromLabel,
+      nachOrt: toKuehlraum.alamidaName?.trim() || toKuehlraum.label,
+      kuehlraumId: toKuehlraum.id,
+      kuehlraumLabel: toKuehlraum.label,
+      fromKuehlraumId: fromKuehlraum.id,
+      dayKey,
+      zeit: defaultZeit,
+      schrittTyp: 'ueberfuehrung',
+      richtung: 'umzug',
+    };
+  }
+  return {
+    docId: occupant.docId,
+    createNewLeg: true,
+    name: occupant.name,
+    sterbefallId: occupant.sterbefallId,
+    vonOrt: fromLabel,
+    nachOrt: endziel?.trim() || '',
+    kuehlraumId: fromKuehlraum.id,
+    kuehlraumLabel: fromKuehlraum.label,
+    fromKuehlraumId: fromKuehlraum.id,
+    dayKey,
+    zeit: defaultZeit,
+    schrittTyp: 'ueberfuehrung',
+    richtung: 'abgang',
   };
 }
 

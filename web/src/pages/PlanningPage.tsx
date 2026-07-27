@@ -30,16 +30,18 @@ import {
   buildLocationGroups,
   buildPlanningCards,
   buildScheduleDraftFromCard,
+  buildScheduleDraftFromOccupant,
   buildScheduleDraftFromSterbeort,
   buildSterbeortPool,
   cardsForLane,
   formatTerminDisplay,
   moveCardAssignment,
   nextOrderInLane,
-  removeAssignment,
   scheduleToKuehlraum,
+  undoOrRemoveAssignment,
 } from '../planning/transferPlanning';
 import type {
+  KuehlraumOccupant,
   PlanningCard,
   ScheduleDraft,
   SterbeortPoolItem,
@@ -54,6 +56,7 @@ const HORIZON_DAYS = 7;
 type DragState =
   | { kind: 'card'; card: PlanningCard }
   | { kind: 'source'; item: SterbeortPoolItem }
+  | { kind: 'occupant'; occupant: KuehlraumOccupant; fromKuehlraumId: string }
   | null;
 
 export function PlanningPage() {
@@ -208,16 +211,63 @@ export function PlanningPage() {
         return;
       }
 
+      if (drag.kind === 'occupant') {
+        const fromKr = settings.eigeneKuehlraeume.find((k) => k.id === drag.fromKuehlraumId);
+        if (!fromKr) {
+          clearDrag();
+          return;
+        }
+        const fall = sterbefaelle.find((s) => s.id === drag.occupant.docId);
+        const sameKr = drag.fromKuehlraumId === kuehlraumId;
+        setScheduleDraft(
+          buildScheduleDraftFromOccupant({
+            occupant: drag.occupant,
+            fromKuehlraum: fromKr,
+            dayKey,
+            toKuehlraum: sameKr ? null : kr,
+            endziel: fall?.endziel,
+          })
+        );
+        clearDrag();
+        return;
+      }
+
       setScheduleDraft(
         buildScheduleDraftFromCard({
           card: drag.card,
           dayKey,
           kuehlraum: kr,
+          richtung:
+            drag.card.kuehlraumId && drag.card.kuehlraumId !== kuehlraumId
+              ? 'umzug'
+              : 'ankunft',
         })
       );
       clearDrag();
     },
-    [settings.eigeneKuehlraeume, drag, cards, clearDrag]
+    [settings.eigeneKuehlraeume, drag, cards, clearDrag, sterbefaelle]
+  );
+
+  const openAddLeg = useCallback(
+    (card: PlanningCard) => {
+      const fromId =
+        card.kuehlraumId ??
+        card.fromKuehlraumId ??
+        settings.eigeneKuehlraeume[0]?.id;
+      const kr = settings.eigeneKuehlraeume.find((k) => k.id === fromId);
+      if (!kr) return;
+      const dayKey = focusDayKey || card.plannedDayKey || calendarDay;
+      setScheduleDraft(
+        buildScheduleDraftFromCard({
+          card,
+          dayKey,
+          kuehlraum: kr,
+          createNewLeg: true,
+          richtung: 'abgang',
+        })
+      );
+    },
+    [settings.eigeneKuehlraeume, focusDayKey, calendarDay]
   );
 
   const handleDropOnDay = useCallback(
@@ -239,9 +289,15 @@ export function PlanningPage() {
         return;
       }
 
-      if (drag.card.targetsEigenerKr) {
+      if (drag.kind === 'occupant') {
+        openSchedule(dayKey, drag.fromKuehlraumId);
+        return;
+      }
+
+      if (drag.card.targetsEigenerKr || drag.card.leavesEigenerKr) {
         const krId =
           drag.card.kuehlraumId ??
+          drag.card.fromKuehlraumId ??
           settings.eigeneKuehlraeume[0]?.id;
         if (krId) {
           openSchedule(dayKey, krId);
@@ -252,24 +308,35 @@ export function PlanningPage() {
       // Nicht-KR-Überführung: nur Tag verschieben
       const card = drag.card;
       const order = nextOrderInLane(cards, dayKey);
+      const hadPlan = Boolean(plan.assignments[card.id]);
       const nextAssignments = moveCardAssignment(plan.assignments, card, dayKey, order);
       clearDrag();
       setFlashId(card.id);
       void savePlan({
         assignments: nextAssignments,
         publish: {
-          type: 'ueberfuehrung_umgeplant',
+          type: hadPlan ? 'ueberfuehrung_umgeplant' : 'ueberfuehrung_geplant',
           docId: card.docId,
           sterbefallId: card.sterbefallId,
           name: card.name,
           vonOrt: card.vonOrt,
           nachOrt: card.nachOrt,
+          assignmentId: card.id,
           plannedDayKey: dayKey,
           plannedZeit: card.plannedZeit,
         },
       });
     },
-    [drag, saving, clearDrag, settings.eigeneKuehlraeume, openSchedule, cards, plan.assignments, savePlan]
+    [
+      drag,
+      saving,
+      clearDrag,
+      settings.eigeneKuehlraeume,
+      openSchedule,
+      cards,
+      plan.assignments,
+      savePlan,
+    ]
   );
 
   const handleDropOnKuehlraum = useCallback(
@@ -285,9 +352,13 @@ export function PlanningPage() {
 
   const confirmSchedule = useCallback(
     async (draft: ScheduleDraft) => {
-      const existing = draft.cardId ? cards.find((c) => c.id === draft.cardId) : null;
+      const existing =
+        !draft.createNewLeg && draft.cardId
+          ? cards.find((c) => c.id === draft.cardId)
+          : null;
       const order = nextOrderInLane(cards, draft.dayKey);
       const result = scheduleToKuehlraum(plan.assignments, draft, order, existing);
+      const fall = sterbefaelle.find((s) => s.id === draft.docId);
       setScheduleDraft(null);
       setFocusDayKey(draft.dayKey);
       setFlashId(result.assignment.id);
@@ -301,11 +372,12 @@ export function PlanningPage() {
           publish: {
             type: result.eventType,
             docId: draft.docId,
-            sterbefallId: existing?.sterbefallId,
+            sterbefallId: draft.sterbefallId || fall?.sterbefallId || fall?.id,
             name: draft.name,
             vonOrt: draft.vonOrt,
             nachOrt: draft.nachOrt,
             kuehlraumId: draft.kuehlraumId,
+            assignmentId: result.assignment.id,
             plannedDayKey: draft.dayKey,
             plannedZeit: draft.zeit,
           },
@@ -314,28 +386,47 @@ export function PlanningPage() {
         /* hook */
       }
     },
-    [cards, plan.assignments, savePlan]
+    [cards, plan.assignments, savePlan, sterbefaelle]
   );
 
   const resetCard = useCallback(
     async (card: PlanningCard) => {
       if (!card.hasManualPlan || saving) return;
-      const next = removeAssignment(plan.assignments, card.id);
+      const result = undoOrRemoveAssignment(plan.assignments, card.id);
       try {
-        await savePlan({
-          assignments: next,
-          publish: {
-            type: 'ueberfuehrung_entfernt',
-            docId: card.docId,
-            sterbefallId: card.sterbefallId,
-            name: card.name,
-            vonOrt: card.vonOrt,
-            nachOrt: card.nachOrt,
-            kuehlraumId: card.kuehlraumId ?? undefined,
-            plannedDayKey: card.plannedDayKey,
-            plannedZeit: card.plannedZeit,
-          },
-        });
+        if (result.mode === 'restored' && result.restored) {
+          await savePlan({
+            assignments: result.assignments,
+            publish: {
+              type: 'ueberfuehrung_umgeplant',
+              docId: card.docId,
+              sterbefallId: card.sterbefallId,
+              name: card.name,
+              vonOrt: result.restored.vonOrt ?? card.vonOrt,
+              nachOrt: result.restored.nachOrt ?? card.nachOrt,
+              kuehlraumId: result.restored.plannedKuehlraumId ?? undefined,
+              assignmentId: card.id,
+              plannedDayKey: result.restored.plannedDayKey,
+              plannedZeit: result.restored.plannedZeit,
+            },
+          });
+        } else {
+          await savePlan({
+            assignments: result.assignments,
+            publish: {
+              type: 'ueberfuehrung_entfernt',
+              docId: card.docId,
+              sterbefallId: card.sterbefallId,
+              name: card.name,
+              vonOrt: card.vonOrt,
+              nachOrt: card.nachOrt,
+              kuehlraumId: card.kuehlraumId ?? undefined,
+              assignmentId: card.id,
+              plannedDayKey: card.plannedDayKey,
+              plannedZeit: card.plannedZeit,
+            },
+          });
+        }
       } catch {
         /* handled */
       }
@@ -346,7 +437,12 @@ export function PlanningPage() {
   const loading = casesLoading || planLoading;
   const error = casesError || planError;
   const draggingId =
-    drag?.kind === 'card' ? drag.card.id : drag?.kind === 'source' ? drag.item.docId : null;
+    drag?.kind === 'card'
+      ? drag.card.id
+      : drag?.kind === 'source'
+        ? drag.item.docId
+        : null;
+  const draggingOccupantId = drag?.kind === 'occupant' ? drag.occupant.docId : null;
 
   return (
     <div className="plan-page plan-page--board plan-page--compact">
@@ -468,6 +564,7 @@ export function PlanningPage() {
                         onCardDragEnd={clearDrag}
                         onResetCard={(card) => void resetCard(card)}
                         onCeremonyClick={(c) => openCeremonyBooking(c)}
+                        onAddLeg={(card) => openAddLeg(card)}
                       />
                     </div>
                   );
@@ -478,11 +575,16 @@ export function PlanningPage() {
             <PlanningKuehlraumRail
               rails={krRails}
               dropTargetId={dropTarget?.startsWith('kr:') ? dropTarget.slice(3) : null}
+              draggingOccupantId={draggingOccupantId}
               onDragOver={(id) => setDropTarget(`kr:${id}`)}
               onDragLeave={(id) =>
                 setDropTarget((t) => (t === `kr:${id}` ? null : t))
               }
               onDrop={handleDropOnKuehlraum}
+              onOccupantDragStart={(occupant, fromKuehlraumId) =>
+                setDrag({ kind: 'occupant', occupant, fromKuehlraumId })
+              }
+              onOccupantDragEnd={clearDrag}
             />
           </div>
 
@@ -521,6 +623,7 @@ export function PlanningPage() {
 
       <PlanningScheduleDialog
         draft={scheduleDraft}
+        kuehlraeume={settings.eigeneKuehlraeume}
         pending={saving}
         error={planError}
         onClose={() => setScheduleDraft(null)}

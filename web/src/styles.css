@@ -6683,9 +6683,34 @@ code {
   border-radius: 4px;
 }
 
+.plan-reset-btn.is-undo {
+  color: var(--warn, #fbbf24);
+}
+
 .plan-reset-btn:hover {
   color: var(--accent);
   background: var(--accent-dim);
+}
+
+.plan-add-leg-btn {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0.1rem 0.35rem;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.plan-add-leg-btn:hover {
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.plan-card-tag--move {
+  color: var(--accent);
 }
 
 @keyframes plan-card-enter {
@@ -6966,11 +6991,16 @@ code {
   color: var(--muted);
 }
 
-.plan-schedule-fields label:nth-child(1),
-.plan-schedule-fields label:nth-child(2) {
+.plan-schedule-fields label.plan-schedule-span {
   grid-column: 1 / -1;
 }
 
+.plan-schedule-fields label:nth-child(1),
+.plan-schedule-fields label:nth-child(2) {
+  grid-column: auto;
+}
+
+.plan-schedule-fields select,
 .plan-schedule-fields input {
   padding: 0.55rem 0.7rem;
   border-radius: 8px;
@@ -6980,6 +7010,7 @@ code {
   font: inherit;
 }
 
+.plan-schedule-fields select:focus,
 .plan-schedule-fields input:focus {
   outline: 2px solid var(--accent-dim);
   border-color: var(--accent);
@@ -7661,6 +7692,11 @@ code {
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.25);
   border: 1px solid var(--border);
+  cursor: grab;
+}
+
+.plan-kr-occupant.is-dragging {
+  opacity: 0.55;
 }
 
 .plan-kr-occupant-main {

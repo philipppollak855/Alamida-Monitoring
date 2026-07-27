@@ -1,18 +1,27 @@
 import { useEffect, useId, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { ScheduleDraft } from '../../planning/types';
+import type { PlanRichtung, ScheduleDraft } from '../../planning/types';
+import type { EigenerKuehlraumConfig } from '../../types/dispositionSettings';
 import { RouteFlow } from '../../ui/RouteFlow';
 
 type Props = {
   draft: ScheduleDraft | null;
+  kuehlraeume: EigenerKuehlraumConfig[];
   pending?: boolean;
   error?: string | null;
   onClose: () => void;
   onConfirm: (draft: ScheduleDraft) => void;
 };
 
+const RICHTUNG_LABEL: Record<PlanRichtung, string> = {
+  ankunft: 'Ankunft in Kühlraum',
+  abgang: 'Abgang / Retour / Krematorium',
+  umzug: 'Umzug in anderen Kühlraum',
+};
+
 export function PlanningScheduleDialog({
   draft,
+  kuehlraeume,
   pending,
   error,
   onClose,
@@ -23,6 +32,9 @@ export function PlanningScheduleDialog({
   const [zeit, setZeit] = useState('10:00');
   const [vonOrt, setVonOrt] = useState('');
   const [nachOrt, setNachOrt] = useState('');
+  const [richtung, setRichtung] = useState<PlanRichtung>('ankunft');
+  const [kuehlraumId, setKuehlraumId] = useState('');
+  const [fromKuehlraumId, setFromKuehlraumId] = useState('');
 
   useEffect(() => {
     if (!draft) return;
@@ -30,6 +42,9 @@ export function PlanningScheduleDialog({
     setZeit(draft.zeit || '10:00');
     setVonOrt(draft.vonOrt);
     setNachOrt(draft.nachOrt);
+    setRichtung(draft.richtung);
+    setKuehlraumId(draft.kuehlraumId);
+    setFromKuehlraumId(draft.fromKuehlraumId ?? draft.kuehlraumId ?? '');
   }, [draft]);
 
   useEffect(() => {
@@ -43,7 +58,29 @@ export function PlanningScheduleDialog({
 
   if (!draft) return null;
 
-  const canSubmit = !!dayKey && !!vonOrt.trim() && !!nachOrt.trim() && !pending;
+  const targetKr = kuehlraeume.find((k) => k.id === kuehlraumId);
+  const fromKr = kuehlraeume.find((k) => k.id === fromKuehlraumId);
+  const canSubmit =
+    !!dayKey &&
+    !!vonOrt.trim() &&
+    !!nachOrt.trim() &&
+    !pending &&
+    (richtung === 'abgang' ? !!fromKuehlraumId : !!kuehlraumId) &&
+    (richtung !== 'umzug' || (!!fromKuehlraumId && fromKuehlraumId !== kuehlraumId));
+
+  function applyRichtung(next: PlanRichtung) {
+    setRichtung(next);
+    if (next === 'ankunft' && targetKr) {
+      setNachOrt(targetKr.alamidaName?.trim() || targetKr.label);
+    }
+    if (next === 'umzug' && targetKr) {
+      setNachOrt(targetKr.alamidaName?.trim() || targetKr.label);
+      if (fromKr) setVonOrt(fromKr.alamidaName?.trim() || fromKr.label);
+    }
+    if (next === 'abgang' && fromKr) {
+      setVonOrt(fromKr.alamidaName?.trim() || fromKr.label);
+    }
+  }
 
   return createPortal(
     <div
@@ -62,9 +99,11 @@ export function PlanningScheduleDialog({
       >
         <header className="plan-schedule-head">
           <div>
-            <p className="plan-schedule-kicker">Überführung planen</p>
+            <p className="plan-schedule-kicker">
+              {draft.createNewLeg ? 'Weitere Überführung' : 'Überführung planen'}
+            </p>
             <h2 id={titleId}>{draft.name}</h2>
-            <p className="plan-schedule-sub">Ziel: {draft.kuehlraumLabel}</p>
+            <p className="plan-schedule-sub">{RICHTUNG_LABEL[richtung]}</p>
           </div>
           <button type="button" className="btn btn-ghost" onClick={onClose} disabled={pending}>
             Schließen
@@ -76,6 +115,65 @@ export function PlanningScheduleDialog({
         </div>
 
         <div className="plan-schedule-fields">
+          <label className="plan-schedule-span">
+            <span>Richtung</span>
+            <select
+              value={richtung}
+              onChange={(e) => applyRichtung(e.target.value as PlanRichtung)}
+              disabled={pending}
+            >
+              <option value="ankunft">{RICHTUNG_LABEL.ankunft}</option>
+              <option value="abgang">{RICHTUNG_LABEL.abgang}</option>
+              <option value="umzug">{RICHTUNG_LABEL.umzug}</option>
+            </select>
+          </label>
+
+          {(richtung === 'abgang' || richtung === 'umzug') && (
+            <label>
+              <span>Von Kühlraum</span>
+              <select
+                value={fromKuehlraumId}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  setFromKuehlraumId(id);
+                  const kr = kuehlraeume.find((k) => k.id === id);
+                  if (kr) setVonOrt(kr.alamidaName?.trim() || kr.label);
+                }}
+                disabled={pending}
+              >
+                <option value="">— wählen —</option>
+                {kuehlraeume.map((k) => (
+                  <option key={k.id} value={k.id}>
+                    {k.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          {(richtung === 'ankunft' || richtung === 'umzug') && (
+            <label>
+              <span>Nach Kühlraum</span>
+              <select
+                value={kuehlraumId}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  setKuehlraumId(id);
+                  const kr = kuehlraeume.find((k) => k.id === id);
+                  if (kr) setNachOrt(kr.alamidaName?.trim() || kr.label);
+                }}
+                disabled={pending}
+              >
+                <option value="">— wählen —</option>
+                {kuehlraeume.map((k) => (
+                  <option key={k.id} value={k.id}>
+                    {k.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
           <label>
             <span>Von</span>
             <input
@@ -92,6 +190,7 @@ export function PlanningScheduleDialog({
               value={nachOrt}
               onChange={(e) => setNachOrt(e.target.value)}
               disabled={pending}
+              placeholder={richtung === 'abgang' ? 'Krematorium, Retour, Friedhof…' : undefined}
             />
           </label>
           <label>
@@ -130,17 +229,30 @@ export function PlanningScheduleDialog({
             type="button"
             className="btn btn-primary"
             disabled={!canSubmit}
-            onClick={() =>
+            onClick={() => {
+              const kr =
+                richtung === 'abgang'
+                  ? kuehlraeume.find((k) => k.id === fromKuehlraumId)
+                  : kuehlraeume.find((k) => k.id === kuehlraumId);
               onConfirm({
                 ...draft,
                 dayKey,
                 zeit,
                 vonOrt: vonOrt.trim(),
                 nachOrt: nachOrt.trim(),
-              })
-            }
+                richtung,
+                kuehlraumId: richtung === 'abgang' ? fromKuehlraumId : kuehlraumId,
+                kuehlraumLabel: kr?.label || draft.kuehlraumLabel,
+                fromKuehlraumId:
+                  richtung === 'ankunft' ? null : fromKuehlraumId || draft.fromKuehlraumId || null,
+              });
+            }}
           >
-            {pending ? 'Speichert…' : 'Überführung anlegen'}
+            {pending
+              ? 'Speichert…'
+              : draft.createNewLeg
+                ? 'Weitere Überführung anlegen'
+                : 'Überführung speichern'}
           </button>
         </footer>
       </div>
