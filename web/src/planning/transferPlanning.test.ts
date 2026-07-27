@@ -11,12 +11,12 @@ import {
   buildScheduleDraftFromSterbeort,
   buildSlotFreeEvents,
   buildSterbeortPool,
-  canvasPlanningId,
   moveCardAssignment,
   nextOrderInLane,
   planningCardId,
   resolveFreigabeState,
   scheduleToKuehlraum,
+  undoOrRemoveAssignment,
 } from './transferPlanning';
 import type { PlanAssignment } from './types';
 
@@ -96,7 +96,9 @@ describe('transferPlanning board', () => {
       defaultZeit: '11:00',
     });
     const scheduled = scheduleToKuehlraum({}, draft, 10, null);
-    expect(scheduled.assignment.id).toBe(canvasPlanningId('xy', 'grafenbach'));
+    expect(scheduled.assignment.id.startsWith('xy:canvas:')).toBe(true);
+    expect(scheduled.eventType).toBe('ueberfuehrung_geplant');
+    expect(scheduled.assignment.richtung).toBe('ankunft');
 
     const cards = buildPlanningCards(sterbefaelle, scheduled.assignments, settings);
     expect(cards[0].freigabeState).toBe('frei');
@@ -189,5 +191,91 @@ describe('transferPlanning board', () => {
     )[0];
     const next = moveCardAssignment({}, card, '2026-07-29', nextOrderInLane([], '2026-07-29'));
     expect(next[card.id].plannedDayKey).toBe('2026-07-29');
+  });
+
+  it('legt mehrere Überführungs-Etappen an und macht Umplanung rückgängig', () => {
+    const sterbefaelle = [
+      fall({
+        id: 'sulzer',
+        sterbefallId: 'SF-SULZER',
+        verstorbenerName: 'Sulzer',
+        aktuellePosition: 'UK - Neunkirchen',
+        aktuellePositionTyp: 'sterbeort',
+        endziel: 'Krematorium',
+      }),
+    ];
+    const kr = settings.eigeneKuehlraeume[0];
+    const ankunft = scheduleToKuehlraum(
+      {},
+      {
+        docId: 'sulzer',
+        name: 'Sulzer',
+        vonOrt: 'UK - Neunkirchen',
+        nachOrt: kr.alamidaName || kr.label,
+        kuehlraumId: kr.id,
+        kuehlraumLabel: kr.label,
+        dayKey: '2026-07-28',
+        zeit: '10:00',
+        schrittTyp: 'abholung',
+        richtung: 'ankunft',
+        createNewLeg: true,
+      },
+      10,
+      null
+    );
+    expect(ankunft.assignment.richtung).toBe('ankunft');
+
+    const abgang = scheduleToKuehlraum(
+      ankunft.assignments,
+      {
+        docId: 'sulzer',
+        name: 'Sulzer',
+        createNewLeg: true,
+        vonOrt: kr.alamidaName || kr.label,
+        nachOrt: 'Krematorium',
+        kuehlraumId: kr.id,
+        kuehlraumLabel: kr.label,
+        fromKuehlraumId: kr.id,
+        dayKey: '2026-07-30',
+        zeit: '09:00',
+        schrittTyp: 'ueberfuehrung',
+        richtung: 'abgang',
+      },
+      20,
+      null
+    );
+    expect(Object.keys(abgang.assignments)).toHaveLength(2);
+    expect(abgang.eventType).toBe('ueberfuehrung_geplant');
+
+    const cards = buildPlanningCards(sterbefaelle, abgang.assignments, settings);
+    expect(cards).toHaveLength(2);
+    expect(cards.some((c) => c.targetsEigenerKr)).toBe(true);
+    expect(cards.some((c) => c.leavesEigenerKr && !c.targetsEigenerKr)).toBe(true);
+
+    const firstId = ankunft.assignment.id;
+    const moved = scheduleToKuehlraum(
+      abgang.assignments,
+      {
+        docId: 'sulzer',
+        cardId: firstId,
+        name: 'Sulzer',
+        vonOrt: 'UK - Neunkirchen',
+        nachOrt: kr.alamidaName || kr.label,
+        kuehlraumId: kr.id,
+        kuehlraumLabel: kr.label,
+        dayKey: '2026-07-29',
+        zeit: '11:00',
+        schrittTyp: 'abholung',
+        richtung: 'ankunft',
+      },
+      10,
+      cards.find((c) => c.id === firstId)
+    );
+    expect(moved.eventType).toBe('ueberfuehrung_umgeplant');
+    expect(moved.assignment.previous?.plannedDayKey).toBe('2026-07-28');
+
+    const undone = undoOrRemoveAssignment(moved.assignments, firstId);
+    expect(undone.mode).toBe('restored');
+    expect(undone.restored?.plannedDayKey).toBe('2026-07-28');
   });
 });

@@ -9,6 +9,7 @@ type Props = {
   onDragStart: (card: PlanningCard) => void;
   onDragEnd: () => void;
   onReset?: (card: PlanningCard) => void;
+  onAddLeg?: (card: PlanningCard) => void;
 };
 
 export function PlanningTransferCard({
@@ -17,7 +18,12 @@ export function PlanningTransferCard({
   onDragStart,
   onDragEnd,
   onReset,
+  onAddLeg,
 }: Props) {
+  const undoTitle = card.canUndoUmplanung
+    ? 'Umplanung rückgängig'
+    : 'Planung zurücksetzen';
+
   return (
     <article
       className={`plan-card transfer-${card.schrittTyp} status-${card.status}${
@@ -87,11 +93,27 @@ export function PlanningTransferCard({
         {card.leavesEigenerKr && !card.targetsEigenerKr && (
           <span className="plan-card-tag plan-card-tag--out">KR frei</span>
         )}
+        {card.leavesEigenerKr && card.targetsEigenerKr && (
+          <span className="plan-card-tag plan-card-tag--move">Umzug</span>
+        )}
+        {onAddLeg && (
+          <button
+            type="button"
+            className="plan-add-leg-btn"
+            title="Weitere Überführung planen"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddLeg(card);
+            }}
+          >
+            +
+          </button>
+        )}
         {card.hasManualPlan && onReset && (
           <button
             type="button"
-            className="plan-reset-btn"
-            title="Planung zurücksetzen"
+            className={`plan-reset-btn${card.canUndoUmplanung ? ' is-undo' : ''}`}
+            title={undoTitle}
             onClick={(e) => {
               e.stopPropagation();
               onReset(card);

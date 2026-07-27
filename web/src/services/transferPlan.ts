@@ -13,6 +13,7 @@ import type {
   PlanAssignment,
   PlanDocument,
 } from '../planning/types';
+import { omitUndefinedDeep } from './personnelBookings';
 
 const PLAN_DOC = ['settings', 'ueberfuehrungsPlanung'] as const;
 const MAX_EVENTS = 40;
@@ -24,20 +25,26 @@ function normalizeAssignments(raw: unknown): Record<string, PlanAssignment> {
     if (!value || typeof value !== 'object') continue;
     const v = value as Partial<PlanAssignment>;
     if (!v.docId || typeof v.zeile !== 'number') continue;
-    out[id] = {
+    const assignment: PlanAssignment = {
       id,
       docId: String(v.docId),
       zeile: v.zeile,
       plannedDayKey: v.plannedDayKey === undefined ? null : (v.plannedDayKey as string | null),
       plannedKuehlraumId: v.plannedKuehlraumId ?? null,
+      fromKuehlraumId: v.fromKuehlraumId ?? null,
       plannedZeit: v.plannedZeit ?? null,
       vonOrt: v.vonOrt ?? null,
       nachOrt: v.nachOrt ?? null,
       schrittTyp: v.schrittTyp ?? null,
+      richtung: v.richtung ?? null,
       source: v.source === 'canvas' ? 'canvas' : 'alamida',
       order: typeof v.order === 'number' ? v.order : 0,
-      updatedAtMs: typeof v.updatedAtMs === 'number' ? v.updatedAtMs : undefined,
     };
+    if (typeof v.updatedAtMs === 'number') assignment.updatedAtMs = v.updatedAtMs;
+    if (v.previous && typeof v.previous === 'object') {
+      assignment.previous = omitUndefinedDeep(v.previous as PlanAssignment['previous']);
+    }
+    out[id] = omitUndefinedDeep(assignment);
   }
   return out;
 }
@@ -49,19 +56,21 @@ function normalizeEvents(raw: unknown): DispositionPlanEvent[] {
     if (!item || typeof item !== 'object') continue;
     const v = item as Partial<DispositionPlanEvent>;
     if (!v.id || !v.type || !v.docId) continue;
-    out.push({
+    const event: DispositionPlanEvent = {
       id: String(v.id),
       type: v.type,
       docId: String(v.docId),
-      sterbefallId: v.sterbefallId,
-      name: v.name,
-      vonOrt: v.vonOrt,
-      nachOrt: v.nachOrt,
-      kuehlraumId: v.kuehlraumId,
       plannedDayKey: v.plannedDayKey ?? null,
       plannedZeit: v.plannedZeit ?? null,
       createdAtMs: typeof v.createdAtMs === 'number' ? v.createdAtMs : Date.now(),
-    });
+    };
+    if (v.sterbefallId) event.sterbefallId = String(v.sterbefallId);
+    if (v.name) event.name = String(v.name);
+    if (v.vonOrt) event.vonOrt = String(v.vonOrt);
+    if (v.nachOrt) event.nachOrt = String(v.nachOrt);
+    if (v.kuehlraumId) event.kuehlraumId = String(v.kuehlraumId);
+    if (v.assignmentId) event.assignmentId = String(v.assignmentId);
+    out.push(event);
   }
   return out;
 }
@@ -71,11 +80,12 @@ export function parsePlanDocument(data: unknown): PlanDocument {
     assignments?: unknown;
     events?: unknown;
   };
-  return {
+  const doc: PlanDocument = {
     assignments: normalizeAssignments(d.assignments),
     events: normalizeEvents(d.events),
-    updatedAtMs: typeof d.updatedAtMs === 'number' ? d.updatedAtMs : undefined,
   };
+  if (typeof d.updatedAtMs === 'number') doc.updatedAtMs = d.updatedAtMs;
+  return doc;
 }
 
 export async function loadTransferPlan(): Promise<PlanDocument> {
@@ -108,16 +118,13 @@ export async function saveTransferPlan(plan: {
 }): Promise<void> {
   if (!db) throw new Error('Firebase nicht konfiguriert');
   const events = (plan.events ?? []).slice(0, MAX_EVENTS);
-  await setDoc(
-    doc(db, PLAN_DOC[0], PLAN_DOC[1]),
-    {
-      assignments: plan.assignments,
-      events,
-      updatedAtMs: Date.now(),
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true }
-  );
+  const payload = omitUndefinedDeep({
+    assignments: plan.assignments,
+    events,
+    updatedAtMs: Date.now(),
+    updatedAt: serverTimestamp(),
+  });
+  await setDoc(doc(db, PLAN_DOC[0], PLAN_DOC[1]), payload, { merge: true });
 }
 
 /** @deprecated Prefer saveTransferPlan */
@@ -131,19 +138,20 @@ export async function saveTransferPlanAssignments(
 export async function publishDispositionPlanEvent(
   event: Omit<DispositionPlanEvent, 'id' | 'createdAtMs'> & { id?: string; createdAtMs?: number }
 ): Promise<DispositionPlanEvent> {
-  const full: DispositionPlanEvent = {
+  const full = omitUndefinedDeep({
     id: event.id ?? `pe_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`,
     type: event.type,
     docId: event.docId,
-    sterbefallId: event.sterbefallId,
-    name: event.name,
-    vonOrt: event.vonOrt,
-    nachOrt: event.nachOrt,
-    kuehlraumId: event.kuehlraumId,
+    sterbefallId: event.sterbefallId || undefined,
+    name: event.name || undefined,
+    vonOrt: event.vonOrt || undefined,
+    nachOrt: event.nachOrt || undefined,
+    kuehlraumId: event.kuehlraumId || undefined,
+    assignmentId: event.assignmentId || undefined,
     plannedDayKey: event.plannedDayKey ?? null,
     plannedZeit: event.plannedZeit ?? null,
     createdAtMs: event.createdAtMs ?? Date.now(),
-  };
+  }) as DispositionPlanEvent;
 
   if (!db) return full;
 

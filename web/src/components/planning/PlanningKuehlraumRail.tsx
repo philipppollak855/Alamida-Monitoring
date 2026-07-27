@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { KuehlraumRailState } from '../../planning/types';
+import type { KuehlraumOccupant, KuehlraumRailState } from '../../planning/types';
 import { formatDayLabelDe } from '../../board/dateUtils';
 import {
   tageSeitFreigabeLabel,
@@ -10,17 +10,23 @@ import { formatTerminDisplay, freigabeLabel } from '../../planning/transferPlann
 type Props = {
   rails: KuehlraumRailState[];
   dropTargetId: string | null;
+  draggingOccupantId?: string | null;
   onDragOver: (kuehlraumId: string) => void;
   onDragLeave: (kuehlraumId: string) => void;
   onDrop: (kuehlraumId: string) => void;
+  onOccupantDragStart?: (occupant: KuehlraumOccupant, fromKuehlraumId: string) => void;
+  onOccupantDragEnd?: () => void;
 };
 
 export function PlanningKuehlraumRail({
   rails,
   dropTargetId,
+  draggingOccupantId,
   onDragOver,
   onDragLeave,
   onDrop,
+  onOccupantDragStart,
+  onOccupantDragEnd,
 }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -114,14 +120,27 @@ export function PlanningKuehlraumRail({
 
                 {expanded && (
                   <div className="plan-kr-panel-body">
-                    <p className="plan-kr-drop-hint">Fall hierher ziehen → Termin planen</p>
+                    <p className="plan-kr-drop-hint">
+                      Fall hierher ziehen → Ankunft. Belegung ziehen → Abgang/Umzug.
+                    </p>
 
                     {kr.occupants.length > 0 && (
                       <ul className="plan-kr-occupants">
                         {kr.occupants.map((occ) => (
                           <li
                             key={occ.docId}
-                            className={`plan-kr-occupant freigabe-${occ.freigabeState}`}
+                            className={`plan-kr-occupant freigabe-${occ.freigabeState}${
+                              draggingOccupantId === occ.docId ? ' is-dragging' : ''
+                            }`}
+                            draggable={Boolean(onOccupantDragStart)}
+                            onDragStart={(e) => {
+                              if (!onOccupantDragStart) return;
+                              e.stopPropagation();
+                              e.dataTransfer.effectAllowed = 'move';
+                              e.dataTransfer.setData('text/plain', `occupant:${occ.docId}`);
+                              onOccupantDragStart(occ, kr.id);
+                            }}
+                            onDragEnd={() => onOccupantDragEnd?.()}
                           >
                             <div className="plan-kr-occupant-main">
                               <span className="plan-kr-occupant-platz">P{occ.platz}</span>
