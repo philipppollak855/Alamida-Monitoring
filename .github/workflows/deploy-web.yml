@@ -39,7 +39,7 @@ jobs:
           cp -a web/dist firebase/public
 
       - name: Deploy Firebase Hosting + Rules
-        working-directory: .
+        working-directory: firebase
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
