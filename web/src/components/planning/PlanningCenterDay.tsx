@@ -65,41 +65,43 @@ export function PlanningCenterDay({
 
       {capacities.length > 0 && <PlanningCapacityMeters capacities={capacities} />}
 
-      {ceremonies.length > 0 && (
-        <ul className="plan-center-ceremonies">
-          {ceremonies.map((c) => (
-            <li key={`${c.docId}-${c.ceremony.kind}-${c.ceremony.datum}`}>
-              <span className={`plan-ceremony-kind is-${c.ceremony.kind}`}>
-                {c.ceremony.kind === 'beisetzung'
-                  ? 'Beisetzung'
-                  : c.ceremony.kind === 'trauerfeier'
-                    ? 'Trauerfeier'
-                    : c.ceremony.kind === 'kremation'
-                      ? 'Kremation'
-                      : 'Verabschiedung'}
-              </span>
-              <strong>{c.name}</strong>
-              <span>{c.ceremony.zeit || c.ceremony.datum}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <div className="plan-column-cards">
-        {transfers.length === 0 ? (
-          <p className="plan-column-empty">Überführung hierher ziehen (X → Y)</p>
-        ) : (
-          transfers.map((card) => (
-            <PlanningTransferCard
-              key={card.id}
-              card={card}
-              dragging={draggingId === card.id}
-              onDragStart={onCardDragStart}
-              onDragEnd={onCardDragEnd}
-              onReset={onResetCard}
-            />
-          ))
+      <div className="plan-center-day-body">
+        {ceremonies.length > 0 && (
+          <ul className="plan-center-ceremonies">
+            {ceremonies.map((c) => (
+              <li key={`${c.docId}-${c.ceremony.kind}-${c.ceremony.datum}`}>
+                <span className={`plan-ceremony-kind is-${c.ceremony.kind}`}>
+                  {c.ceremony.kind === 'beisetzung'
+                    ? 'Beisetzung'
+                    : c.ceremony.kind === 'trauerfeier'
+                      ? 'Trauerfeier'
+                      : c.ceremony.kind === 'kremation'
+                        ? 'Kremation'
+                        : 'Verabschiedung'}
+                </span>
+                <strong title={c.name}>{c.name}</strong>
+                <span>{c.ceremony.zeit || c.ceremony.datum}</span>
+              </li>
+            ))}
+          </ul>
         )}
+
+        <div className="plan-column-cards">
+          {transfers.length === 0 ? (
+            <p className="plan-column-empty">Überführung hierher ziehen (X → Y)</p>
+          ) : (
+            transfers.map((card) => (
+              <PlanningTransferCard
+                key={card.id}
+                card={card}
+                dragging={draggingId === card.id}
+                onDragStart={onCardDragStart}
+                onDragEnd={onCardDragEnd}
+                onReset={onResetCard}
+              />
+            ))
+          )}
+        </div>
       </div>
     </section>
   );
