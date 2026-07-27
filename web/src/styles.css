@@ -7810,6 +7810,39 @@ code {
   border: none;
 }
 
+.plan-center-ceremony.is-clickable.is-merged {
+  background: var(--violet-dim);
+  border: 1px solid rgba(167, 139, 250, 0.18);
+  border-radius: 8px;
+  overflow: hidden;
+  gap: 0;
+  box-shadow: none;
+}
+
+.plan-center-ceremony.is-clickable.is-merged.is-beisetzung {
+  border-color: rgba(106, 122, 154, 0.2);
+}
+
+.plan-center-ceremony.is-clickable.is-merged.is-kremation {
+  border-color: rgba(77, 159, 255, 0.2);
+}
+
+.plan-center-ceremony.is-clickable.is-merged .plan-center-ceremony-btn {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding-bottom: 0.25rem;
+}
+
+.plan-center-ceremony.is-clickable.is-merged .plan-center-ceremony-btn:hover {
+  transform: none;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.plan-center-ceremony.is-clickable.is-merged .plan-center-ceremony-leg {
+  margin: 0 0.4rem 0.35rem;
+}
+
 .plan-center-ceremony-btn {
   display: flex;
   flex-direction: column;
