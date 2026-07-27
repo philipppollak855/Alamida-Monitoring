@@ -6,9 +6,13 @@ import { setDispositionSettings } from '../settings/dispositionSettingsStore';
 import {
   buildKuehlraumCapacities,
   buildPlanningCards,
+  buildScheduleDraftFromSterbeort,
+  buildSterbeortPool,
+  canvasPlanningId,
   moveCardAssignment,
   nextOrderInLane,
   planningCardId,
+  scheduleToKuehlraum,
 } from './transferPlanning';
 import type { PlanAssignment } from './types';
 
@@ -84,7 +88,9 @@ describe('transferPlanning', () => {
         docId: 'a1',
         zeile: 1,
         plannedDayKey: '2026-07-29',
+        plannedZeit: '14:30',
         order: 20,
+        source: 'alamida',
       },
     };
 
@@ -97,11 +103,55 @@ describe('transferPlanning', () => {
     expect(first.targetsEigenerKr).toBe(true);
     expect(first.hasManualPlan).toBe(true);
     expect(first.kuehlraumId).toBe('grafenbach');
+    expect(first.terminAm).toContain('14:30');
 
     const second = cards.find((c) => c.zeile === 2)!;
     expect(second.plannedDayKey).toBe('2026-07-30');
     expect(second.leavesEigenerKr).toBe(true);
     expect(second.targetsEigenerKr).toBe(false);
+  });
+
+  it('Sterbeort → Kühlraum legt Canvas-Überführung an und erhöht Kapazität', () => {
+    const sterbefaelle = [
+      fall({
+        id: 'xy',
+        sterbefallId: 'SF-XY',
+        verstorbenerName: 'Fall XY',
+        aktuellePosition: 'UK - Neunkirchen',
+        aktuellePositionTyp: 'sterbeort',
+        abholortIstKrankenhaus: true,
+      }),
+    ];
+
+    const pool = buildSterbeortPool(sterbefaelle, [], settings);
+    expect(pool).toHaveLength(1);
+    expect(pool[0].docId).toBe('xy');
+
+    const draft = buildScheduleDraftFromSterbeort({
+      item: pool[0],
+      dayKey: '2026-07-28',
+      kuehlraum: settings.eigeneKuehlraeume[0],
+      defaultZeit: '11:00',
+    });
+
+    const scheduled = scheduleToKuehlraum({}, draft, 10, null);
+    expect(scheduled.eventType).toBe('ueberfuehrung_geplant');
+    expect(scheduled.assignment.id).toBe(canvasPlanningId('xy', 'grafenbach'));
+    expect(scheduled.assignment.plannedZeit).toBe('11:00');
+    expect(scheduled.assignment.vonOrt).toContain('Neunkirchen');
+
+    const cards = buildPlanningCards(sterbefaelle, scheduled.assignments, settings);
+    expect(cards).toHaveLength(1);
+    expect(cards[0].source).toBe('canvas');
+    expect(cards[0].targetsEigenerKr).toBe(true);
+    expect(cards[0].terminAm).toContain('11:00');
+
+    const caps = buildKuehlraumCapacities(sterbefaelle, cards, settings, ['2026-07-28']);
+    expect(caps[0].arrivals).toBe(1);
+    expect(caps[0].projectedOccupied).toBe(1);
+
+    const poolAfter = buildSterbeortPool(sterbefaelle, cards, settings);
+    expect(poolAfter).toHaveLength(0);
   });
 
   it('buildKuehlraumCapacities prognostiziert Ankünfte und Abgänge', () => {

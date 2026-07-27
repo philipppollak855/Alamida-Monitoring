@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { PlanAssignment, PlanDocument } from '../planning/types';
+import type { DispositionPlanEvent, PlanAssignment, PlanDocument } from '../planning/types';
 import {
   loadTransferPlan,
-  saveTransferPlanAssignments,
+  publishDispositionPlanEvent,
+  saveTransferPlan,
   subscribeTransferPlan,
 } from '../services/transferPlan';
 
 export function useTransferPlan() {
-  const [plan, setPlan] = useState<PlanDocument>({ assignments: {} });
+  const [plan, setPlan] = useState<PlanDocument>({ assignments: {}, events: [] });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,19 +51,49 @@ export function useTransferPlan() {
     };
   }, []);
 
-  const saveAssignments = useCallback(async (assignments: Record<string, PlanAssignment>) => {
-    setSaving(true);
-    setError(null);
-    setPlan((prev) => ({ ...prev, assignments, updatedAtMs: Date.now() }));
-    try {
-      await saveTransferPlanAssignments(assignments);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Speichern fehlgeschlagen');
-      throw e;
-    } finally {
-      setSaving(false);
-    }
-  }, []);
+  const savePlan = useCallback(
+    async (next: {
+      assignments: Record<string, PlanAssignment>;
+      events?: DispositionPlanEvent[];
+      publish?: Omit<DispositionPlanEvent, 'id' | 'createdAtMs'> & {
+        id?: string;
+        createdAtMs?: number;
+      };
+    }) => {
+      setSaving(true);
+      setError(null);
 
-  return { plan, loading, saving, error, saveAssignments, setError };
+      let events = next.events ?? plan.events ?? [];
+      if (next.publish) {
+        const published = await publishDispositionPlanEvent(next.publish);
+        events = [published, ...events].slice(0, 40);
+      }
+
+      const doc: PlanDocument = {
+        assignments: next.assignments,
+        events,
+        updatedAtMs: Date.now(),
+      };
+      setPlan(doc);
+
+      try {
+        await saveTransferPlan(doc);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Speichern fehlgeschlagen');
+        throw e;
+      } finally {
+        setSaving(false);
+      }
+    },
+    [plan.events]
+  );
+
+  const saveAssignments = useCallback(
+    async (assignments: Record<string, PlanAssignment>) => {
+      await savePlan({ assignments, events: plan.events ?? [] });
+    },
+    [plan.events, savePlan]
+  );
+
+  return { plan, loading, saving, error, savePlan, saveAssignments, setError };
 }
