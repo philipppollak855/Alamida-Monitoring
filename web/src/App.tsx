@@ -52,6 +52,7 @@ export function App() {
             <Route path="/planung" element={<PlanningPage />} />
             <Route path="/wall" element={<WallPage />} />
             <Route path="/widgets" element={<WidgetsHubPage />} />
+            <Route path="*" element={<Navigate to="/disposition" replace />} />
           </Route>
           <Route
             element={
