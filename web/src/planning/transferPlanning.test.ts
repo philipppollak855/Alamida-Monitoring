@@ -15,6 +15,7 @@ import {
   canUndoPlanEvent,
   canvasPlanningId,
   clearCardToAbholort,
+  dismissPlanEvent,
   moveCardAssignment,
   nextOrderInLane,
   planningCardId,
@@ -336,5 +337,35 @@ describe('transferPlanning board', () => {
     expect(cards[0]!.plannedDayKey).toBeNull();
     const pool = buildSterbeortPool(sterbefaelle, cards, settings);
     expect(pool.some((p) => p.docId === 'ab1')).toBe(true);
+  });
+
+  it('dismissPlanEvent setzt Überführung zurück und löscht den Eintrag', () => {
+    const id = planningCardId('d1', 1);
+    const assignments: Record<string, PlanAssignment> = {
+      [id]: {
+        id,
+        docId: 'd1',
+        zeile: 1,
+        plannedDayKey: '2026-07-29',
+        plannedZeit: '10:00',
+        order: 10,
+        source: 'alamida',
+      },
+    };
+    const events: DispositionPlanEvent[] = [
+      {
+        id: 'ev-d1',
+        type: 'ueberfuehrung_geplant',
+        docId: 'd1',
+        assignmentId: id,
+        plannedDayKey: '2026-07-29',
+        plannedZeit: '10:00',
+        createdAtMs: 1,
+      },
+    ];
+    const result = dismissPlanEvent(assignments, events, 'ev-d1');
+    expect(result.mode).toBe('dismissed');
+    expect(result.events).toHaveLength(0);
+    expect(result.assignments[id]?.plannedDayKey).toBeNull();
   });
 });

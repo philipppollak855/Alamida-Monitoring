@@ -7129,19 +7129,25 @@ code {
   animation: plan-card-enter 0.3s ease both;
 }
 
-.plan-event-undo {
+.plan-event-actions {
   grid-column: 4;
   grid-row: 1 / 3;
   align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.plan-event-undo {
   border: 1px solid var(--border);
   background: transparent;
   color: var(--accent);
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 600;
-  padding: 0.35rem 0.55rem;
+  padding: 0.2rem 0.4rem;
   border-radius: 6px;
   cursor: pointer;
-  white-space: nowrap;
+  line-height: 1;
 }
 
 .plan-event-undo:hover:not(:disabled) {
@@ -7149,9 +7155,30 @@ code {
   border-color: var(--accent);
 }
 
-.plan-event-undo:disabled {
+.plan-event-undo:disabled,
+.plan-event-dismiss:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.plan-event-dismiss {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 1rem;
+  font-weight: 650;
+  line-height: 1;
+  width: 1.6rem;
+  height: 1.6rem;
+  padding: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.plan-event-dismiss:hover:not(:disabled) {
+  color: var(--danger, #fb7185);
+  border-color: var(--danger, #fb7185);
+  background: rgba(251, 113, 133, 0.12);
 }
 
 .plan-event-type {
@@ -7222,6 +7249,12 @@ code {
   }
 
   .plan-event-undo {
+    grid-column: auto;
+    grid-row: auto;
+    justify-self: start;
+  }
+
+  .plan-event-actions {
     grid-column: 1 / -1;
     grid-row: auto;
     justify-self: start;

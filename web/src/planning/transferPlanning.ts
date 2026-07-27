@@ -884,6 +884,96 @@ export function undoPlanEvent(
   };
 }
 
+/**
+ * Event-Eintrag mit × entfernen und zugehörige Überführung zurücksetzen
+ * (plannedDayKey = null → wieder im Abholort-Pool).
+ */
+export function dismissPlanEvent(
+  assignments: Record<string, PlanAssignment>,
+  events: DispositionPlanEvent[],
+  eventId: string
+): {
+  assignments: Record<string, PlanAssignment>;
+  events: DispositionPlanEvent[];
+  mode: 'dismissed' | 'noop';
+} {
+  const event = events.find((e) => e.id === eventId);
+  if (!event) return { assignments, events, mode: 'noop' };
+
+  const withoutEvent = events.filter((e) => e.id !== eventId);
+  const id = event.assignmentId;
+  let nextAssignments = assignments;
+
+  if (id) {
+    const current = assignments[id];
+    if (current && current.plannedDayKey != null) {
+      nextAssignments = {
+        ...assignments,
+        [id]: {
+          ...current,
+          plannedDayKey: null,
+          plannedZeit: null,
+          attachedCeremony: null,
+          previous: snapshotFromAssignment(current),
+          updatedAtMs: Date.now(),
+        },
+      };
+    } else if (!current && event.type !== 'ueberfuehrung_entfernt') {
+      // Geplant/umgeplant ohne Assignment → Stub mit null-Tag anlegen
+      const snap = event.snapshot ?? event.previousSnapshot;
+      const snapZeile =
+        event.snapshot && typeof event.snapshot.zeile === 'number'
+          ? event.snapshot.zeile
+          : -1;
+      const snapSource =
+        event.snapshot?.source === 'alamida' ? 'alamida' : ('canvas' as const);
+      nextAssignments = {
+        ...assignments,
+        [id]: {
+          id,
+          docId: event.docId,
+          zeile: snapZeile,
+          plannedDayKey: null,
+          plannedKuehlraumId: snap?.plannedKuehlraumId ?? event.kuehlraumId ?? null,
+          plannedZeit: null,
+          vonOrt: snap?.vonOrt ?? event.vonOrt ?? null,
+          nachOrt: snap?.nachOrt ?? event.nachOrt ?? null,
+          schrittTyp: snap?.schrittTyp ?? null,
+          source: snapSource,
+          order: snap?.order ?? 0,
+          attachedCeremony: null,
+          previous: snap
+            ? {
+                plannedDayKey: snap.plannedDayKey,
+                plannedKuehlraumId: snap.plannedKuehlraumId ?? null,
+                plannedZeit: snap.plannedZeit ?? null,
+                vonOrt: snap.vonOrt ?? null,
+                nachOrt: snap.nachOrt ?? null,
+                schrittTyp: snap.schrittTyp ?? null,
+                order: snap.order,
+                attachedCeremony: snap.attachedCeremony ?? null,
+              }
+            : event.plannedDayKey != null
+              ? {
+                  plannedDayKey: event.plannedDayKey,
+                  plannedKuehlraumId: event.kuehlraumId ?? null,
+                  plannedZeit: event.plannedZeit ?? null,
+                  order: 0,
+                }
+              : null,
+          updatedAtMs: Date.now(),
+        },
+      };
+    }
+  }
+
+  return {
+    assignments: nextAssignments,
+    events: withoutEvent,
+    mode: 'dismissed',
+  };
+}
+
 export function nextOrderInLane(cards: PlanningCard[], dayKey: string | null): number {
   const lane = cardsForLane(cards, dayKey);
   if (lane.length === 0) return 10;

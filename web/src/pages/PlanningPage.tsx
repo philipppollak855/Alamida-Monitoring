@@ -40,6 +40,7 @@ import {
   canUndoPlanEvent,
   cardsForLane,
   clearCardToAbholort,
+  dismissPlanEvent,
   formatTerminDisplay,
   moveCardAssignment,
   nextOrderInLane,
@@ -517,6 +518,23 @@ export function PlanningPage() {
     [plan.assignments, savePlan, saving, returnCardToAbholort]
   );
 
+  const dismissEvent = useCallback(
+    async (ev: DispositionPlanEvent) => {
+      if (saving) return;
+      const result = dismissPlanEvent(plan.assignments, plan.events ?? [], ev.id);
+      if (result.mode === 'noop') return;
+      try {
+        await savePlan({
+          assignments: result.assignments,
+          events: result.events,
+        });
+      } catch {
+        /* handled */
+      }
+    },
+    [plan.assignments, plan.events, savePlan, saving]
+  );
+
   const undoEvent = useCallback(
     async (ev: DispositionPlanEvent) => {
       if (saving || !canUndoPlanEvent(ev, plan.assignments)) return;
@@ -744,23 +762,34 @@ export function PlanningPage() {
                               ? formatTerminDisplay(ev.plannedDayKey, ev.plannedZeit)
                               : 'ohne Tag'}
                           </time>
-                          {undoable && (
+                          <div className="plan-event-actions">
+                            {undoable && (
+                              <button
+                                type="button"
+                                className="plan-event-undo"
+                                title={
+                                  ev.type === 'ueberfuehrung_entfernt'
+                                    ? 'Entfernen rückgängig'
+                                    : ev.type === 'ueberfuehrung_umgeplant'
+                                      ? 'Umplanung rückgängig'
+                                      : 'Planung rückgängig'
+                                }
+                                disabled={saving}
+                                onClick={() => void undoEvent(ev)}
+                              >
+                                ↺
+                              </button>
+                            )}
                             <button
                               type="button"
-                              className="plan-event-undo"
-                              title={
-                                ev.type === 'ueberfuehrung_entfernt'
-                                  ? 'Entfernen rückgängig'
-                                  : ev.type === 'ueberfuehrung_umgeplant'
-                                    ? 'Umplanung rückgängig'
-                                    : 'Planung rückgängig'
-                              }
+                              className="plan-event-dismiss"
+                              title="Überführung zurücksetzen und Eintrag löschen"
                               disabled={saving}
-                              onClick={() => void undoEvent(ev)}
+                              onClick={() => void dismissEvent(ev)}
                             >
-                              ↺ Rückgängig
+                              ×
                             </button>
-                          )}
+                          </div>
                         </li>
                       );
                     })}
