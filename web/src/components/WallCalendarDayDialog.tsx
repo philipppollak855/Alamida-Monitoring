@@ -8,6 +8,7 @@ interface Props {
   mobile?: boolean;
   traegerLines?: Record<string, string | null | undefined>;
   onEntryClick?: (entry: WallCalendarEntry) => void;
+  onAddTermin?: () => void;
   onClose: () => void;
 }
 
@@ -16,6 +17,7 @@ export function WallCalendarDayDialog({
   mobile = false,
   traegerLines,
   onEntryClick,
+  onAddTermin,
   onClose,
 }: Props) {
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -76,6 +78,13 @@ export function WallCalendarDayDialog({
             ×
           </button>
         </header>
+        {onAddTermin && (
+          <div className="wall-cal-day-dialog-actions">
+            <button type="button" className="wall-cal-add-termin" onClick={onAddTermin}>
+              + Termin zu Fall
+            </button>
+          </div>
+        )}
         {total === 0 ? (
           <p className="wall-cal-day-dialog-empty">Keine Termine an diesem Tag</p>
         ) : (

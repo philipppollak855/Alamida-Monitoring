@@ -30,6 +30,8 @@ import {
 
   isCalendarFilterComplete,
 
+  mergeZusatzTermineIntoEntries,
+
   type WallCalendarDay,
 
   type WallCalendarEntry,
@@ -52,6 +54,7 @@ import {
 } from '../board/wallCalendarLayout';
 import { personnelBookingTraegerLine } from '../board/personnelBookingRules';
 import { usePersonnelBookings } from '../hooks/usePersonnelBookings';
+import { useZusatzTermine } from '../hooks/useZusatzTermine';
 import { useDispositionSettings } from '../settings/SettingsProvider';
 
 import { WallCalendarDayDialog } from './WallCalendarDayDialog';
@@ -59,6 +62,8 @@ import { WallCalendarEventCard } from './WallCalendarEventCard';
 import { WallCalendarMonthOverview } from './WallCalendarMonthOverview';
 import { WallCalendarPeriodOverview } from './WallCalendarPeriodOverview';
 import { PersonnelBookingDialog } from './PersonnelBookingDialog';
+import { ZusatzTerminDialog } from './ZusatzTerminDialog';
+import type { ZusatzTermin } from '../types/zusatzTermin';
 
 
 
@@ -115,9 +120,21 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
     clearBooking,
     setError: setBookingError,
   } = usePersonnelBookings();
+  const {
+    termine: zusatzTermine,
+    saving: zusatzSaving,
+    error: zusatzError,
+    saveTermin,
+    clearTermin,
+    setError: setZusatzError,
+  } = useZusatzTermine();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [dialogDayKey, setDialogDayKey] = useState<string | null>(null);
   const [bookingEntry, setBookingEntry] = useState<WallCalendarEntry | null>(null);
+  const [zusatzDialog, setZusatzDialog] = useState<{
+    dayKey?: string;
+    existing: ZusatzTermin | null;
+  } | null>(null);
   const scrollToFocusPending = useRef(false);
   const monthHasUserScrolled = useRef(false);
   const monthExpandLock = useRef(false);
@@ -156,10 +173,27 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
     [setFocusDayKey]
   );
 
-  const handleEntryClick = useCallback((entry: WallCalendarEntry) => {
-    setBookingError(null);
-    setBookingEntry(entry);
-  }, [setBookingError]);
+  const handleEntryClick = useCallback(
+    (entry: WallCalendarEntry) => {
+      if (entry.zusatzTerminId) {
+        const existing = zusatzTermine[entry.zusatzTerminId] ?? null;
+        setZusatzError(null);
+        setZusatzDialog({ dayKey: entry.dayKey, existing });
+        return;
+      }
+      setBookingError(null);
+      setBookingEntry(entry);
+    },
+    [setBookingError, setZusatzError, zusatzTermine]
+  );
+
+  const openZusatzDialog = useCallback(
+    (dayKey?: string) => {
+      setZusatzError(null);
+      setZusatzDialog({ dayKey, existing: null });
+    },
+    [setZusatzError]
+  );
 
   const traegerLines = useMemo(() => {
     const pool = settings.personnelPool ?? [];
@@ -192,7 +226,14 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
     [setFocusDayKey, setRange, todayKey]
   );
 
-  const allEntries = useMemo(() => buildWallCalendarEntries(sterbefaelle), [sterbefaelle]);
+  const allEntries = useMemo(
+    () =>
+      mergeZusatzTermineIntoEntries(
+        buildWallCalendarEntries(sterbefaelle),
+        Object.values(zusatzTermine)
+      ),
+    [sterbefaelle, zusatzTermine]
+  );
 
   const scoped = useMemo(() => {
     let list = allEntries;
@@ -610,6 +651,14 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
 
           </span>
 
+          <button
+            type="button"
+            className="wall-cal-add-termin"
+            onClick={() => openZusatzDialog(focusDayKey ?? todayKey)}
+          >
+            + Termin
+          </button>
+
         </div>
 
         <div className="wall-cal-toolbar-right">
@@ -845,6 +894,9 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
           mobile={isNarrow}
           traegerLines={traegerLines}
           onEntryClick={handleEntryClick}
+          onAddTermin={() => {
+            openZusatzDialog(dialogDay.dayKey);
+          }}
           onClose={() => setDialogDayKey(null)}
         />
       )}
@@ -879,6 +931,44 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
               }
             })();
           }}
+        />
+      )}
+
+      {zusatzDialog && (
+        <ZusatzTerminDialog
+          open
+          initialDayKey={zusatzDialog.dayKey}
+          existing={zusatzDialog.existing}
+          sterbefaelle={sterbefaelle}
+          pending={zusatzSaving}
+          error={zusatzError}
+          onClose={() => {
+            if (!zusatzSaving) setZusatzDialog(null);
+          }}
+          onSave={(termin) => {
+            void (async () => {
+              try {
+                await saveTermin(termin);
+                setZusatzDialog(null);
+              } catch {
+                /* Fehler im Hook */
+              }
+            })();
+          }}
+          onDelete={
+            zusatzDialog.existing
+              ? () => {
+                  void (async () => {
+                    try {
+                      await clearTermin(zusatzDialog.existing!.id);
+                      setZusatzDialog(null);
+                    } catch {
+                      /* Fehler im Hook */
+                    }
+                  })();
+                }
+              : undefined
+          }
         />
       )}
 
