@@ -6,17 +6,21 @@ import { RouteFlow } from '../../ui/RouteFlow';
 type Props = {
   card: PlanningCard;
   dragging?: boolean;
+  personnelLine?: string | null;
   onDragStart: (card: PlanningCard) => void;
   onDragEnd: () => void;
   onReset?: (card: PlanningCard) => void;
+  onPersonnelClick?: (card: PlanningCard) => void;
 };
 
 export function PlanningTransferCard({
   card,
   dragging,
+  personnelLine,
   onDragStart,
   onDragEnd,
   onReset,
+  onPersonnelClick,
 }: Props) {
   return (
     <article
@@ -77,6 +81,20 @@ export function PlanningTransferCard({
         ))}
         <EndzielChip typ={card.endzielTyp} ort={card.endziel} />
       </div>
+
+      {card.plannedDayKey && (
+        <button
+          type="button"
+          className={`plan-card-personnel${personnelLine ? '' : ' is-open'}`}
+          title={personnelLine ?? 'Personal planen (max. 2)'}
+          onClick={(e) => {
+            e.stopPropagation();
+            onPersonnelClick?.(card);
+          }}
+        >
+          {personnelLine ?? 'Personal offen · max. 2'}
+        </button>
+      )}
 
       <div className="plan-card-foot">
         <time className="plan-card-date">{card.terminAm}</time>

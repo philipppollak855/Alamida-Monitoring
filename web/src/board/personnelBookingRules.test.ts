@@ -118,6 +118,50 @@ describe('validatePersonnelBooking', () => {
     expect(defaultRequiredTraegerCount(sargBegraebnis, false)).toBe(4);
     expect(defaultRequiredTraegerCount(sargBegraebnis, true)).toBe(0);
   });
+
+  it('Überführung: maximal 2 Personen', () => {
+    const ueber = {
+      arts: ['ueberfuehrung'] as CalendarTerminArt[],
+      title: 'Überführung',
+    };
+    const ok = validatePersonnelBooking(ueber, {
+      arrangeurId: null,
+      traegerIds: ['t1', 't2'],
+      traegerVonFamilie: false,
+      requiredTraegerCount: 2,
+    });
+    expect(ok.ok).toBe(true);
+    expect(ok.isUeberfuehrung).toBe(true);
+    expect(ok.maxPersonen).toBe(2);
+
+    const tooMany = validatePersonnelBooking(ueber, {
+      arrangeurId: null,
+      traegerIds: ['t1', 't2', 't3'],
+      traegerVonFamilie: false,
+      requiredTraegerCount: 3,
+    });
+    expect(tooMany.ok).toBe(false);
+    expect(tooMany.errors.some((e) => e.includes('maximal 2'))).toBe(true);
+  });
+
+  it('Träger ohne Arrangeur-Rolle erzeugt Warnung, bleibt gültig', () => {
+    const pool = [
+      { id: 'arr-1', roles: ['arrangeur' as const] },
+      { id: 't-only', roles: ['traeger' as const] },
+    ];
+    const v = validatePersonnelBooking(
+      sargBegraebnis,
+      {
+        arrangeurId: 't-only',
+        traegerIds: ['t1', 't2', 't3', 't4'],
+        traegerVonFamilie: false,
+        requiredTraegerCount: 4,
+      },
+      pool
+    );
+    expect(v.ok).toBe(true);
+    expect(v.warnings.some((w) => w.includes('nicht priorisiert'))).toBe(true);
+  });
 });
 
 describe('availableTraegerPool / arrangeurIdsBookedOnDay', () => {

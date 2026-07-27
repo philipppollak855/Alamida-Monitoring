@@ -11,6 +11,8 @@ import {
   availableTraegerPool,
   defaultRequiredTraegerCount,
   isBegraebnisEntry,
+  isTraegerOnlyArrangeur,
+  isUeberfuehrungEntry,
   personUnavailableReason,
   unavailableReasonLabel,
   validatePersonnelBooking,
@@ -77,8 +79,12 @@ export function PersonnelBookingDialog({
   useEffect(() => {
     if (!entry) return;
     const family = existing?.traegerVonFamilie === true;
-    const nextArrangeur = existing?.arrangeurId ?? '';
-    const nextTraeger = (existing?.traegerIds ?? []).filter((id) => id !== nextArrangeur);
+    const isTransfer = isUeberfuehrungEntry(entry);
+    const nextArrangeur = isTransfer ? '' : (existing?.arrangeurId ?? '');
+    const nextTraeger = [
+      ...(isTransfer && existing?.arrangeurId ? [existing.arrangeurId] : []),
+      ...(existing?.traegerIds ?? []),
+    ].filter((id, i, arr) => id !== nextArrangeur && arr.indexOf(id) === i);
     const nextOverride = resolveBestattungsMarkerOverride(sterbefall ?? {});
     const entryForRules = {
       ...entry,
@@ -86,9 +92,11 @@ export function PersonnelBookingDialog({
     };
     setArrangeurId(nextArrangeur);
     setTraegerIds(nextTraeger);
-    setTraegerVonFamilie(family);
+    setTraegerVonFamilie(isTransfer ? false : family);
     setRequiredTraegerCount(
-      existing?.requiredTraegerCount ?? defaultRequiredTraegerCount(entryForRules, family)
+      isTransfer
+        ? Math.min(nextTraeger.length || 1, 2)
+        : (existing?.requiredTraegerCount ?? defaultRequiredTraegerCount(entryForRules, family))
     );
     setNote(existing?.note ?? '');
     setMarkerOverride(nextOverride);
@@ -108,8 +116,13 @@ export function PersonnelBookingDialog({
   }, [entry, onClose, pending, markerPending]);
 
   const arrangeure = useMemo(() => {
+    // Arrangeure zuerst; Träger ohne Arrangeur-Rolle nachrangig wählbar.
     return personnelPool
-      .filter((p) => p.active !== false && p.roles.includes('arrangeur'))
+      .filter(
+        (p) =>
+          p.active !== false &&
+          (p.roles.includes('arrangeur') || p.roles.includes('traeger'))
+      )
       .map((p) => {
         const reason =
           entry &&
@@ -119,7 +132,13 @@ export function PersonnelBookingDialog({
             excludeBookingId: entry.id,
             asRole: 'arrangeur',
           });
-        return { ...p, unavailable: reason };
+        const traegerOnly =
+          !p.roles.includes('arrangeur') && p.roles.includes('traeger');
+        return { ...p, unavailable: reason, traegerOnly };
+      })
+      .sort((a, b) => {
+        if (a.traegerOnly !== b.traegerOnly) return a.traegerOnly ? 1 : -1;
+        return a.name.localeCompare(b.name, 'de');
       });
   }, [personnelPool, entry, absences, allBookings]);
 
@@ -184,19 +203,37 @@ export function PersonnelBookingDialog({
         minTraeger: 0,
         requiresArrangeur: false,
         isBegraebnis: false,
+        isUeberfuehrung: false,
+        maxPersonen: null as number | null,
       };
     }
-    return validatePersonnelBooking(entryForValidation, {
-      arrangeurId: arrangeurId || null,
-      traegerIds,
-      traegerVonFamilie,
-      requiredTraegerCount,
-    });
-  }, [entryForValidation, arrangeurId, traegerIds, traegerVonFamilie, requiredTraegerCount]);
+    return validatePersonnelBooking(
+      entryForValidation,
+      {
+        arrangeurId: arrangeurId || null,
+        traegerIds,
+        traegerVonFamilie,
+        requiredTraegerCount,
+      },
+      personnelPool
+    );
+  }, [
+    entryForValidation,
+    arrangeurId,
+    traegerIds,
+    traegerVonFamilie,
+    requiredTraegerCount,
+    personnelPool,
+  ]);
 
   if (!entry || !entryForValidation) return null;
 
-  const begraebnis = isBegraebnisEntry(entry);
+  const activeEntry = entry;
+  const begraebnis = isBegraebnisEntry(activeEntry);
+  const ueberfuehrung = isUeberfuehrungEntry(activeEntry);
+  const maxPersonen = validation.maxPersonen ?? null;
+  const showArrangeur = !ueberfuehrung;
+  const showFamilyAndMarker = !ueberfuehrung;
 
   function selectArrangeur(nextId: string) {
     if (nextId) {
@@ -213,9 +250,44 @@ export function PersonnelBookingDialog({
     const person = traeger.find((p) => p.id === id);
     if (person?.unavailable) return;
     if (id === arrangeurId || bookedArrangeurIds.has(id)) return;
-    setTraegerIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
+    setTraegerIds((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (maxPersonen != null && prev.length >= maxPersonen) return prev;
+      return [...prev, id];
+    });
+  }
+
+  function confirmAndSave() {
+    const cleanTraeger = traegerIds.filter((id) => id !== arrangeurId);
+    const nextArrangeur = ueberfuehrung ? null : arrangeurId || null;
+    if (
+      nextArrangeur &&
+      isTraegerOnlyArrangeur(nextArrangeur, personnelPool) &&
+      !window.confirm(
+        'Die gewählte Person ist nur als Träger hinterlegt und wird als Arrangeur nicht priorisiert. Trotzdem einbuchen?'
+      )
+    ) {
+      return;
+    }
+    onSave({
+      id: activeEntry.id,
+      docId: activeEntry.docId,
+      sterbefallId: activeEntry.sterbefallId,
+      dayKey: activeEntry.dayKey,
+      entryTitle: activeEntry.title,
+      entryArts: activeEntry.arts,
+      timeLabel: activeEntry.timeLabel,
+      name: activeEntry.name,
+      bestattungsMarker: ueberfuehrung ? undefined : effectiveMarker,
+      arrangeurId: nextArrangeur,
+      traegerIds: cleanTraeger,
+      traegerVonFamilie: ueberfuehrung ? false : traegerVonFamilie,
+      requiredTraegerCount: ueberfuehrung
+        ? Math.min(cleanTraeger.length, maxPersonen ?? 2)
+        : requiredTraegerCount,
+      note: note.trim() || undefined,
+      updatedAtMs: Date.now(),
+    });
   }
 
   function handleFamilyToggle(next: boolean) {
@@ -275,7 +347,7 @@ export function PersonnelBookingDialog({
           </button>
         </header>
 
-        {onMarkerOverrideChange && (
+        {showFamilyAndMarker && onMarkerOverrideChange && (
           <BestattungsMarkerSwitch
             override={markerOverride}
             effective={effectiveMarker ?? 'S'}
@@ -288,67 +360,84 @@ export function PersonnelBookingDialog({
         {begraebnis && (
           <p className="personnel-booking-rule">
             Begräbnis: 1 Arrangeur erforderlich. Eingebuchter Arrangeur ist nicht als Träger
-            wählbar.
+            wählbar. Träger ohne Arrangeur-Rolle sind wählbar, werden aber nicht priorisiert.
             {effectiveMarker === 'S' && !traegerVonFamilie
               ? ' Sarg ohne Träger von Familie → mind. 4 Träger.'
               : null}
           </p>
         )}
 
+        {ueberfuehrung && (
+          <p className="personnel-booking-rule">
+            Überführung: maximal {maxPersonen ?? 2} Personen aus dem Pool (Firma oder Extern).
+          </p>
+        )}
+
         <div className="personnel-booking-fields">
-          <label className="personnel-booking-field">
-            <span>Arrangeur{validation.requiresArrangeur ? ' *' : ''}</span>
-            <select
-              value={arrangeurId}
-              onChange={(e) => selectArrangeur(e.target.value)}
-              disabled={pending}
-            >
-              <option value="">— wählen —</option>
-              {arrangeure.map((p) => (
-                <option key={p.id} value={p.id} disabled={Boolean(p.unavailable)}>
-                  {p.name}
-                  {p.extern ? ' (extern)' : ''}
-                  {p.unavailable ? ` (${unavailableReasonLabel(p.unavailable)})` : ''}
-                </option>
-              ))}
-            </select>
-          </label>
+          {showArrangeur && (
+            <label className="personnel-booking-field">
+              <span>Arrangeur{validation.requiresArrangeur ? ' *' : ''}</span>
+              <select
+                value={arrangeurId}
+                onChange={(e) => selectArrangeur(e.target.value)}
+                disabled={pending}
+              >
+                <option value="">— wählen —</option>
+                {arrangeure.map((p) => (
+                  <option key={p.id} value={p.id} disabled={Boolean(p.unavailable)}>
+                    {p.name}
+                    {p.extern ? ' (extern)' : ''}
+                    {p.traegerOnly ? ' · Träger' : ''}
+                    {p.unavailable ? ` (${unavailableReasonLabel(p.unavailable)})` : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
 
-          <label className="personnel-booking-check">
-            <input
-              type="checkbox"
-              checked={traegerVonFamilie}
-              onChange={(e) => handleFamilyToggle(e.target.checked)}
-              disabled={pending}
-            />
-            <span>Träger von Familie</span>
-          </label>
+          {showFamilyAndMarker && (
+            <label className="personnel-booking-check">
+              <input
+                type="checkbox"
+                checked={traegerVonFamilie}
+                onChange={(e) => handleFamilyToggle(e.target.checked)}
+                disabled={pending}
+              />
+              <span>Träger von Familie</span>
+            </label>
+          )}
 
-          {!traegerVonFamilie && (
+          {(!showFamilyAndMarker || !traegerVonFamilie) && (
             <>
-              <label className="personnel-booking-field">
-                <span>
-                  Trägeranzahl
-                  {validation.minTraeger > 0 ? ` (mind. ${validation.minTraeger})` : ''}
-                </span>
-                <input
-                  type="number"
-                  min={validation.minTraeger}
-                  max={20}
-                  value={requiredTraegerCount}
-                  onChange={(e) =>
-                    setRequiredTraegerCount(Math.max(0, parseInt(e.target.value, 10) || 0))
-                  }
-                  disabled={pending}
-                />
-              </label>
+              {showFamilyAndMarker && (
+                <label className="personnel-booking-field">
+                  <span>
+                    Trägeranzahl
+                    {validation.minTraeger > 0 ? ` (mind. ${validation.minTraeger})` : ''}
+                  </span>
+                  <input
+                    type="number"
+                    min={validation.minTraeger}
+                    max={20}
+                    value={requiredTraegerCount}
+                    onChange={(e) =>
+                      setRequiredTraegerCount(Math.max(0, parseInt(e.target.value, 10) || 0))
+                    }
+                    disabled={pending}
+                  />
+                </label>
+              )}
 
               <fieldset className="personnel-booking-pool">
-                <legend>Träger aus Poolliste ({traegerIds.length} gewählt)</legend>
+                <legend>
+                  {ueberfuehrung
+                    ? `Personal (${traegerIds.length}/${maxPersonen ?? 2})`
+                    : `Träger aus Poolliste (${traegerIds.length} gewählt)`}
+                </legend>
                 <div
                   className="personnel-booking-pool-tabs"
                   role="tablist"
-                  aria-label="Träger-Herkunft"
+                  aria-label={ueberfuehrung ? 'Personal-Herkunft' : 'Träger-Herkunft'}
                 >
                   <button
                     type="button"
@@ -391,21 +480,30 @@ export function PersonnelBookingDialog({
                   <div className="personnel-booking-pool-list">
                     {visibleTraeger.map((p) => {
                       const unavailable = Boolean(p.unavailable);
+                      const atMax =
+                        ueberfuehrung &&
+                        maxPersonen != null &&
+                        !traegerIds.includes(p.id) &&
+                        traegerIds.length >= maxPersonen;
                       return (
                         <label
                           key={p.id}
                           className={`personnel-booking-pool-item${
-                            unavailable ? ' is-unavailable' : ''
+                            unavailable || atMax ? ' is-unavailable' : ''
                           }${p.extern ? ' is-extern' : ''}`}
                           title={
-                            p.unavailable ? unavailableReasonLabel(p.unavailable) : undefined
+                            p.unavailable
+                              ? unavailableReasonLabel(p.unavailable)
+                              : atMax
+                                ? `Maximal ${maxPersonen} Personen`
+                                : undefined
                           }
                         >
                           <input
                             type="checkbox"
                             checked={traegerIds.includes(p.id)}
                             onChange={() => toggleTraeger(p.id)}
-                            disabled={pending || unavailable}
+                            disabled={pending || unavailable || atMax}
                           />
                           <span>
                             {p.name}
@@ -479,26 +577,7 @@ export function PersonnelBookingDialog({
             type="button"
             className="btn-primary"
             disabled={pending || markerPending || !validation.ok}
-            onClick={() => {
-              const cleanTraeger = traegerIds.filter((id) => id !== arrangeurId);
-              onSave({
-                id: entry.id,
-                docId: entry.docId,
-                sterbefallId: entry.sterbefallId,
-                dayKey: entry.dayKey,
-                entryTitle: entry.title,
-                entryArts: entry.arts,
-                timeLabel: entry.timeLabel,
-                name: entry.name,
-                bestattungsMarker: effectiveMarker,
-                arrangeurId: arrangeurId || null,
-                traegerIds: cleanTraeger,
-                traegerVonFamilie,
-                requiredTraegerCount,
-                note: note.trim() || undefined,
-                updatedAtMs: Date.now(),
-              });
-            }}
+            onClick={confirmAndSave}
           >
             {pending ? 'Speichert…' : 'Einbuchen'}
           </button>

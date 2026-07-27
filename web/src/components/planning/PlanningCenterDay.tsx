@@ -1,5 +1,6 @@
 import type { CeremonyInfo, KuehlraumDayCapacity, PlanningCard } from '../../planning/types';
 import type { PersonnelBooking } from '../../types/personnelBooking';
+import type { PlanningDayAbsence } from '../../planning/planningPersonnel';
 import { PlanningTransferCard } from './PlanningTransferCard';
 import { PlanningCapacityMeters } from './PlanningCapacityMeters';
 import { WallCalBestattungsBadge } from '../WallCalBestattungsBadge';
@@ -18,7 +19,9 @@ type Props = {
   title: string;
   isToday?: boolean;
   transfers: PlanningCard[];
+  transferPersonnelLines?: Record<string, string | null>;
   ceremonies: DayCeremony[];
+  absences?: PlanningDayAbsence[];
   capacities: KuehlraumDayCapacity[];
   isDropTarget: boolean;
   draggingId: string | null;
@@ -29,6 +32,7 @@ type Props = {
   onCardDragEnd: () => void;
   onResetCard: (card: PlanningCard) => void;
   onCeremonyClick?: (ceremony: DayCeremony) => void;
+  onTransferPersonnelClick?: (card: PlanningCard) => void;
 };
 
 function ceremonyKindLabel(kind: CeremonyInfo['kind']): string {
@@ -56,7 +60,9 @@ export function PlanningCenterDay({
   title,
   isToday,
   transfers,
+  transferPersonnelLines = {},
   ceremonies,
+  absences = [],
   capacities,
   isDropTarget,
   draggingId,
@@ -67,10 +73,13 @@ export function PlanningCenterDay({
   onCardDragEnd,
   onResetCard,
   onCeremonyClick,
+  onTransferPersonnelClick,
 }: Props) {
   const sortedCeremonies = [...ceremonies].sort(
     (a, b) => ceremonyTimeSortKey(a.ceremony) - ceremonyTimeSortKey(b.ceremony)
   );
+  const firmaAbsences = absences.filter((a) => !a.extern);
+  const externAbsences = absences.filter((a) => a.extern);
 
   return (
     <section
@@ -93,6 +102,24 @@ export function PlanningCenterDay({
         </div>
         <span className="plan-column-count">{transfers.length}</span>
       </header>
+
+      {absences.length > 0 && (
+        <div className="plan-day-absences" title="Abwesend an diesem Tag">
+          <span className="plan-day-absences-label">Abwesend</span>
+          {firmaAbsences.length > 0 && (
+            <p className="plan-day-absences-line">
+              <span className="plan-day-absences-kind">Firma:</span>{' '}
+              {firmaAbsences.map((a) => a.name).join(', ')}
+            </p>
+          )}
+          {externAbsences.length > 0 && (
+            <p className="plan-day-absences-line">
+              <span className="plan-day-absences-kind">Extern:</span>{' '}
+              {externAbsences.map((a) => a.name).join(', ')}
+            </p>
+          )}
+        </div>
+      )}
 
       {capacities.length > 0 && <PlanningCapacityMeters capacities={capacities} />}
 
@@ -174,9 +201,11 @@ export function PlanningCenterDay({
                 key={card.id}
                 card={card}
                 dragging={draggingId === card.id}
+                personnelLine={transferPersonnelLines[card.id]}
                 onDragStart={onCardDragStart}
                 onDragEnd={onCardDragEnd}
                 onReset={onResetCard}
+                onPersonnelClick={onTransferPersonnelClick}
               />
             ))
           )}

@@ -7420,6 +7420,83 @@ code {
   color: var(--accent);
 }
 
+.plan-day-absences {
+  margin: 0.35rem 0 0.45rem;
+  padding: 0.35rem 0.45rem;
+  border-radius: 8px;
+  border: 1px dashed rgba(251, 191, 36, 0.35);
+  background: rgba(251, 191, 36, 0.08);
+}
+
+.plan-day-absences-label {
+  display: block;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--warn, #fbbf24);
+  margin-bottom: 0.15rem;
+}
+
+.plan-day-absences-line {
+  margin: 0.1rem 0 0;
+  font-size: 0.68rem;
+  line-height: 1.35;
+  color: var(--text);
+}
+
+.plan-day-absences-kind {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.plan-toolbar-absences {
+  flex: 1 1 100%;
+  margin: 0.15rem 0 0;
+  padding: 0.35rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid rgba(251, 191, 36, 0.28);
+  background: rgba(251, 191, 36, 0.07);
+  font-size: 0.75rem;
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.plan-toolbar-absences span {
+  color: var(--warn, #fbbf24);
+  font-weight: 700;
+  margin-right: 0.35rem;
+}
+
+.plan-card-personnel {
+  display: block;
+  width: 100%;
+  margin: 0.35rem 0 0;
+  padding: 0.28rem 0.4rem;
+  border-radius: 6px;
+  border: 1px solid rgba(52, 211, 153, 0.28);
+  background: rgba(52, 211, 153, 0.1);
+  color: var(--success, #34d399);
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plan-card-personnel.is-open {
+  border-color: rgba(251, 191, 36, 0.35);
+  background: rgba(251, 191, 36, 0.1);
+  color: var(--warn, #fbbf24);
+}
+
+.plan-card-personnel:hover {
+  filter: brightness(1.08);
+}
+
 .plan-center-ceremonies {
   list-style: none;
   margin: 0;
