@@ -205,6 +205,7 @@ export function PlanningPage() {
       name: string;
       ceremony: ReturnType<typeof buildCeremoniesForFall>[number];
     }) => {
+      if (c.ceremony.kind === 'kremation') return;
       const fall = sterbefaelle.find((s) => s.id === c.docId);
       if (!fall || !c.ceremony.dayKey) return;
       setBookingError(null);
@@ -215,6 +216,7 @@ export function PlanningPage() {
 
   const openTransferPersonnel = useCallback(
     (card: PlanningCard) => {
+      if (card.schrittTyp.trim().toLowerCase() === 'kremation') return;
       const fall = sterbefaelle.find((s) => s.id === card.docId);
       if (!fall) return;
       const entry = wallEntryFromPlanningTransfer(fall, card);

@@ -1,5 +1,6 @@
 import type { PlanningCard } from '../../planning/types';
 import { freigabeLabel } from '../../planning/transferPlanning';
+import { isKremationTransferCard } from '../../planning/planningPersonnel';
 import { EndzielChip, SchrittBadge, StatusChip } from '../../ui/SchrittBadge';
 import { RouteFlow } from '../../ui/RouteFlow';
 
@@ -40,8 +41,12 @@ export function PlanningTransferCard({
     ? 'Umplanung rückgängig'
     : 'Zurück zum Abholort / Ort';
 
+  const kremationNoPersonnel = isKremationTransferCard(card);
   const canBookPersonnel =
-    Boolean(onOpenPersonnel) && Boolean(card.plannedDayKey) && !attachedToCeremony;
+    Boolean(onOpenPersonnel) &&
+    Boolean(card.plannedDayKey) &&
+    !attachedToCeremony &&
+    !kremationNoPersonnel;
 
   return (
     <article
@@ -105,13 +110,18 @@ export function PlanningTransferCard({
             zugehörig · kein Extra-Personal
           </span>
         ) : null}
-        {!attachedToCeremony && personnelLine ? (
+        {kremationNoPersonnel && !attachedToCeremony ? (
+          <span className="plan-ceremony-chip" title="Standard-Kremationsüberführung">
+            kein Personal
+          </span>
+        ) : null}
+        {!attachedToCeremony && !kremationNoPersonnel && personnelLine ? (
           <span className="plan-ceremony-chip plan-personnel-chip" title={personnelLine}>
             {personnelLine}
           </span>
         ) : null}
-        {!attachedToCeremony && !personnelLine && canBookPersonnel ? (
-          <span className="plan-ceremony-chip plan-personnel-chip is-open">Personal offen</span>
+        {!attachedToCeremony && !kremationNoPersonnel && !personnelLine && canBookPersonnel ? (
+          <span className="plan-ceremony-chip plan-personnel-chip is-open">Fahrer offen</span>
         ) : null}
         <EndzielChip typ={card.endzielTyp} ort={card.endziel} />
       </div>
@@ -129,13 +139,13 @@ export function PlanningTransferCard({
           <button
             type="button"
             className="plan-personnel-btn"
-            title="Personal für Überführung planen"
+            title="Fahrer für Überführung planen"
             onClick={(e) => {
               e.stopPropagation();
               onOpenPersonnel?.(card);
             }}
           >
-            Personal
+            Fahrer
           </button>
         )}
         {(card.hasManualPlan || card.plannedDayKey != null) && onReset && (

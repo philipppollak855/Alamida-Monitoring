@@ -1,8 +1,8 @@
 export type KuehlraumWandTab = 'kuehlraum' | 'extern';
 
-export type PersonnelRole = 'arrangeur' | 'traeger';
+export type PersonnelRole = 'arrangeur' | 'traeger' | 'fahrer';
 
-/** Person im Disposition-Personalpool (Arrangeur / Träger). */
+/** Person im Disposition-Personalpool (Arrangeur / Träger / Fahrer). */
 export interface DispositionPerson {
   id: string;
   name: string;
@@ -58,7 +58,7 @@ export interface DispositionSettings {
   bestattungPrefixe: string[];
   bestattungKeywords: string[];
   eigeneKuehlraeume: EigenerKuehlraumConfig[];
-  /** Pool für Kalender-Personal-Einbuchung (Arrangeur / Träger). */
+  /** Pool für Kalender-Personal-Einbuchung (Arrangeur / Träger / Fahrer). */
   personnelPool?: DispositionPerson[];
   /** Wandmonitor: Sekunden pro Tab bis zum nächsten Übergang */
   wallTabWechselSekunden?: WallTabWechselSekunden;

@@ -595,14 +595,16 @@ export function DispositionSettingsPanel({ defaultOpen = false }: { defaultOpen?
                   </span>
                 </div>
                 <p className="settings-hint">
-                  Poolliste für Kalender- und Planungs-Einbuchung. „Extern“ = Träger/Arrangeur von
-                  außerhalb — eigener Tab bei der Einbuchung.
+                  Poolliste für Kalender- und Planungs-Einbuchung. Arrangeur/Träger für Feiern;
+                  Fahrer für Überführungen. „Extern“ = von außerhalb — eigener Tab bei der
+                  Einbuchung.
                 </p>
                 <div className="settings-person-table" role="table" aria-label="Personalpool">
                   <div className="settings-person-table-head" role="row">
                     <span role="columnheader">Name</span>
                     <span role="columnheader">Arrangeur</span>
                     <span role="columnheader">Träger</span>
+                    <span role="columnheader">Fahrer</span>
                     <span role="columnheader">Extern</span>
                     <span role="columnheader">Aktiv</span>
                     <span role="columnheader" className="sr-only">
@@ -632,6 +634,13 @@ export function DispositionSettingsPanel({ defaultOpen = false }: { defaultOpen?
                           type="checkbox"
                           checked={person.roles.includes('traeger')}
                           onChange={() => togglePersonRole(index, 'traeger')}
+                        />
+                      </label>
+                      <label className="settings-person-role" role="cell" title="Fahrer">
+                        <input
+                          type="checkbox"
+                          checked={person.roles.includes('fahrer')}
+                          onChange={() => togglePersonRole(index, 'fahrer')}
                         />
                       </label>
                       <label className="settings-person-role" role="cell" title="Extern">

@@ -547,6 +547,19 @@ export function isPureTransferEntry(entry: Pick<WallCalendarEntry, 'arts'>): boo
   );
 }
 
+/** Standard-Kremationsüberführung (kein Personal nötig). */
+export function isKremationTransferEntry(entry: Pick<WallCalendarEntry, 'arts'>): boolean {
+  return (
+    entry.arts.length > 0 &&
+    entry.arts.every((a) => a === 'ueberfuehrung_kremation')
+  );
+}
+
+/** Überführung mit optionalem Fahrer (nicht Kremation). */
+export function isFahrerTransferEntry(entry: Pick<WallCalendarEntry, 'arts'>): boolean {
+  return isPureTransferEntry(entry) && !isKremationTransferEntry(entry);
+}
+
 function ceremonyHostRank(entry: Pick<WallCalendarEntry, 'arts'>): number {
   if (entry.arts.includes('beisetzung')) return 4;
   if (entry.arts.includes('verabschiedung')) return 3;

@@ -1,10 +1,17 @@
 import type { WallCalendarEntry } from '../board/wallCalendar';
+import { isFahrerTransferEntry, isPureTransferEntry } from '../board/wallCalendar';
 import type {
   PersonnelAbsence,
   PersonnelBooking,
   PersonnelBookingValidation,
   PersonUnavailableReason,
 } from '../types/personnelBooking';
+
+function isTransferPersonnelBooking(
+  booking: Pick<PersonnelBooking, 'entryArts'>
+): boolean {
+  return isPureTransferEntry({ arts: booking.entryArts });
+}
 
 export function isBegraebnisEntry(entry: Pick<WallCalendarEntry, 'arts' | 'title'>): boolean {
   return entry.arts.includes('beisetzung') || entry.title === 'Beisetzung';
@@ -197,6 +204,15 @@ export function findBookingForCeremony(
 
 export function personnelBookingSummary(booking: PersonnelBooking | null | undefined): string | null {
   if (!booking) return null;
+  if (isTransferPersonnelBooking(booking)) {
+    if (booking.traegerIds.length > 0) {
+      return booking.traegerIds.length === 1
+        ? '1 Fahrer'
+        : `${booking.traegerIds.length} Fahrer`;
+    }
+    if (booking.note?.trim()) return booking.note.trim();
+    return 'Personal offen';
+  }
   const parts: string[] = [];
   if (booking.arrangeurId) parts.push('Arrangeur');
   if (booking.traegerVonFamilie) parts.push('Träger Familie');
@@ -220,16 +236,28 @@ export function personnelBookingTraegerLine(
       return p.extern ? `${p.name.trim()} (extern)` : p.name.trim();
     })
     .filter(Boolean);
-  if (names.length === 0) return `${booking.traegerIds.length} Träger`;
+  if (names.length === 0) {
+    return isTransferPersonnelBooking(booking)
+      ? `${booking.traegerIds.length} Fahrer`
+      : `${booking.traegerIds.length} Träger`;
+  }
   return names.join(', ');
 }
 
-/** Kalenderzeile: Arrangeur + Träger (Namen). */
+/** Kalenderzeile: Arrangeur + Träger (Namen) bzw. Fahrer bei Überführung. */
 export function personnelBookingDisplayLine(
   booking: PersonnelBooking | null | undefined,
   pool: { id: string; name: string; extern?: boolean }[]
 ): string | null {
   if (!booking) return null;
+  if (isTransferPersonnelBooking(booking)) {
+    const fahrer = personnelBookingTraegerLine(booking, pool);
+    if (fahrer) {
+      return booking.traegerIds.length === 1 ? `Fahrer ${fahrer}` : `Fahrer: ${fahrer}`;
+    }
+    if (booking.note?.trim()) return booking.note.trim();
+    return null;
+  }
   const byId = new Map(pool.map((p) => [p.id, p]));
   const parts: string[] = [];
   if (booking.arrangeurId) {

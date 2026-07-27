@@ -6,6 +6,7 @@ import {
   isBegraebnisEntry,
   isPersonAbsentOnDay,
   minTraegerForEntry,
+  personnelBookingDisplayLine,
   personnelBookingSummary,
   personnelBookingTraegerLine,
   personUnavailableReason,
@@ -166,6 +167,27 @@ describe('personnelBookingSummary', () => {
     expect(
       personnelBookingSummary({ ...booking, traegerVonFamilie: true, traegerIds: [] })
     ).toBe('Arrangeur · Träger Familie');
+  });
+
+  it('zeigt Fahrer bei Überführungsbuchung', () => {
+    const booking: PersonnelBooking = {
+      id: '1',
+      docId: 'd',
+      sterbefallId: 's',
+      dayKey: '2026-07-27',
+      entryTitle: 'Überführung',
+      entryArts: ['ueberfuehrung'],
+      timeLabel: '09:00',
+      name: 'Muster',
+      arrangeurId: null,
+      traegerIds: ['f1'],
+      traegerVonFamilie: false,
+      requiredTraegerCount: 0,
+    };
+    expect(personnelBookingSummary(booking)).toBe('1 Fahrer');
+    expect(
+      personnelBookingDisplayLine(booking, [{ id: 'f1', name: 'Franz' }])
+    ).toBe('Fahrer Franz');
   });
 });
 

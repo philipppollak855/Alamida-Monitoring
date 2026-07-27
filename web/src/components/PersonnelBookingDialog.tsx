@@ -1,7 +1,10 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { WallCalendarEntry } from '../board/wallCalendar';
-import { isPureTransferEntry } from '../board/wallCalendar';
+import {
+  isFahrerTransferEntry,
+  isKremationTransferEntry,
+} from '../board/wallCalendar';
 import {
   calendarBestattungsMarker,
   resolveBestattungsMarkerOverride,
@@ -129,6 +132,9 @@ export function PersonnelBookingDialog({
     return arrangeurIdsBookedOnDay(allBookings, entry.dayKey, entry.id);
   }, [allBookings, entry]);
 
+  const isKremationTransfer = Boolean(entry && isKremationTransferEntry(entry));
+  const isFahrerMode = Boolean(entry && isFahrerTransferEntry(entry) && !entry.attachedTransfer);
+
   const traeger = useMemo(() => {
     const pool = personnelPool.filter(
       (p) => p.active !== false && p.roles.includes('traeger')
@@ -155,6 +161,22 @@ export function PersonnelBookingDialog({
     });
   }, [personnelPool, arrangeurId, entry, absences, allBookings]);
 
+  const fahrer = useMemo(() => {
+    return personnelPool
+      .filter((p) => p.active !== false && p.roles.includes('fahrer'))
+      .map((p) => {
+        const reason =
+          entry &&
+          personUnavailableReason(p.id, entry.dayKey, {
+            absences,
+            bookings: allBookings,
+            excludeBookingId: entry.id,
+            asRole: 'traeger',
+          });
+        return { ...p, unavailable: reason };
+      });
+  }, [personnelPool, entry, absences, allBookings]);
+
   const traegerFirma = useMemo(
     () => traeger.filter((p) => p.extern !== true),
     [traeger]
@@ -180,6 +202,26 @@ export function PersonnelBookingDialog({
     if (!entryForValidation) {
       return {
         ok: false,
+        errors: [],
+        warnings: [],
+        minTraeger: 0,
+        requiresArrangeur: false,
+        isBegraebnis: false,
+      };
+    }
+    if (isKremationTransferEntry(entryForValidation)) {
+      return {
+        ok: true,
+        errors: [],
+        warnings: [],
+        minTraeger: 0,
+        requiresArrangeur: false,
+        isBegraebnis: false,
+      };
+    }
+    if (isFahrerTransferEntry(entryForValidation)) {
+      return {
+        ok: true,
         errors: [],
         warnings: [],
         minTraeger: 0,
@@ -214,6 +256,14 @@ export function PersonnelBookingDialog({
     const person = traeger.find((p) => p.id === id);
     if (person?.unavailable) return;
     if (id === arrangeurId || bookedArrangeurIds.has(id)) return;
+    setTraegerIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }
+
+  function toggleFahrer(id: string) {
+    const person = fahrer.find((p) => p.id === id);
+    if (person?.unavailable) return;
     setTraegerIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
@@ -276,7 +326,7 @@ export function PersonnelBookingDialog({
           </button>
         </header>
 
-        {onMarkerOverrideChange && (
+        {onMarkerOverrideChange && !isFahrerMode && !isKremationTransfer && (
           <BestattungsMarkerSwitch
             override={markerOverride}
             effective={effectiveMarker ?? 'S'}
@@ -286,7 +336,7 @@ export function PersonnelBookingDialog({
           />
         )}
 
-        {begraebnis && (
+        {begraebnis && !isFahrerMode && !isKremationTransfer && (
           <p className="personnel-booking-rule">
             Begräbnis: 1 Arrangeur erforderlich. Eingebuchter Arrangeur ist nicht als Träger
             wählbar.
@@ -302,12 +352,90 @@ export function PersonnelBookingDialog({
           </p>
         )}
 
-        {!entry.attachedTransfer && isPureTransferEntry(entry) && (
+        {isKremationTransfer && (
           <p className="personnel-booking-rule">
-            Überführung: Fahrer / Personal nach Bedarf einbuchen (Arrangeur optional).
+            Standard-Kremationsüberführung: kein Personal nötig.
           </p>
         )}
 
+        {isFahrerMode && (
+          <p className="personnel-booking-rule">
+            Überführung: nur Fahrer aus dem Pool einbuchen (optional).
+          </p>
+        )}
+
+        {isKremationTransfer ? (
+          <div className="personnel-booking-fields">
+            <label className="personnel-booking-field">
+              <span>Notiz</span>
+              <input
+                type="text"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                disabled={pending}
+                placeholder="optional"
+              />
+            </label>
+          </div>
+        ) : isFahrerMode ? (
+          <div className="personnel-booking-fields">
+            <fieldset className="personnel-booking-pool">
+              <legend>Fahrer aus Poolliste ({traegerIds.length} gewählt)</legend>
+              {fahrer.length === 0 ? (
+                <p className="personnel-booking-empty">
+                  Keine Fahrer im Pool — unter Disposition → Einstellungen Rolle „Fahrer“ setzen.
+                </p>
+              ) : (
+                <div className="personnel-booking-pool-list">
+                  {fahrer.map((p) => {
+                    const unavailable = Boolean(p.unavailable);
+                    return (
+                      <label
+                        key={p.id}
+                        className={`personnel-booking-pool-item${
+                          unavailable ? ' is-unavailable' : ''
+                        }${p.extern ? ' is-extern' : ''}`}
+                        title={
+                          p.unavailable ? unavailableReasonLabel(p.unavailable) : undefined
+                        }
+                      >
+                        <input
+                          type="checkbox"
+                          checked={traegerIds.includes(p.id)}
+                          onChange={() => toggleFahrer(p.id)}
+                          disabled={pending || unavailable}
+                        />
+                        <span>
+                          {p.name}
+                          {p.extern ? (
+                            <em className="personnel-booking-extern-badge"> Extern</em>
+                          ) : null}
+                          {p.unavailable ? (
+                            <em className="personnel-booking-unavailable-hint">
+                              {' '}
+                              · {unavailableReasonLabel(p.unavailable)}
+                            </em>
+                          ) : null}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </fieldset>
+
+            <label className="personnel-booking-field">
+              <span>Notiz</span>
+              <input
+                type="text"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                disabled={pending}
+                placeholder="optional"
+              />
+            </label>
+          </div>
+        ) : (
         <div className="personnel-booking-fields">
           <label className="personnel-booking-field">
             <span>Arrangeur{validation.requiresArrangeur ? ' *' : ''}</span>
@@ -452,13 +580,14 @@ export function PersonnelBookingDialog({
             />
           </label>
         </div>
+        )}
 
-        {validation.errors.map((msg) => (
+        {!isKremationTransfer && validation.errors.map((msg) => (
           <p key={msg} className="board-inline-error" role="alert">
             {msg}
           </p>
         ))}
-        {validation.warnings.map((msg) => (
+        {!isKremationTransfer && validation.warnings.map((msg) => (
           <p key={msg} className="personnel-booking-warn">
             {msg}
           </p>
@@ -486,35 +615,37 @@ export function PersonnelBookingDialog({
             onClick={onClose}
             disabled={pending || markerPending}
           >
-            Abbrechen
+            {isKremationTransfer && !existing ? 'Schließen' : 'Abbrechen'}
           </button>
-          <button
-            type="button"
-            className="btn-primary"
-            disabled={pending || markerPending || !validation.ok}
-            onClick={() => {
-              const cleanTraeger = traegerIds.filter((id) => id !== arrangeurId);
-              onSave({
-                id: entry.id,
-                docId: entry.docId,
-                sterbefallId: entry.sterbefallId,
-                dayKey: entry.dayKey,
-                entryTitle: entry.title,
-                entryArts: entry.arts,
-                timeLabel: entry.timeLabel,
-                name: entry.name,
-                bestattungsMarker: effectiveMarker,
-                arrangeurId: arrangeurId || null,
-                traegerIds: cleanTraeger,
-                traegerVonFamilie,
-                requiredTraegerCount,
-                note: note.trim() || undefined,
-                updatedAtMs: Date.now(),
-              });
-            }}
-          >
-            {pending ? 'Speichert…' : 'Einbuchen'}
-          </button>
+          {!isKremationTransfer && (
+            <button
+              type="button"
+              className="btn-primary"
+              disabled={pending || markerPending || !validation.ok}
+              onClick={() => {
+                const cleanTraeger = traegerIds.filter((id) => id !== arrangeurId);
+                onSave({
+                  id: entry.id,
+                  docId: entry.docId,
+                  sterbefallId: entry.sterbefallId,
+                  dayKey: entry.dayKey,
+                  entryTitle: entry.title,
+                  entryArts: entry.arts,
+                  timeLabel: entry.timeLabel,
+                  name: entry.name,
+                  bestattungsMarker: isFahrerMode ? undefined : effectiveMarker,
+                  arrangeurId: isFahrerMode ? null : arrangeurId || null,
+                  traegerIds: cleanTraeger,
+                  traegerVonFamilie: isFahrerMode ? false : traegerVonFamilie,
+                  requiredTraegerCount: isFahrerMode ? 0 : requiredTraegerCount,
+                  note: note.trim() || undefined,
+                  updatedAtMs: Date.now(),
+                });
+              }}
+            >
+              {pending ? 'Speichert…' : 'Einbuchen'}
+            </button>
+          )}
         </footer>
       </div>
     </div>,

@@ -16,6 +16,7 @@ type DayCeremony = {
   booking?: PersonnelBooking | null;
   personnelLine?: string | null;
   needsLine?: string | null;
+  needsPersonnel?: boolean;
 };
 
 type Props = {
@@ -152,7 +153,8 @@ export function PlanningCenterDay({
                 (!isToday && ceremony.relativeLabel ? ceremony.relativeLabel : null) ||
                 ceremony.datum ||
                 null;
-              const clickable = Boolean(onCeremonyClick);
+              const clickable =
+                Boolean(onCeremonyClick) && c.needsPersonnel !== false;
               const acceptDrop =
                 Boolean(onDropOnCeremony) && isAttachableCeremonyKind(ceremony.kind);
               const dropKey = ceremonyDropId(c);
@@ -192,6 +194,10 @@ export function PlanningCenterDay({
                   {c.personnelLine ? (
                     <span className="plan-center-ceremony-personnel" title={c.personnelLine}>
                       {c.personnelLine}
+                    </span>
+                  ) : c.needsPersonnel === false ? (
+                    <span className="plan-center-ceremony-personnel" title="Kein Personal nötig">
+                      Kein Personal
                     </span>
                   ) : (
                     <span className="plan-center-ceremony-personnel is-open">Personal offen</span>

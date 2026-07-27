@@ -7,6 +7,8 @@ import {
   buildWallCalendarEntries,
   calendarColorGroupFromArts,
   filterEntriesInDayRange,
+  isFahrerTransferEntry,
+  isKremationTransferEntry,
   summarizeWallCalendarDay,
   type WallCalendarEntry,
 } from './wallCalendar';
@@ -157,5 +159,17 @@ describe('buildMonthOverviewGrid', () => {
     expect(grid.cells[0]?.dayKey).toBe('2026-06-01');
     expect(grid.cells.at(-1)).toBeNull();
     expect(grid.cells.length % 7).toBe(0);
+  });
+});
+
+describe('isKremationTransferEntry / isFahrerTransferEntry', () => {
+  it('erkennt Standard-Kremationsüberführung', () => {
+    expect(isKremationTransferEntry(entry(['ueberfuehrung_kremation']))).toBe(true);
+    expect(isFahrerTransferEntry(entry(['ueberfuehrung_kremation']))).toBe(false);
+  });
+
+  it('normale Überführung braucht Fahrer-Pool', () => {
+    expect(isKremationTransferEntry(entry(['ueberfuehrung']))).toBe(false);
+    expect(isFahrerTransferEntry(entry(['ueberfuehrung']))).toBe(true);
   });
 });

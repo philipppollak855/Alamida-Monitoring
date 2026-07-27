@@ -21,7 +21,10 @@ function normalizePersonnelPool(raw: unknown): DispositionPerson[] {
     if (!name) return;
     const roles = (Array.isArray(p.roles) ? p.roles : [])
       .map(String)
-      .filter((r): r is PersonnelRole => r === 'arrangeur' || r === 'traeger');
+      .filter(
+        (r): r is PersonnelRole =>
+          r === 'arrangeur' || r === 'traeger' || r === 'fahrer'
+      );
     if (roles.length === 0) return;
     out.push({
       id: String(p.id || `person-${i}`).trim() || `person-${i}`,

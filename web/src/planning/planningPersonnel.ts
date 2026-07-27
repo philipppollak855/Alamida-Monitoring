@@ -128,7 +128,7 @@ export function planningCeremonyNeedsLine(
   } else if (ceremony.kind === 'trauerfeier' || ceremony.kind === 'verabschiedung') {
     parts.push('Arrangeur optional');
   } else if (ceremony.kind === 'kremation') {
-    parts.push('Fahrer / Überführung');
+    return 'Kein Personal nötig';
   }
 
   const when = ceremony.zeit ? ` um ${ceremony.zeit}` : '';
@@ -136,8 +136,15 @@ export function planningCeremonyNeedsLine(
 }
 
 export function planningTransferNeedsLine(card: PlanningCard): string {
+  if (card.schrittTyp.trim().toLowerCase() === 'kremation') {
+    return 'Kein Personal nötig';
+  }
   const when = card.plannedZeit ? ` um ${card.plannedZeit}` : '';
-  return `Bedarf${when}: Fahrer / Überführung`;
+  return `Bedarf${when}: Fahrer`;
+}
+
+export function isKremationTransferCard(card: Pick<PlanningCard, 'schrittTyp'>): boolean {
+  return card.schrittTyp.trim().toLowerCase() === 'kremation';
 }
 
 export function planningCeremonyPersonnelLine(
@@ -145,6 +152,25 @@ export function planningCeremonyPersonnelLine(
   pool: DispositionPerson[]
 ): string | null {
   if (!booking) return null;
+  if (
+    booking.entryArts.length > 0 &&
+    booking.entryArts.every(
+      (a) => a === 'ueberfuehrung' || a === 'ueberfuehrung_kremation'
+    )
+  ) {
+    const byId = new Map(pool.map((p) => [p.id, p]));
+    const names = booking.traegerIds
+      .map((id) => {
+        const p = byId.get(id);
+        if (!p?.name) return '';
+        return p.extern ? `${p.name} (extern)` : p.name;
+      })
+      .filter(Boolean);
+    if (names.length === 0) {
+      return booking.note?.trim() || null;
+    }
+    return names.length === 1 ? `Fahrer ${names[0]}` : `Fahrer: ${names.join(', ')}`;
+  }
   const byId = new Map(pool.map((p) => [p.id, p]));
   const parts: string[] = [];
   if (booking.arrangeurId) {
@@ -186,9 +212,11 @@ export function enrichPlanningCeremonies(
       c.ceremony.dayKey ?? '',
       c.ceremony.kind
     );
+    const needsPersonnel = c.ceremony.kind !== 'kremation';
     return {
       ...c,
       booking,
+      needsPersonnel,
       needsLine: planningCeremonyNeedsLine(c.ceremony, booking, pool),
       personnelLine: planningCeremonyPersonnelLine(booking, pool),
     };
