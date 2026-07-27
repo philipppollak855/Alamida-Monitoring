@@ -8,8 +8,6 @@ import {
 import { PlanningTransferCard } from './PlanningTransferCard';
 import { PlanningCapacityMeters } from './PlanningCapacityMeters';
 import { WallCalBestattungsBadge } from '../WallCalBestattungsBadge';
-import { RouteFlow } from '../../ui/RouteFlow';
-import { SchrittBadge } from '../../ui/SchrittBadge';
 
 type DayCeremony = {
   docId: string;
@@ -260,6 +258,7 @@ export function PlanningCenterDay({
                         draggingId === card.id ? ' is-dragging' : ''
                       }`}
                       draggable={!card.erledigt}
+                      title={`${card.vonOrt} → ${card.nachOrt}`}
                       onDragStart={(e) => {
                         e.stopPropagation();
                         e.dataTransfer.effectAllowed = 'move';
@@ -271,12 +270,16 @@ export function PlanningCenterDay({
                       <span className="plan-card-grip" aria-hidden title="Ziehen zum Lösen">
                         ⠿
                       </span>
-                      <SchrittBadge typ={card.schrittTyp} />
-                      <div className="plan-center-ceremony-leg-route">
-                        <RouteFlow von={card.vonOrt} nach={card.nachOrt} />
-                      </div>
+                      <span className="plan-center-ceremony-leg-label">Überf.</span>
+                      <span className="plan-center-ceremony-leg-route">
+                        <span className="plan-center-ceremony-leg-from">{card.vonOrt}</span>
+                        <span className="plan-center-ceremony-leg-arrow" aria-hidden>
+                          →
+                        </span>
+                        <span className="plan-center-ceremony-leg-to">{card.nachOrt}</span>
+                      </span>
                       {card.plannedZeit && (
-                        <span className="plan-card-tag plan-card-tag--time">{card.plannedZeit}</span>
+                        <span className="plan-center-ceremony-leg-time">{card.plannedZeit}</span>
                       )}
                       {(card.hasManualPlan || card.plannedDayKey != null) && (
                         <button

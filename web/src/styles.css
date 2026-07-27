@@ -7691,33 +7691,38 @@ code {
 }
 
 .plan-center-ceremony.is-merged {
-  gap: 0.35rem;
-  padding-bottom: 0.45rem;
+  gap: 0.25rem;
+  padding-bottom: 0.35rem;
   box-shadow: inset 0 0 0 1px rgba(167, 139, 250, 0.22);
 }
 
 .plan-ceremony-merged-badge {
-  font-size: 0.62rem;
+  font-size: 0.6rem;
   font-weight: 700;
   letter-spacing: 0.02em;
   color: var(--accent);
   background: var(--accent-dim);
-  padding: 0.1rem 0.35rem;
+  padding: 0.05rem 0.3rem;
   border-radius: 4px;
   white-space: nowrap;
+  line-height: 1.2;
 }
 
 .plan-center-ceremony-leg {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
-  margin-top: 0.1rem;
-  padding: 0.35rem 0.4rem;
-  border-radius: 6px;
+  gap: 0.3rem;
+  margin: 0 0.35rem 0.1rem;
+  padding: 0.2rem 0.35rem;
+  border-radius: 5px;
   border: 1px dashed rgba(167, 139, 250, 0.35);
   background: rgba(0, 0, 0, 0.12);
   cursor: grab;
   min-width: 0;
+  max-width: 100%;
+  height: 1.55rem;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .plan-center-ceremony-leg.is-dragging {
@@ -7727,18 +7732,76 @@ code {
 .plan-center-ceremony-leg .plan-card-grip {
   flex-shrink: 0;
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: 0.65rem;
+  line-height: 1;
+}
+
+.plan-center-ceremony-leg-label {
+  flex-shrink: 0;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--accent);
+  line-height: 1;
 }
 
 .plan-center-ceremony-leg-route {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
-  font-size: 0.68rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 0.65rem;
+  line-height: 1.2;
+}
+
+.plan-center-ceremony-leg-from,
+.plan-center-ceremony-leg-to {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.plan-center-ceremony-leg-from {
+  color: var(--muted);
+  flex: 0 1 auto;
+  max-width: 45%;
+}
+
+.plan-center-ceremony-leg-to {
+  color: var(--text);
+  font-weight: 600;
+  flex: 0 1 auto;
+  max-width: 45%;
+}
+
+.plan-center-ceremony-leg-arrow {
+  flex-shrink: 0;
+  color: var(--accent);
+  opacity: 0.85;
+  font-size: 0.7rem;
+  line-height: 1;
+}
+
+.plan-center-ceremony-leg-time {
+  flex-shrink: 0;
+  font-size: 0.62rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  line-height: 1;
 }
 
 .plan-center-ceremony-leg .plan-reset-btn {
-  margin-left: auto;
+  margin-left: 0;
   flex-shrink: 0;
+  padding: 0.05rem 0.2rem;
+  font-size: 0.65rem;
+  line-height: 1;
 }
 
 .plan-center-ceremony.is-clickable {
