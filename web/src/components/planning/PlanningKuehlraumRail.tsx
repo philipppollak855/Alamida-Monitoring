@@ -89,7 +89,7 @@ export function PlanningKuehlraumRail({
                       <li key={occ.docId} className={`plan-kr-occupant freigabe-${occ.freigabeState}`}>
                         <div className="plan-kr-occupant-main">
                           <span className="plan-kr-occupant-platz">P{occ.platz}</span>
-                          <strong>{occ.name}</strong>
+                          <strong title={occ.name}>{occ.name}</strong>
                         </div>
                         <span className={`plan-freigabe-chip is-${occ.freigabeState}`}>
                           {freigabeLabel(occ.freigabeState, occ.freigabeDatum)}
