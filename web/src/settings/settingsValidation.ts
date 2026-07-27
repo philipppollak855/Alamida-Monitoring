@@ -116,6 +116,7 @@ function normalizeForCompare(s: DispositionSettings) {
         name: p.name,
         roles: [...p.roles].sort(),
         active: p.active !== false,
+        extern: p.extern === true,
       }))
       .sort((a, b) => a.name.localeCompare(b.name, 'de')),
   };

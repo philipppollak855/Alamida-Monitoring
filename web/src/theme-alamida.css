@@ -1063,6 +1063,20 @@
   border-color: var(--border);
 }
 
+[data-theme='alamida'] .personnel-booking-pool-tabs {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: var(--border);
+}
+
+[data-theme='alamida'] .personnel-booking-pool-tab.is-active {
+  background: rgba(61, 122, 140, 0.14);
+  color: var(--accent);
+}
+
+[data-theme='alamida'] .personnel-booking-extern-badge {
+  color: var(--accent);
+}
+
 [data-theme='alamida'] .zusatz-termin-scope-btn.is-active {
   background: rgba(61, 122, 140, 0.14);
   color: var(--accent);

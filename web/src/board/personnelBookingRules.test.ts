@@ -220,6 +220,31 @@ describe('personnelBookingTraegerLine', () => {
       )
     ).toBe('Träger Familie');
   });
+
+  it('markiert externe Träger in der Anzeigezeile', () => {
+    expect(
+      personnelBookingTraegerLine(
+        {
+          id: '1',
+          docId: 'd',
+          sterbefallId: 's',
+          dayKey: '2026-07-27',
+          entryTitle: 'Beisetzung',
+          entryArts: ['beisetzung'],
+          timeLabel: '14:00',
+          name: 'Muster',
+          arrangeurId: 'a1',
+          traegerIds: ['t1', 't2'],
+          traegerVonFamilie: false,
+          requiredTraegerCount: 2,
+        },
+        [
+          { id: 't1', name: 'Anna' },
+          { id: 't2', name: 'Bernd', extern: true },
+        ]
+      )
+    ).toBe('Anna, Bernd (extern)');
+  });
 });
 
 describe('Abwesenheiten / Nicht verfügbar', () => {

@@ -8,6 +8,8 @@ export interface DispositionPerson {
   name: string;
   roles: PersonnelRole[];
   active?: boolean;
+  /** Externe Person (z. B. Träger von außerhalb) — eigener Tab in der Einbuchung. */
+  extern?: boolean;
 }
 
 export interface EigenerKuehlraumConfig {

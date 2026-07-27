@@ -115,6 +115,7 @@ function emptyPerson(): DispositionPerson {
     name: '',
     roles: ['traeger'],
     active: true,
+    extern: false,
   };
 }
 
@@ -594,14 +595,15 @@ export function DispositionSettingsPanel({ defaultOpen = false }: { defaultOpen?
                   </span>
                 </div>
                 <p className="settings-hint">
-                  Poolliste für Kalender- und Planungs-Einbuchung. Kompakt: Name, Rollen, Aktiv.
-                  Abwesenheiten werden in der Planung eingetragen.
+                  Poolliste für Kalender- und Planungs-Einbuchung. „Extern“ = Träger/Arrangeur von
+                  außerhalb — eigener Tab bei der Einbuchung.
                 </p>
                 <div className="settings-person-table" role="table" aria-label="Personalpool">
                   <div className="settings-person-table-head" role="row">
                     <span role="columnheader">Name</span>
                     <span role="columnheader">Arrangeur</span>
                     <span role="columnheader">Träger</span>
+                    <span role="columnheader">Extern</span>
                     <span role="columnheader">Aktiv</span>
                     <span role="columnheader" className="sr-only">
                       Entfernen
@@ -630,6 +632,13 @@ export function DispositionSettingsPanel({ defaultOpen = false }: { defaultOpen?
                           type="checkbox"
                           checked={person.roles.includes('traeger')}
                           onChange={() => togglePersonRole(index, 'traeger')}
+                        />
+                      </label>
+                      <label className="settings-person-role" role="cell" title="Extern">
+                        <input
+                          type="checkbox"
+                          checked={person.extern === true}
+                          onChange={(e) => updatePerson(index, { extern: e.target.checked })}
                         />
                       </label>
                       <label className="settings-person-role" role="cell" title="Aktiv">

@@ -207,14 +207,18 @@ export function personnelBookingSummary(booking: PersonnelBooking | null | undef
 /** Kleine Zeile unter dem Kalendertermin: Trägernamen (oder „Träger Familie“). */
 export function personnelBookingTraegerLine(
   booking: PersonnelBooking | null | undefined,
-  pool: { id: string; name: string }[]
+  pool: { id: string; name: string; extern?: boolean }[]
 ): string | null {
   if (!booking) return null;
   if (booking.traegerVonFamilie) return 'Träger Familie';
   if (booking.traegerIds.length === 0) return null;
-  const byId = new Map(pool.map((p) => [p.id, p.name]));
+  const byId = new Map(pool.map((p) => [p.id, p]));
   const names = booking.traegerIds
-    .map((id) => (byId.get(id) ?? '').trim())
+    .map((id) => {
+      const p = byId.get(id);
+      if (!p?.name?.trim()) return '';
+      return p.extern ? `${p.name.trim()} (extern)` : p.name.trim();
+    })
     .filter(Boolean);
   if (names.length === 0) return `${booking.traegerIds.length} Träger`;
   return names.join(', ');

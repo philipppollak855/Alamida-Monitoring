@@ -105,11 +105,15 @@ export function planningCeremonyPersonnelLine(
   pool: DispositionPerson[]
 ): string | null {
   if (!booking) return null;
-  const byId = new Map(pool.map((p) => [p.id, p.name]));
+  const byId = new Map(pool.map((p) => [p.id, p]));
   const parts: string[] = [];
   if (booking.arrangeurId) {
-    const name = byId.get(booking.arrangeurId);
-    parts.push(name ? `Arr. ${name}` : 'Arrangeur');
+    const p = byId.get(booking.arrangeurId);
+    if (p?.name) {
+      parts.push(p.extern ? `Arr. ${p.name} (extern)` : `Arr. ${p.name}`);
+    } else {
+      parts.push('Arrangeur');
+    }
   }
   const traeger = personnelBookingTraegerLine(booking, pool);
   if (traeger) parts.push(traeger);

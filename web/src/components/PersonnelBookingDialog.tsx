@@ -60,6 +60,7 @@ export function PersonnelBookingDialog({
   const [requiredTraegerCount, setRequiredTraegerCount] = useState(0);
   const [note, setNote] = useState('');
   const [markerOverride, setMarkerOverride] = useState<BestattungsMarker | null>(null);
+  const [traegerTab, setTraegerTab] = useState<'firma' | 'extern'>('firma');
 
   const autoMarker = useMemo(() => {
     if (!entry) return undefined;
@@ -90,7 +91,11 @@ export function PersonnelBookingDialog({
     );
     setNote(existing?.note ?? '');
     setMarkerOverride(nextOverride);
-  }, [entry, existing, sterbefall, autoMarker]);
+    const hasExternSelected = nextTraeger.some((id) =>
+      personnelPool.some((p) => p.id === id && p.extern === true)
+    );
+    setTraegerTab(hasExternSelected ? 'extern' : 'firma');
+  }, [entry, existing, sterbefall, autoMarker, personnelPool]);
 
   useEffect(() => {
     if (!entry) return;
@@ -147,6 +152,22 @@ export function PersonnelBookingDialog({
       };
     });
   }, [personnelPool, arrangeurId, entry, absences, allBookings]);
+
+  const traegerFirma = useMemo(
+    () => traeger.filter((p) => p.extern !== true),
+    [traeger]
+  );
+  const traegerExtern = useMemo(
+    () => traeger.filter((p) => p.extern === true),
+    [traeger]
+  );
+  const visibleTraeger = traegerTab === 'extern' ? traegerExtern : traegerFirma;
+  const selectedFirmaCount = traegerIds.filter((id) =>
+    traegerFirma.some((p) => p.id === id)
+  ).length;
+  const selectedExternCount = traegerIds.filter((id) =>
+    traegerExtern.some((p) => p.id === id)
+  ).length;
 
   const entryForValidation = useMemo(() => {
     if (!entry) return null;
@@ -280,6 +301,7 @@ export function PersonnelBookingDialog({
               {arrangeure.map((p) => (
                 <option key={p.id} value={p.id} disabled={Boolean(p.unavailable)}>
                   {p.name}
+                  {p.extern ? ' (extern)' : ''}
                   {p.unavailable ? ` (${unavailableReasonLabel(p.unavailable)})` : ''}
                 </option>
               ))}
@@ -317,24 +339,58 @@ export function PersonnelBookingDialog({
 
               <fieldset className="personnel-booking-pool">
                 <legend>Träger aus Poolliste ({traegerIds.length} gewählt)</legend>
-                {traeger.length === 0 ? (
+                <div
+                  className="personnel-booking-pool-tabs"
+                  role="tablist"
+                  aria-label="Träger-Herkunft"
+                >
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={traegerTab === 'firma'}
+                    className={`personnel-booking-pool-tab${
+                      traegerTab === 'firma' ? ' is-active' : ''
+                    }`}
+                    disabled={pending}
+                    onClick={() => setTraegerTab('firma')}
+                  >
+                    Firma
+                    {selectedFirmaCount > 0 ? ` (${selectedFirmaCount})` : ''}
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={traegerTab === 'extern'}
+                    className={`personnel-booking-pool-tab${
+                      traegerTab === 'extern' ? ' is-active' : ''
+                    }`}
+                    disabled={pending}
+                    onClick={() => setTraegerTab('extern')}
+                  >
+                    Extern
+                    {selectedExternCount > 0 ? ` (${selectedExternCount})` : ''}
+                  </button>
+                </div>
+                {visibleTraeger.length === 0 ? (
                   <p className="personnel-booking-empty">
-                    {personnelPool.some(
-                      (p) => p.active !== false && p.roles.includes('traeger')
-                    )
-                      ? 'Keine verfügbaren Träger — Arrangeure sind hier ausgeschlossen.'
-                      : 'Keine Träger im Pool — unter Disposition → Einstellungen anlegen.'}
+                    {traegerTab === 'extern'
+                      ? 'Keine externen Träger im Pool — unter Disposition → Einstellungen als „Extern“ markieren.'
+                      : personnelPool.some(
+                            (p) => p.active !== false && p.roles.includes('traeger')
+                          )
+                        ? 'Keine verfügbaren Firmen-Träger — Arrangeure sind hier ausgeschlossen.'
+                        : 'Keine Träger im Pool — unter Disposition → Einstellungen anlegen.'}
                   </p>
                 ) : (
                   <div className="personnel-booking-pool-list">
-                    {traeger.map((p) => {
+                    {visibleTraeger.map((p) => {
                       const unavailable = Boolean(p.unavailable);
                       return (
                         <label
                           key={p.id}
                           className={`personnel-booking-pool-item${
                             unavailable ? ' is-unavailable' : ''
-                          }`}
+                          }${p.extern ? ' is-extern' : ''}`}
                           title={
                             p.unavailable ? unavailableReasonLabel(p.unavailable) : undefined
                           }
@@ -347,6 +403,9 @@ export function PersonnelBookingDialog({
                           />
                           <span>
                             {p.name}
+                            {p.extern ? (
+                              <em className="personnel-booking-extern-badge"> Extern</em>
+                            ) : null}
                             {p.unavailable ? (
                               <em className="personnel-booking-unavailable-hint">
                                 {' '}

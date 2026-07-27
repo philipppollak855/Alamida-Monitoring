@@ -28,6 +28,7 @@ function normalizePersonnelPool(raw: unknown): DispositionPerson[] {
       name,
       roles: [...new Set(roles)],
       active: p.active !== false,
+      extern: p.extern === true,
     });
   });
   return out;
