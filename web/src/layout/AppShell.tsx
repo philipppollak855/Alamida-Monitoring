@@ -27,6 +27,12 @@ export function AppShell() {
           >
             Disposition
           </NavLink>
+          <NavLink
+            to="/planung"
+            className={({ isActive }) => (isActive ? 'nav-pill active' : 'nav-pill')}
+          >
+            Planung
+          </NavLink>
           <NavLink to="/wall" className={({ isActive }) => (isActive ? 'nav-pill active' : 'nav-pill')}>
             Wandmonitor
           </NavLink>

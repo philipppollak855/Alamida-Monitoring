@@ -5120,3 +5120,497 @@ code {
     transform: none;
   }
 }
+
+/* ─── Überführungsplanung Canvas ─── */
+.plan-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: calc(100vh - 5.5rem);
+  padding-bottom: 1.5rem;
+}
+
+.plan-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem 1.5rem;
+}
+
+.plan-eyebrow {
+  margin: 0 0 0.25rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.plan-hero h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 2.5vw, 2.1rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.plan-lead {
+  margin: 0.35rem 0 0;
+  max-width: 36rem;
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.plan-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.plan-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  backdrop-filter: blur(10px);
+}
+
+.plan-toolbar-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.plan-toolbar-range {
+  margin-left: 0.35rem;
+  font-size: 0.9rem;
+  color: var(--text);
+  font-weight: 560;
+}
+
+.plan-toolbar-saving {
+  font-size: 0.8rem;
+  color: var(--accent);
+  animation: plan-pulse 1.1s ease-in-out infinite;
+}
+
+.plan-toolbar-search input {
+  min-width: min(240px, 70vw);
+  padding: 0.55rem 0.85rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font: inherit;
+}
+
+.plan-toolbar-search input:focus {
+  outline: 2px solid var(--accent-dim);
+  border-color: var(--accent);
+}
+
+.plan-loading {
+  margin: 2rem 0;
+  color: var(--muted);
+}
+
+.plan-canvas {
+  display: grid;
+  grid-template-columns: minmax(220px, 260px) 1fr;
+  gap: 0.85rem;
+  align-items: stretch;
+  min-height: 28rem;
+}
+
+.plan-days-scroll {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(210px, 1fr);
+  gap: 0.75rem;
+  overflow-x: auto;
+  padding-bottom: 0.35rem;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+}
+
+.plan-day-wrap {
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 210px;
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.plan-day-wrap.is-today .plan-column {
+  border-color: rgba(77, 159, 255, 0.45);
+  box-shadow: 0 0 0 1px rgba(77, 159, 255, 0.18), var(--shadow);
+}
+
+.plan-day-wrap.has-flash {
+  animation: plan-column-flash 0.65s ease;
+}
+
+.plan-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-height: 24rem;
+  padding: 0.75rem;
+  background: linear-gradient(165deg, rgba(20, 27, 40, 0.92), rgba(12, 16, 24, 0.88));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.25s ease,
+    transform 0.2s ease;
+}
+
+.plan-column--backlog {
+  background: linear-gradient(165deg, rgba(26, 22, 18, 0.94), rgba(14, 12, 10, 0.9));
+  border-color: rgba(251, 191, 36, 0.18);
+}
+
+.plan-column.is-drop-target {
+  border-color: var(--accent);
+  background: linear-gradient(165deg, rgba(77, 159, 255, 0.12), rgba(12, 16, 24, 0.92));
+  box-shadow: inset 0 0 0 1px rgba(77, 159, 255, 0.25);
+  transform: translateY(-2px);
+}
+
+.plan-column-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.plan-column-head h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.plan-column-head p {
+  margin: 0.15rem 0 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.plan-column-count {
+  min-width: 1.6rem;
+  height: 1.6rem;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+
+.plan-column-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  flex: 1;
+  min-height: 8rem;
+}
+
+.plan-column-empty {
+  margin: 0.5rem 0 0;
+  padding: 1rem 0.75rem;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.plan-capacity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.plan-capacity {
+  padding: 0.45rem 0.5rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid transparent;
+}
+
+.plan-capacity.is-tight {
+  border-color: rgba(251, 191, 36, 0.35);
+}
+
+.plan-capacity.is-overbooked {
+  border-color: rgba(251, 113, 133, 0.45);
+  background: var(--warn-dim);
+}
+
+.plan-capacity-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+}
+
+.plan-capacity-label {
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plan-capacity-count {
+  font-weight: 650;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.plan-capacity-bar {
+  margin-top: 0.3rem;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.plan-capacity-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--success), var(--accent));
+  transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.plan-capacity.is-overbooked .plan-capacity-fill {
+  background: linear-gradient(90deg, var(--warn), var(--danger));
+}
+
+.plan-capacity-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.25rem;
+  min-height: 1rem;
+  font-size: 0.68rem;
+}
+
+.plan-capacity-delta.in {
+  color: var(--success);
+}
+
+.plan-capacity-delta.out {
+  color: var(--warn);
+}
+
+.plan-capacity-warn {
+  color: var(--danger);
+  font-weight: 650;
+}
+
+.plan-capacity-idle {
+  color: var(--muted);
+}
+
+.plan-card {
+  position: relative;
+  padding: 0.65rem 0.7rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface-solid);
+  border: 1px solid var(--border-strong);
+  cursor: grab;
+  touch-action: none;
+  transition:
+    transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.22s ease,
+    opacity 0.2s ease,
+    border-color 0.2s ease;
+  animation: plan-card-enter 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.plan-card:active {
+  cursor: grabbing;
+}
+
+.plan-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+  border-color: rgba(77, 159, 255, 0.35);
+}
+
+.plan-card.is-dragging {
+  opacity: 0.45;
+  transform: scale(0.97) rotate(-1deg);
+}
+
+.plan-card.is-planned {
+  border-left: 3px solid var(--accent);
+}
+
+.plan-card.is-erledigt {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.plan-card-top {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.plan-card-grip {
+  color: var(--muted);
+  font-size: 0.85rem;
+  letter-spacing: -0.08em;
+  user-select: none;
+}
+
+.plan-card-person {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  margin: 0.4rem 0 0.35rem;
+}
+
+.plan-card-name {
+  font-weight: 650;
+  font-size: 0.92rem;
+  line-height: 1.25;
+}
+
+.plan-card-id {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.plan-card .route-flow {
+  font-size: 0.75rem;
+}
+
+.plan-card-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+}
+
+.plan-card-date {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.plan-card-tag {
+  font-size: 0.65rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  padding: 0.12rem 0.4rem;
+  border-radius: 6px;
+}
+
+.plan-card-tag--in {
+  background: var(--success-dim);
+  color: var(--success);
+}
+
+.plan-card-tag--out {
+  background: var(--warn-dim);
+  color: var(--warn);
+}
+
+.plan-day-reset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.plan-reset-btn {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.68rem;
+  padding: 0.15rem 0.3rem;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.plan-reset-btn:hover {
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
+@keyframes plan-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes plan-column-flash {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.015);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes plan-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 900px) {
+  .plan-canvas {
+    grid-template-columns: 1fr;
+  }
+
+  .plan-column--backlog {
+    min-height: 12rem;
+  }
+
+  .plan-days-scroll {
+    grid-auto-columns: minmax(200px, 78vw);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plan-card,
+  .plan-column,
+  .plan-capacity-fill,
+  .plan-day-wrap {
+    transition: none;
+    animation: none;
+  }
+
+  .plan-toolbar-saving {
+    animation: none;
+  }
+}

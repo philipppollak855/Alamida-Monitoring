@@ -324,6 +324,9 @@ export function BoardPage() {
         </div>
         <div className="board-hero-actions">
           <LiveDataBar compact={isNarrow} />
+          <Link to="/planung" className="board-wall-link board-wall-link--visible">
+            Planung
+          </Link>
           <Link to="/wall" className="board-wall-link board-wall-link--visible">
             Wand
           </Link>
