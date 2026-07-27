@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { DispositionSettings, EigenerKuehlraumConfig, KuehlraumWandTab } from '../types/dispositionSettings';
+import type {
+  DispositionPerson,
+  DispositionSettings,
+  EigenerKuehlraumConfig,
+  KuehlraumWandTab,
+  PersonnelRole,
+} from '../types/dispositionSettings';
 import { useDispositionSettings } from '../settings/SettingsProvider';
 import { classifyOrt } from '../settings/recognitionEngine';
 import { dedupeKeywords } from '../settings/recognitionEngine';
@@ -103,6 +109,20 @@ function emptyKuehlraum(): EigenerKuehlraumConfig {
   };
 }
 
+function emptyPerson(): DispositionPerson {
+  return {
+    id: crypto.randomUUID(),
+    name: '',
+    roles: ['traeger'],
+    active: true,
+  };
+}
+
+const PERSONNEL_ROLE_OPTIONS: { id: PersonnelRole; label: string }[] = [
+  { id: 'arrangeur', label: 'Arrangeur' },
+  { id: 'traeger', label: 'Träger' },
+];
+
 export function DispositionSettingsPanel({ defaultOpen = false }: { defaultOpen?: boolean }) {
   const { settings, loading, saving, error, saveSettings } = useDispositionSettings();
   const [open, setOpen] = useState(defaultOpen);
@@ -139,6 +159,27 @@ export function DispositionSettingsPanel({ defaultOpen = false }: { defaultOpen?
     }));
   };
 
+  const updatePerson = (index: number, patch: Partial<DispositionPerson>) => {
+    setDraft((d) => ({
+      ...d,
+      personnelPool: (d.personnelPool ?? []).map((p, i) =>
+        i === index ? { ...p, ...patch } : p
+      ),
+    }));
+  };
+
+  const togglePersonRole = (index: number, role: PersonnelRole) => {
+    setDraft((d) => ({
+      ...d,
+      personnelPool: (d.personnelPool ?? []).map((p, i) => {
+        if (i !== index) return p;
+        const has = p.roles.includes(role);
+        const roles = has ? p.roles.filter((r) => r !== role) : [...p.roles, role];
+        return { ...p, roles };
+      }),
+    }));
+  };
+
   const handleSave = async () => {
     setSavedOk(false);
     try {
@@ -162,7 +203,7 @@ export function DispositionSettingsPanel({ defaultOpen = false }: { defaultOpen?
       >
         <span className="settings-toggle-title">Erkennung & Kühlraum</span>
         <span className="settings-toggle-meta">
-          Keywords, Plätze, Prüfen — für Disposition, Wandmonitor & Agent
+          Keywords, Plätze, Personalpool — für Disposition, Wandmonitor & Agent
           {dirty && open ? ' · Ungespeicherte Änderungen' : ''}
         </span>
         <span className="case-chevron" aria-hidden />
@@ -531,6 +572,83 @@ export function DispositionSettingsPanel({ defaultOpen = false }: { defaultOpen?
                   }
                 >
                   + Kühlraum hinzufügen
+                </button>
+              </div>
+
+              <div className="settings-block">
+                <div className="settings-block-head">
+                  <h4>Personalpool (Kalender)</h4>
+                  <span className="settings-count">
+                    {(normalizedDraft.personnelPool ?? []).length} Person
+                    {(normalizedDraft.personnelPool ?? []).length !== 1 ? 'en' : ''}
+                  </span>
+                </div>
+                <p className="settings-hint">
+                  Poolliste für Einbuchung am Kalendertermin. Pro Person festlegen: Arrangeur und/oder
+                  Träger. Begräbnis braucht einen Arrangeur; bei Sarg ohne „Träger von Familie“ mind. 4
+                  Träger.
+                </p>
+                {(draft.personnelPool ?? []).map((person, index) => (
+                  <div key={person.id} className="settings-kr-card settings-person-card">
+                    <div className="settings-kr-row">
+                      <label>
+                        Name
+                        <input
+                          type="text"
+                          value={person.name}
+                          placeholder="Vor- und Nachname"
+                          onChange={(e) => updatePerson(index, { name: e.target.value })}
+                        />
+                      </label>
+                      <label className="settings-person-active">
+                        Aktiv
+                        <input
+                          type="checkbox"
+                          checked={person.active !== false}
+                          onChange={(e) => updatePerson(index, { active: e.target.checked })}
+                        />
+                      </label>
+                    </div>
+                    <fieldset className="settings-kr-wand-tab">
+                      <legend>Rollen</legend>
+                      <div className="settings-kr-wand-tab-options">
+                        {PERSONNEL_ROLE_OPTIONS.map(({ id, label }) => (
+                          <label key={id} className="settings-kr-wand-tab-option">
+                            <input
+                              type="checkbox"
+                              checked={person.roles.includes(id)}
+                              onChange={() => togglePersonRole(index, id)}
+                            />
+                            {label}
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
+                    <button
+                      type="button"
+                      className="btn-ghost btn-small"
+                      onClick={() =>
+                        setDraft((d) => ({
+                          ...d,
+                          personnelPool: (d.personnelPool ?? []).filter((_, i) => i !== index),
+                        }))
+                      }
+                    >
+                      Person entfernen
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  className="btn-ghost btn-small"
+                  onClick={() =>
+                    setDraft((d) => ({
+                      ...d,
+                      personnelPool: [...(d.personnelPool ?? []), emptyPerson()],
+                    }))
+                  }
+                >
+                  + Person hinzufügen
                 </button>
               </div>
 

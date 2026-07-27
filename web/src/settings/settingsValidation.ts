@@ -55,6 +55,18 @@ export function validateDispositionSettings(s: DispositionSettings): SettingsVal
     }
   }
 
+  const pool = s.personnelPool ?? [];
+  if (pool.length === 0) {
+    warnings.push('Personalpool leer — Kalender-Einbuchung ohne Arrangeur/Träger.');
+  } else {
+    if (!pool.some((p) => p.active !== false && p.roles.includes('arrangeur'))) {
+      warnings.push('Kein aktiver Arrangeur im Personalpool.');
+    }
+    if (!pool.some((p) => p.active !== false && p.roles.includes('traeger'))) {
+      warnings.push('Keine aktiven Träger im Personalpool.');
+    }
+  }
+
   const allKh = [
     ...s.kremationPrefixe,
     ...s.kremationKeywords,
@@ -97,5 +109,13 @@ function normalizeForCompare(s: DispositionSettings) {
       wandTab: k.wandTab ?? 'kuehlraum',
       plaetze: k.plaetze,
     })),
+    personnelPool: (s.personnelPool ?? [])
+      .map((p) => ({
+        id: p.id,
+        name: p.name,
+        roles: [...p.roles].sort(),
+        active: p.active !== false,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'de')),
   };
 }

@@ -32,6 +32,8 @@ import {
 
   type WallCalendarDay,
 
+  type WallCalendarEntry,
+
   type WallCalendarRange,
 
 } from '../board/wallCalendar';
@@ -48,11 +50,15 @@ import {
   calendarEventFlexClass,
   monthGridScrollTop,
 } from '../board/wallCalendarLayout';
+import { personnelBookingTraegerLine } from '../board/personnelBookingRules';
+import { usePersonnelBookings } from '../hooks/usePersonnelBookings';
+import { useDispositionSettings } from '../settings/SettingsProvider';
 
 import { WallCalendarDayDialog } from './WallCalendarDayDialog';
 import { WallCalendarEventCard } from './WallCalendarEventCard';
 import { WallCalendarMonthOverview } from './WallCalendarMonthOverview';
 import { WallCalendarPeriodOverview } from './WallCalendarPeriodOverview';
+import { PersonnelBookingDialog } from './PersonnelBookingDialog';
 
 
 
@@ -100,8 +106,18 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
     useWallCalendarViewState(now);
 
   const { activeArts, toggle, selectAll, isActive } = useCalendarArtFilter();
+  const { settings } = useDispositionSettings();
+  const {
+    bookings,
+    saving: bookingSaving,
+    error: bookingError,
+    saveBooking,
+    clearBooking,
+    setError: setBookingError,
+  } = usePersonnelBookings();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [dialogDayKey, setDialogDayKey] = useState<string | null>(null);
+  const [bookingEntry, setBookingEntry] = useState<WallCalendarEntry | null>(null);
   const scrollToFocusPending = useRef(false);
   const monthHasUserScrolled = useRef(false);
   const monthExpandLock = useRef(false);
@@ -139,6 +155,20 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
     },
     [setFocusDayKey]
   );
+
+  const handleEntryClick = useCallback((entry: WallCalendarEntry) => {
+    setBookingError(null);
+    setBookingEntry(entry);
+  }, [setBookingError]);
+
+  const traegerLines = useMemo(() => {
+    const pool = settings.personnelPool ?? [];
+    const out: Record<string, string | null> = {};
+    for (const [id, booking] of Object.entries(bookings)) {
+      out[id] = personnelBookingTraegerLine(booking, pool);
+    }
+    return out;
+  }, [bookings, settings.personnelPool]);
 
   const handleDaySelect = useCallback(
     (dayKey: string) => {
@@ -713,6 +743,8 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
             days={days}
             range={range}
             scrollToDayKey={focusDayKey}
+            traegerLines={traegerLines}
+            onEntryClick={handleEntryClick}
           />
 
         </div>
@@ -757,6 +789,8 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
                   active={focusDayKey === day.dayKey}
                   onOpenDay={openDayDialog}
                   summaryOnly={monthSummaryOnly}
+                  traegerLines={traegerLines}
+                  onEntryClick={handleEntryClick}
                 />
 
               ))}
@@ -782,6 +816,8 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
                   days={days.slice(weekIdx * 7, weekIdx * 7 + 7)}
                   focusDayKey={focusDayKey}
                   weeksStack
+                  traegerLines={traegerLines}
+                  onEntryClick={handleEntryClick}
                 />
 
               ))}
@@ -790,7 +826,12 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
 
           ) : (
 
-            <WallCalendarWeekStrip days={days} focusDayKey={focusDayKey} />
+            <WallCalendarWeekStrip
+              days={days}
+              focusDayKey={focusDayKey}
+              traegerLines={traegerLines}
+              onEntryClick={handleEntryClick}
+            />
 
           )}
 
@@ -802,7 +843,42 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
         <WallCalendarDayDialog
           day={dialogDay}
           mobile={isNarrow}
+          traegerLines={traegerLines}
+          onEntryClick={handleEntryClick}
           onClose={() => setDialogDayKey(null)}
+        />
+      )}
+
+      {bookingEntry && (
+        <PersonnelBookingDialog
+          entry={bookingEntry}
+          personnelPool={settings.personnelPool ?? []}
+          existing={bookings[bookingEntry.id] ?? null}
+          pending={bookingSaving}
+          error={bookingError}
+          onClose={() => {
+            if (!bookingSaving) setBookingEntry(null);
+          }}
+          onSave={(booking) => {
+            void (async () => {
+              try {
+                await saveBooking(booking);
+                setBookingEntry(null);
+              } catch {
+                /* Fehler im Hook */
+              }
+            })();
+          }}
+          onClear={() => {
+            void (async () => {
+              try {
+                await clearBooking(bookingEntry.id);
+                setBookingEntry(null);
+              } catch {
+                /* Fehler im Hook */
+              }
+            })();
+          }}
         />
       )}
 
@@ -818,10 +894,14 @@ function WallCalendarWeekStrip({
   days,
   focusDayKey,
   weeksStack = false,
+  traegerLines,
+  onEntryClick,
 }: {
   days: WallCalendarDay[];
   focusDayKey: string | null;
   weeksStack?: boolean;
+  traegerLines?: Record<string, string | null>;
+  onEntryClick?: (entry: WallCalendarEntry) => void;
 }) {
   return (
     <div className={`wall-cal-strip wall-cal-strip--week${weeksStack ? ' wall-cal-strip--stacked' : ''}`}>
@@ -834,6 +914,8 @@ function WallCalendarWeekStrip({
           weeksStack={weeksStack}
           scrollId={day.dayKey}
           active={focusDayKey === day.dayKey}
+          traegerLines={traegerLines}
+          onEntryClick={onEntryClick}
         />
       ))}
     </div>
@@ -897,10 +979,14 @@ function WallCalendarMobileAgenda({
   days,
   range,
   scrollToDayKey,
+  traegerLines,
+  onEntryClick,
 }: {
   days: WallCalendarDay[];
   range: WallCalendarRange;
   scrollToDayKey?: string | null;
+  traegerLines?: Record<string, string | null>;
+  onEntryClick?: (entry: WallCalendarEntry) => void;
 }) {
   return (
     <div
@@ -929,7 +1015,12 @@ function WallCalendarMobileAgenda({
             <ul className="wall-cal-agenda-list">
               {day.entries.map((e) => (
                 <li key={e.id} className={`wall-cal-event ${e.grouped ? 'is-grouped' : ''}`}>
-                  <WallCalendarEventCard entry={e} mobile />
+                  <WallCalendarEventCard
+                    entry={e}
+                    mobile
+                    traegerLine={traegerLines?.[e.id]}
+                    onClick={onEntryClick}
+                  />
                 </li>
               ))}
             </ul>
@@ -955,6 +1046,8 @@ function WallCalendarDaySection({
   active = false,
   onOpenDay,
   summaryOnly = false,
+  traegerLines,
+  onEntryClick,
 
 }: {
 
@@ -969,6 +1062,8 @@ function WallCalendarDaySection({
   active?: boolean;
   onOpenDay?: (dayKey: string) => void;
   summaryOnly?: boolean;
+  traegerLines?: Record<string, string | null>;
+  onEntryClick?: (entry: WallCalendarEntry) => void;
 
 }) {
   const mod = strip ? 'strip' : compact ? 'month' : '';
@@ -1007,7 +1102,13 @@ function WallCalendarDaySection({
             key={e.id}
             className={`wall-cal-event ${calendarEventFlexClass(e)} ${e.grouped ? 'is-grouped' : ''}`}
           >
-            <WallCalendarEventCard entry={e} compact={compact || strip} strip={strip} />
+            <WallCalendarEventCard
+              entry={e}
+              compact={compact || strip}
+              strip={strip}
+              traegerLine={traegerLines?.[e.id]}
+              onClick={onEntryClick}
+            />
           </li>
         ))
       )}
@@ -1058,6 +1159,27 @@ function WallCalendarDaySection({
         style={strip || compact ? densityStyle : undefined}
       >
         {head}
+        {body}
+      </section>
+    );
+  }
+
+  /* Kopf öffnet Tagesdialog; Termine darunter bleiben einzeln klickbar (Personal). */
+  if (!summaryOnly) {
+    return (
+      <section
+        id={scrollId ? `wall-cal-focus-${scrollId}` : undefined}
+        className={className}
+        style={strip || compact ? densityStyle : undefined}
+      >
+        <button
+          type="button"
+          className="wall-cal-day-open wall-cal-day-open--head"
+          onClick={() => onOpenDay!(day.dayKey)}
+          aria-label={`Termine am ${day.dayLabel}${summary.total > 0 ? `, ${summary.total} Termine` : ''}`}
+        >
+          {head}
+        </button>
         {body}
       </section>
     );

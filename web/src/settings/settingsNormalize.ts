@@ -1,6 +1,8 @@
 import type {
+  DispositionPerson,
   DispositionSettings,
   EigenerKuehlraumConfig,
+  PersonnelRole,
   WallTabRotationEnabled,
   WallTabWechselSekunden,
 } from '../types/dispositionSettings';
@@ -8,6 +10,28 @@ import { normalizeKuehlraumWandTab } from '../board/kuehlraumWandTab';
 import { wallDurationsFromSettings } from '../hooks/useWallTabRotation';
 import { DEFAULT_DISPOSITION_SETTINGS } from '../config/defaultDispositionSettings';
 import { dedupeKeywords } from './recognitionEngine';
+
+function normalizePersonnelPool(raw: unknown): DispositionPerson[] {
+  if (!Array.isArray(raw)) return [...(DEFAULT_DISPOSITION_SETTINGS.personnelPool ?? [])];
+  const out: DispositionPerson[] = [];
+  raw.forEach((item, i) => {
+    if (!item || typeof item !== 'object') return;
+    const p = item as Partial<DispositionPerson>;
+    const name = String(p.name ?? '').trim();
+    if (!name) return;
+    const roles = (Array.isArray(p.roles) ? p.roles : [])
+      .map(String)
+      .filter((r): r is PersonnelRole => r === 'arrangeur' || r === 'traeger');
+    if (roles.length === 0) return;
+    out.push({
+      id: String(p.id || `person-${i}`).trim() || `person-${i}`,
+      name,
+      roles: [...new Set(roles)],
+      active: p.active !== false,
+    });
+  });
+  return out;
+}
 
 export function normalizeDispositionSettings(
   raw: Partial<DispositionSettings> | undefined
@@ -94,6 +118,7 @@ export function normalizeDispositionSettings(
         : DEFAULT_DISPOSITION_SETTINGS.bestattungKeywords
     ),
     eigeneKuehlraeume,
+    personnelPool: normalizePersonnelPool(raw.personnelPool),
     wallTabWechselSekunden,
     wallTabRotationEnabled,
     updatedAt: raw.updatedAt,

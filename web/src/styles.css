@@ -2507,7 +2507,7 @@ code {
 .wall-urnen-section {
   flex-shrink: 0;
   min-height: 0;
-  max-height: clamp(3.25rem, 11vh, 5rem);
+  max-height: clamp(3.75rem, 14vh, 6.5rem);
   overflow: hidden;
   border-top: 2px solid rgba(77, 159, 255, 0.25);
   padding-top: 0.25rem;
@@ -2559,7 +2559,7 @@ code {
   gap: 0.35rem;
   padding: 0.22rem 0.45rem;
   flex: 0 0 auto;
-  max-width: min(100%, 200px);
+  max-width: none;
   background: var(--surface-solid);
   border: 1px solid rgba(77, 159, 255, 0.4);
   border-radius: var(--radius-sm);
@@ -2576,18 +2576,19 @@ code {
 .wall-urnen-name {
   font-size: clamp(0.78rem, 1.2vw, 0.92rem);
   font-weight: 700;
-  line-height: 1.15;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.2;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  overflow-wrap: anywhere;
 }
 
 .wall-urnen-meta {
   font-size: clamp(0.65rem, 0.95vw, 0.75rem);
   color: var(--muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
 }
 
 .wall-urnen-section .urnen-undo-btn {
@@ -3054,7 +3055,7 @@ code {
 
 .board-urnen-item--compact {
   flex: 0 1 auto;
-  max-width: min(100%, 220px);
+  max-width: none;
   padding: 0.32rem 0.5rem;
   gap: 0.35rem;
 }
@@ -3072,11 +3073,18 @@ code {
   font-weight: 700;
   font-size: 1.05rem;
   line-height: 1.2;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  overflow-wrap: anywhere;
 }
 
 .board-urnen-item--compact .board-urnen-name {
   font-size: 0.82rem;
-  line-height: 1.15;
+  line-height: 1.2;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
 }
 
 .board-urnen-meta {
@@ -3087,9 +3095,9 @@ code {
 
 .board-urnen-item--compact .board-urnen-meta {
   font-size: 0.68rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
 }
 
 .board-urnen-panel .urnen-undo-btn {
@@ -4368,6 +4376,209 @@ code {
   padding: 1.25rem 1rem;
   color: var(--muted);
   text-align: center;
+}
+
+.wall-cal-card.is-clickable {
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s;
+}
+
+.wall-cal-card.is-clickable:hover,
+.wall-cal-card.is-clickable:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-dim);
+  outline: none;
+}
+
+.wall-cal-traeger-line {
+  display: block;
+  margin-top: 0.18rem;
+  font-size: 0.62rem;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  color: var(--muted);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.wall-cal-day-open--head {
+  width: 100%;
+  display: block;
+  text-align: inherit;
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+
+.personnel-booking-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 130;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(4, 8, 14, 0.72);
+  backdrop-filter: blur(8px);
+}
+
+.personnel-booking-dialog {
+  width: min(480px, 100%);
+  max-height: min(92vh, 720px);
+  overflow: auto;
+  padding: 1.1rem 1.15rem 1rem;
+  border-radius: var(--radius);
+  background: var(--surface-solid);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow);
+}
+
+.personnel-booking-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.personnel-booking-kicker {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.personnel-booking-head h2 {
+  margin: 0.2rem 0 0;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.personnel-booking-sub {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.personnel-booking-rule {
+  margin: 0.85rem 0 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: var(--radius-sm);
+  background: rgba(52, 211, 153, 0.08);
+  border: 1px solid rgba(52, 211, 153, 0.22);
+  font-size: 0.82rem;
+  color: var(--text);
+}
+
+.personnel-booking-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.9rem;
+}
+
+.personnel-booking-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.personnel-booking-field select,
+.personnel-booking-field input {
+  padding: 0.55rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font: inherit;
+}
+
+.personnel-booking-field select:focus,
+.personnel-booking-field input:focus {
+  outline: 2px solid var(--accent-dim);
+  border-color: var(--accent);
+}
+
+.personnel-booking-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.9rem;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.personnel-booking-pool {
+  margin: 0;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.personnel-booking-pool legend {
+  padding: 0 0.25rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.personnel-booking-pool-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem 0.75rem;
+  margin-top: 0.35rem;
+}
+
+.personnel-booking-pool-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.88rem;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.personnel-booking-empty {
+  margin: 0.35rem 0 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.personnel-booking-warn {
+  margin: 0.45rem 0 0;
+  font-size: 0.82rem;
+  color: var(--warning, #d97706);
+}
+
+.personnel-booking-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.settings-person-active {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 0.45rem;
+  align-self: end;
+  padding-bottom: 0.35rem;
+}
+
+.settings-person-active input[type='checkbox'] {
+  width: auto;
 }
 
 .wall-cal-empty {
