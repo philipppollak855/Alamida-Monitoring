@@ -8,6 +8,58 @@ import type {
 
 const PLAN_DOC = ['settings', 'personaleinsatz'] as const;
 
+/** Firestore akzeptiert kein `undefined` — Felder weglassen. */
+export function omitUndefinedDeep<T>(value: T): T {
+  if (value === undefined) return value;
+  if (value === null || typeof value !== 'object') return value;
+  if (Array.isArray(value)) {
+    return value.map((item) => omitUndefinedDeep(item)) as T;
+  }
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    if (v === undefined) continue;
+    out[k] = omitUndefinedDeep(v);
+  }
+  return out as T;
+}
+
+function sanitizeBooking(booking: PersonnelBooking): PersonnelBooking {
+  const note = booking.note?.trim();
+  return omitUndefinedDeep({
+    ...booking,
+    note: note ? note : undefined,
+    bestattungsMarker: booking.bestattungsMarker || undefined,
+  });
+}
+
+function sanitizeAbsence(absence: PersonnelAbsence): PersonnelAbsence {
+  const note = absence.note?.trim();
+  return omitUndefinedDeep({
+    ...absence,
+    note: note ? note : undefined,
+  });
+}
+
+function sanitizeBookingsMap(
+  bookings: Record<string, PersonnelBooking>
+): Record<string, PersonnelBooking> {
+  const out: Record<string, PersonnelBooking> = {};
+  for (const [id, booking] of Object.entries(bookings)) {
+    out[id] = sanitizeBooking(booking);
+  }
+  return out;
+}
+
+function sanitizeAbsencesMap(
+  absences: Record<string, PersonnelAbsence>
+): Record<string, PersonnelAbsence> {
+  const out: Record<string, PersonnelAbsence> = {};
+  for (const [id, absence] of Object.entries(absences)) {
+    out[id] = sanitizeAbsence(absence);
+  }
+  return out;
+}
+
 function normalizeBookings(raw: unknown): Record<string, PersonnelBooking> {
   if (!raw || typeof raw !== 'object') return {};
   const out: Record<string, PersonnelBooking> = {};
@@ -30,7 +82,7 @@ function normalizeBookings(raw: unknown): Record<string, PersonnelBooking> {
       traegerVonFamilie: v.traegerVonFamilie === true,
       requiredTraegerCount:
         typeof v.requiredTraegerCount === 'number' ? v.requiredTraegerCount : 0,
-      note: v.note,
+      note: typeof v.note === 'string' && v.note.trim() ? v.note.trim() : undefined,
       updatedAtMs: typeof v.updatedAtMs === 'number' ? v.updatedAtMs : undefined,
     };
   }
@@ -49,7 +101,7 @@ function normalizeAbsences(raw: unknown): Record<string, PersonnelAbsence> {
       personId: String(v.personId),
       fromDayKey: String(v.fromDayKey),
       toDayKey: String(v.toDayKey),
-      note: typeof v.note === 'string' ? v.note : undefined,
+      note: typeof v.note === 'string' && v.note.trim() ? v.note.trim() : undefined,
       updatedAtMs: typeof v.updatedAtMs === 'number' ? v.updatedAtMs : undefined,
     };
   }
@@ -75,15 +127,13 @@ async function writePersonnelDoc(
   }
 ): Promise<void> {
   if (!db) throw new Error('Firebase nicht konfiguriert');
-  await setDoc(
-    doc(db, PLAN_DOC[0], PLAN_DOC[1]),
-    {
-      ...patch,
-      updatedAtMs: Date.now(),
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true }
-  );
+  const data: Record<string, unknown> = {
+    updatedAtMs: Date.now(),
+    updatedAt: serverTimestamp(),
+  };
+  if (patch.bookings) data.bookings = sanitizeBookingsMap(patch.bookings);
+  if (patch.absences) data.absences = sanitizeAbsencesMap(patch.absences);
+  await setDoc(doc(db, PLAN_DOC[0], PLAN_DOC[1]), data, { merge: true });
 }
 
 export async function loadPersonnelBookings(): Promise<PersonnelBookingDocument> {
