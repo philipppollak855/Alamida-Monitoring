@@ -36,7 +36,7 @@ import {
   removeSterbefaelleFromDisposition,
   removeSterbefallFromDisposition,
 } from '../services/dispositionFall';
-import { countEmpfohleneDuplikatEntfernungen, findFallDuplikatGruppen } from '../board/fallDuplikate';
+import { countEmpfohleneDuplikatEntfernungen, findFallDuplikatGruppen, keepIdForRemoveIds } from '../board/fallDuplikate';
 import { toggleUeberfuehrungErledigt } from '../services/ueberfuehrungErledigt';
 import { clearSterbefallUrnenRetour, markSterbefallUrnenRetour } from '../services/urnenRetour';
 import { DispositionSettingsPanel } from '../components/DispositionSettingsPanel';
@@ -303,7 +303,8 @@ export function BoardPage() {
     if (docIds.length === 0) return;
     const ok = window.confirm(
       `${docIds.length} Duplikat${docIds.length === 1 ? '' : 'e'} aus Disposition entfernen?\n\n` +
-        'Die Einträge erscheinen nicht mehr in aktiven Listen (auch Wandmonitor).'
+        'Die Einträge erscheinen nicht mehr in aktiven Listen (auch Wandmonitor).\n' +
+        'Personal- und Überführungsplanungen bleiben am behaltenen Fall erhalten.'
     );
     if (!ok) return;
 
@@ -311,13 +312,41 @@ export function BoardPage() {
     setDuplikatePending(true);
     try {
       const byId = new Map(sterbefaelleRaw.map((s) => [s.id, s]));
-      await removeSterbefaelleFromDisposition(
-        docIds.map((docId) => ({
-          docId,
-          sterbefallId: byId.get(docId)?.sterbefallId,
-        })),
-        'duplikat_bereinigt'
-      );
+      const removeSet = new Set(docIds);
+      // Pro Gruppe Planungen auf den behaltenen Fall umhängen
+      for (const g of duplikatGruppen) {
+        const groupRemoves = g.faelle
+          .map((f) => f.id)
+          .filter((id) => removeSet.has(id) && id !== g.keepId);
+        if (groupRemoves.length === 0) continue;
+        const keep = byId.get(g.keepId);
+        await removeSterbefaelleFromDisposition(
+          groupRemoves.map((docId) => ({
+            docId,
+            sterbefallId: byId.get(docId)?.sterbefallId,
+          })),
+          'duplikat_bereinigt',
+          keep
+            ? { keepDocId: keep.id, keepSterbefallId: keep.sterbefallId ?? keep.id }
+            : undefined
+        );
+        for (const id of groupRemoves) removeSet.delete(id);
+      }
+      // Rest ohne Gruppen-Zuordnung
+      if (removeSet.size > 0) {
+        const keepId = keepIdForRemoveIds(duplikatGruppen, [...removeSet]);
+        const keep = keepId ? byId.get(keepId) : null;
+        await removeSterbefaelleFromDisposition(
+          [...removeSet].map((docId) => ({
+            docId,
+            sterbefallId: byId.get(docId)?.sterbefallId,
+          })),
+          'duplikat_bereinigt',
+          keep
+            ? { keepDocId: keep.id, keepSterbefallId: keep.sterbefallId ?? keep.id }
+            : undefined
+        );
+      }
       setDuplikateOpen(false);
     } catch (e) {
       setDuplikateError(e instanceof Error ? e.message : 'Duplikate entfernen fehlgeschlagen');

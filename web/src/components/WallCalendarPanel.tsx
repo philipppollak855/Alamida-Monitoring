@@ -31,6 +31,7 @@ import {
   isCalendarFilterComplete,
 
   mergeZusatzTermineIntoEntries,
+  mergeTransferPlanIntoEntries,
 
   type WallCalendarDay,
 
@@ -52,8 +53,12 @@ import {
   calendarEventFlexClass,
   monthGridScrollTop,
 } from '../board/wallCalendarLayout';
-import { personnelBookingTraegerLine } from '../board/personnelBookingRules';
+import {
+  findBookingForWallEntry,
+  personnelBookingDisplayLine,
+} from '../board/personnelBookingRules';
 import { usePersonnelBookings } from '../hooks/usePersonnelBookings';
+import { useTransferPlan } from '../hooks/useTransferPlan';
 import { useZusatzTermine } from '../hooks/useZusatzTermine';
 import { useDispositionSettings } from '../settings/SettingsProvider';
 
@@ -131,6 +136,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
     clearTermin,
     setError: setZusatzError,
   } = useZusatzTermine();
+  const { plan: transferPlan } = useTransferPlan();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [dialogDayKey, setDialogDayKey] = useState<string | null>(null);
   const [bookingEntry, setBookingEntry] = useState<WallCalendarEntry | null>(null);
@@ -200,15 +206,6 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
     [setZusatzError]
   );
 
-  const traegerLines = useMemo(() => {
-    const pool = settings.personnelPool ?? [];
-    const out: Record<string, string | null> = {};
-    for (const [id, booking] of Object.entries(bookings)) {
-      out[id] = personnelBookingTraegerLine(booking, pool);
-    }
-    return out;
-  }, [bookings, settings.personnelPool]);
-
   const handleDaySelect = useCallback(
     (dayKey: string) => {
       if (range === 'month') {
@@ -231,14 +228,23 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
     [setFocusDayKey, setRange, todayKey]
   );
 
-  const allEntries = useMemo(
-    () =>
-      mergeZusatzTermineIntoEntries(
-        buildWallCalendarEntries(sterbefaelle),
-        Object.values(zusatzTermine)
-      ),
-    [sterbefaelle, zusatzTermine]
-  );
+  const allEntries = useMemo(() => {
+    const base = mergeZusatzTermineIntoEntries(
+      buildWallCalendarEntries(sterbefaelle),
+      Object.values(zusatzTermine)
+    );
+    return mergeTransferPlanIntoEntries(base, transferPlan.assignments, sterbefaelle);
+  }, [sterbefaelle, zusatzTermine, transferPlan.assignments]);
+
+  const traegerLines = useMemo(() => {
+    const pool = settings.personnelPool ?? [];
+    const out: Record<string, string | null> = {};
+    for (const entry of allEntries) {
+      const booking = findBookingForWallEntry(bookings, entry);
+      out[entry.id] = personnelBookingDisplayLine(booking, pool);
+    }
+    return out;
+  }, [bookings, settings.personnelPool, allEntries]);
 
   const scoped = useMemo(() => {
     let list = allEntries;
@@ -913,7 +919,11 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
           personnelPool={settings.personnelPool ?? []}
           allBookings={bookings}
           absences={absences}
-          existing={bookings[bookingEntry.id] ?? null}
+          existing={
+            findBookingForWallEntry(bookings, bookingEntry) ??
+            bookings[bookingEntry.id] ??
+            null
+          }
           pending={bookingSaving}
           markerPending={markerPending}
           error={markerError ?? bookingError}

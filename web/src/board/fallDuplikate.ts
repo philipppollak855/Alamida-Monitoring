@@ -1,5 +1,6 @@
 import type { Sterbefall } from '../types';
-import { istFehlerhafterPlatzhalterFall } from './historieLogic';
+import { istFehlerhafterPlatzhalterFall, istInHistory } from './historieLogic';
+import { istManuellAusgeschlossen } from './fallAbschluss';
 
 export type FallDuplikatGruppe = {
   key: string;
@@ -11,23 +12,59 @@ export type FallDuplikatGruppe = {
   removeIds: string[];
 };
 
-function normalizeNameKey(raw?: string): string {
-  return (raw ?? '')
+function normalizeToken(raw: string): string {
+  return raw
     .trim()
     .toLowerCase()
     .normalize('NFD')
     .replace(/\p{M}/gu, '')
-    .replace(/[^a-z0-9äöüß\s-]/gi, '')
-    .replace(/\s+/g, ' ');
+    .replace(/[^a-z0-9äöüß-]/gi, '');
 }
 
-function displayName(s: Sterbefall): string {
+/**
+ * Kanonischer Namensschlüssel: Tokens sortiert, damit
+ * „Anna Meier“ und „Meier Anna“ / „Meier, Anna“ gleich sind.
+ */
+export function normalizeNameKey(raw?: string): string {
+  const tokens = (raw ?? '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .replace(/[,;|/]+/g, ' ')
+    .replace(/[^a-z0-9äöüß\s-]/gi, ' ')
+    .split(/\s+/)
+    .map((t) => normalizeToken(t))
+    .filter((t) => t.length > 0);
+  if (tokens.length === 0) return '';
+  return [...tokens].sort((a, b) => a.localeCompare(b, 'de')).join(' ');
+}
+
+export function displayName(s: Sterbefall): string {
   return (
     s.verstorbenerName?.trim() ||
     [s.verstorbenerVorname, s.verstorbenerNachname].filter(Boolean).join(' ').trim() ||
     s.sterbefallId ||
     s.id
   );
+}
+
+/** Name-Key aus Anzeigename oder strukturierten Vor-/Nachnamen. */
+export function fallNameMatchKey(s: Sterbefall): string {
+  const fromParts = [s.verstorbenerVorname, s.verstorbenerNachname]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+  const fromDisplay = s.verstorbenerName?.trim() || '';
+  // Beide Quellen prüfen — sortierte Tokens machen Reihenfolge egal.
+  const keys = [normalizeNameKey(fromDisplay), normalizeNameKey(fromParts)].filter(
+    (k) => k.length >= 3
+  );
+  if (keys.length === 0) {
+    return normalizeNameKey(displayName(s));
+  }
+  // Längsten Key bevorzugen (mehr Tokens = präziser)
+  return keys.sort((a, b) => b.length - a.length || a.localeCompare(b, 'de'))[0]!;
 }
 
 export function isNeuDokumentId(id?: string): boolean {
@@ -75,20 +112,25 @@ export function preferierterFall(faelle: Sterbefall[]): Sterbefall {
   })[0]!;
 }
 
+function isEligibleForDuplikatScan(s: Sterbefall): boolean {
+  if (istFehlerhafterPlatzhalterFall(s)) return false;
+  if (istManuellAusgeschlossen(s.historieGrund ?? s.abschlussGrund)) return false;
+  return true;
+}
+
 /**
  * Findet Duplikat-Gruppen (gleicher Name; optional gleiches Sterbedatum).
- * Platzhalter-Namen werden ignoriert.
+ * Vor-/Nachname-Reihenfolge ist egal („Anna Meier“ = „Meier Anna“).
+ * Bereits manuell ausgeschlossene Fälle werden ignoriert.
  */
 export function findFallDuplikatGruppen(sterbefaelle: Sterbefall[]): FallDuplikatGruppe[] {
+  const candidates = sterbefaelle.filter(isEligibleForDuplikatScan);
   const buckets = new Map<string, Sterbefall[]>();
 
-  for (const s of sterbefaelle) {
-    if (istFehlerhafterPlatzhalterFall(s)) continue;
-    const nameKey = normalizeNameKey(displayName(s));
+  for (const s of candidates) {
+    const nameKey = fallNameMatchKey(s);
     if (nameKey.length < 3) continue;
     const dateKey = sterbedatumKey(s);
-    // Ohne Datum nur nach Name; mit Datum Name+Datum — aber Name-only Gruppen
-    // zusätzlich, wenn mehrere mit gleichem Namen und gemischten Daten/NEU.
     const key = dateKey ? `${nameKey}|${dateKey}` : `name:${nameKey}`;
     const list = buckets.get(key) ?? [];
     list.push(s);
@@ -97,9 +139,8 @@ export function findFallDuplikatGruppen(sterbefaelle: Sterbefall[]): FallDuplika
 
   // Zusätzlich: gleiche Namen ohne Datum mit NEU vs. echte ID zusammenführen
   const byName = new Map<string, Sterbefall[]>();
-  for (const s of sterbefaelle) {
-    if (istFehlerhafterPlatzhalterFall(s)) continue;
-    const nameKey = normalizeNameKey(displayName(s));
+  for (const s of candidates) {
+    const nameKey = fallNameMatchKey(s);
     if (nameKey.length < 3) continue;
     const list = byName.get(nameKey) ?? [];
     list.push(s);
@@ -111,7 +152,6 @@ export function findFallDuplikatGruppen(sterbefaelle: Sterbefall[]): FallDuplika
     const hasNeu = list.some((s) => isNeuDokumentId(s.id) || isNeuDokumentId(s.sterbefallId));
     const hasReal = list.some((s) => isWahrscheinlichEchteSterbefallId(s.sterbefallId ?? s.id));
     if (!(hasNeu && hasReal) && list.length < 2) continue;
-    // Nur wenn noch keine Datum-Gruppe diese Kombination abdeckt
     const key = `name:${nameKey}`;
     if (!buckets.has(key) || (buckets.get(key)?.length ?? 0) < list.length) {
       buckets.set(key, list);
@@ -123,7 +163,8 @@ export function findFallDuplikatGruppen(sterbefaelle: Sterbefall[]): FallDuplika
 
   for (const [key, faelle] of buckets) {
     const unique = dedupeByDocId(faelle);
-    if (unique.length < 2) continue;
+    const active = unique.filter((s) => !istInHistory(s));
+    if (active.length < 2) continue;
 
     const idsKey = unique
       .map((s) => s.id)
@@ -132,13 +173,16 @@ export function findFallDuplikatGruppen(sterbefaelle: Sterbefall[]): FallDuplika
     if (seenPairKeys.has(idsKey)) continue;
     seenPairKeys.add(idsKey);
 
-    const keep = preferierterFall(unique);
+    const keep = preferierterFall(active);
+    const removeIds = active.filter((s) => s.id !== keep.id).map((s) => s.id);
+    if (removeIds.length === 0) continue;
+
     groups.push({
       key,
       label: displayName(keep),
       faelle: unique.sort((a, b) => fallDuplikatKeepScore(b) - fallDuplikatKeepScore(a)),
       keepId: keep.id,
-      removeIds: unique.filter((s) => s.id !== keep.id).map((s) => s.id),
+      removeIds,
     });
   }
 
@@ -156,4 +200,16 @@ export function countEmpfohleneDuplikatEntfernungen(groups: FallDuplikatGruppe[]
   const ids = new Set<string>();
   for (const g of groups) for (const id of g.removeIds) ids.add(id);
   return ids.size;
+}
+
+/** Keep-ID für eine Menge zu entfernender Doc-IDs (aus Gruppen). */
+export function keepIdForRemoveIds(
+  groups: FallDuplikatGruppe[],
+  removeIds: string[]
+): string | null {
+  const remove = new Set(removeIds);
+  for (const g of groups) {
+    if (g.removeIds.some((id) => remove.has(id))) return g.keepId;
+  }
+  return null;
 }

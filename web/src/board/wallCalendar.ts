@@ -634,6 +634,85 @@ export function mergeZusatzTermineIntoEntries(
   );
 }
 
+/**
+ * Geplante Überführungen aus der Planung in den Kalender mischen.
+ * Bestehende Alamida-Überführungen am gleichen Tag/Route werden ersetzt/ergänzt.
+ */
+export function mergeTransferPlanIntoEntries(
+  entries: WallCalendarEntry[],
+  assignments: Record<
+    string,
+    {
+      id: string;
+      docId: string;
+      plannedDayKey: string | null;
+      plannedZeit?: string | null;
+      vonOrt?: string | null;
+      nachOrt?: string | null;
+      schrittTyp?: string | null;
+    }
+  >,
+  sterbefaelle: Sterbefall[]
+): WallCalendarEntry[] {
+  const byId = new Map(sterbefaelle.map((s) => [s.id, s]));
+  const planned: WallCalendarEntry[] = [];
+  const coveredKeys = new Set<string>();
+
+  for (const assignment of Object.values(assignments)) {
+    const dayKey = assignment.plannedDayKey;
+    if (!dayKey) continue;
+    const s = byId.get(assignment.docId);
+    if (!s) continue;
+    const deDatum = dayKeyToDeDatum(dayKey);
+    if (!deDatum) continue;
+    const zeit = formatZeitDe(assignment.plannedZeit) || undefined;
+    const sortMs =
+      parseDatumZeitDe(deDatum, zeit) ?? parseDatumZeitDe(deDatum, undefined, true);
+    if (sortMs == null) continue;
+    const art = calendarArtFromSchritt(assignment.schrittTyp ?? undefined);
+    const von = assignment.vonOrt?.trim() || '—';
+    const nach = assignment.nachOrt?.trim() || '—';
+    const title = schrittTypLabel(assignment.schrittTyp ?? 'ueberfuehrung');
+    const name = fallName(s);
+    const route = `${von} → ${nach}`;
+    const id = `plan:${assignment.id}`;
+    coveredKeys.add(`${assignment.docId}|${dayKey}|${art}`);
+    planned.push({
+      id,
+      docId: s.id,
+      sterbefallId: s.sterbefallId ?? s.id,
+      dayKey,
+      dayLabel: formatDayLabelDe(dayKey),
+      timeLabel: zeit || '—',
+      sortMs,
+      name,
+      title,
+      subtitle: route,
+      badges: [title, 'Geplant'],
+      grouped: false,
+      arts: [art],
+      searchText: [name, title, route, s.sterbefallId, 'geplant']
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase(),
+      bestattungsMarker: calendarBestattungsMarker(s, [art], title),
+    });
+  }
+
+  if (planned.length === 0) return entries;
+
+  // Alamida-Überführungen am selben Tag/Art für geplante Fälle ausblenden
+  // (Planungsdatum hat Vorrang)
+  const filtered = entries.filter((e) => {
+    if (!isUeberfuehrungCalendarEntry(e)) return true;
+    return !coveredKeys.has(`${e.docId}|${e.dayKey}|${e.arts[0]}`);
+  });
+
+  return [...filtered, ...planned].sort(
+    (a, b) => a.sortMs - b.sortMs || a.name.localeCompare(b.name, 'de')
+  );
+}
+
 function monthStartKey(anchor: Date): string {
   return dayKeyFromDate(new Date(anchor.getFullYear(), anchor.getMonth(), 1));
 }

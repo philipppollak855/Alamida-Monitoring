@@ -90,8 +90,9 @@ export function FallDuplikateDialog({
             <p className="fall-dup-kicker">Fälle</p>
             <h2 id={titleId}>Duplikatsprüfung</h2>
             <p className="fall-dup-sub">
-              Aktive und vergangene Fälle mit gleichem Namen — behalten / entfernen wählen.
-              Entfernte Fälle verschwinden aus Disposition und Wandmonitor.
+              Aktive Fälle mit gleichem Namen (auch bei vertauschter Vor-/Nachnamen-Reihenfolge).
+              Entfernte Duplikate verschwinden aus Disposition und Wandmonitor; Personal- und
+              Überführungsplanungen bleiben am behaltenen Fall.
             </p>
           </div>
           <button type="button" className="btn-ghost" onClick={onClose} disabled={pending}>
