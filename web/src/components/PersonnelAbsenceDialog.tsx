@@ -57,6 +57,16 @@ function formatRangeLabel(fromDayKey: string, toDayKey: string): string {
   return `${formatDayLabelDe(fromDayKey)} – ${formatDayLabelDe(toDayKey)}`;
 }
 
+function formatAbsenceTimeRange(
+  fromTime?: string,
+  toTime?: string
+): string | null {
+  if (!fromTime?.trim() && !toTime?.trim()) return null;
+  const from = fromTime?.trim() || '00:00';
+  const to = toTime?.trim() || '23:59';
+  return `${from}–${to}`;
+}
+
 function absenceCoversDay(a: PersonnelAbsence, dayKey: string): boolean {
   return a.fromDayKey <= dayKey && dayKey <= a.toDayKey;
 }
@@ -100,6 +110,8 @@ export function PersonnelAbsenceDialog({
   const [toDayKey, setToDayKey] = useState(
     dayKeys[dayKeys.length - 1] ?? dayKeys[0] ?? dayKeyFromDate(new Date())
   );
+  const [fromTime, setFromTime] = useState('');
+  const [toTime, setToTime] = useState('');
   const [note, setNote] = useState('');
   const [filterPersonId, setFilterPersonId] = useState<string>('all');
   const [monthCursor, setMonthCursor] = useState(() => startOfMonth(new Date()));
@@ -115,6 +127,8 @@ export function PersonnelAbsenceDialog({
     const end = dayKeys[dayKeys.length - 1] ?? start;
     setFromDayKey(start);
     setToDayKey(end);
+    setFromTime('');
+    setToTime('');
     setPersonId((prev) => prev || people[0]?.id || '');
     setNote('');
     setFilterPersonId('all');
@@ -300,6 +314,7 @@ export function PersonnelAbsenceDialog({
             <h2 id={titleId}>Abwesenheiten</h2>
             <p className="personnel-booking-sub">
               Alle Einträge im Überblick — Kalender: zwei Klicks setzen Von–Bis.
+              Uhrzeiten optional für stundenweise Abwesenheit.
             </p>
           </div>
           <button type="button" className="btn-ghost" onClick={onClose} disabled={pending}>
@@ -444,6 +459,24 @@ export function PersonnelAbsenceDialog({
                 />
               </label>
               <label className="personnel-booking-field">
+                <span>Von (Uhrzeit)</span>
+                <input
+                  type="time"
+                  value={fromTime}
+                  onChange={(e) => setFromTime(e.target.value)}
+                  disabled={pending}
+                />
+              </label>
+              <label className="personnel-booking-field">
+                <span>Bis (Uhrzeit)</span>
+                <input
+                  type="time"
+                  value={toTime}
+                  onChange={(e) => setToTime(e.target.value)}
+                  disabled={pending}
+                />
+              </label>
+              <label className="personnel-booking-field personnel-absence-note">
                 <span>Notiz</span>
                 <input
                   type="text"
@@ -457,7 +490,13 @@ export function PersonnelAbsenceDialog({
                 type="button"
                 className="btn-primary"
                 disabled={
-                  pending || !personId || !fromDayKey || !toDayKey || toDayKey < fromDayKey
+                  pending ||
+                  !personId ||
+                  !fromDayKey ||
+                  !toDayKey ||
+                  toDayKey < fromDayKey ||
+                  (fromDayKey === toDayKey &&
+                    Boolean(fromTime && toTime && toTime < fromTime))
                 }
                 onClick={() =>
                   void onSave({
@@ -465,6 +504,8 @@ export function PersonnelAbsenceDialog({
                     personId,
                     fromDayKey,
                     toDayKey,
+                    fromTime: fromTime.trim() || undefined,
+                    toTime: toTime.trim() || undefined,
                     note: note.trim() || undefined,
                     updatedAtMs: Date.now(),
                   })
@@ -525,30 +566,37 @@ export function PersonnelAbsenceDialog({
                         </span>
                       </header>
                       <ul className="personnel-absence-list">
-                        {list.map((a) => (
-                          <li key={a.id}>
-                            <div>
-                              <strong>{formatRangeLabel(a.fromDayKey, a.toDayKey)}</strong>
-                              <span>
-                                {a.fromDayKey}
-                                {a.fromDayKey !== a.toDayKey ? ` – ${a.toDayKey}` : ''}
-                                {a.note ? ` · ${a.note}` : ''}
-                              </span>
-                            </div>
-                            <button
-                              type="button"
-                              className="btn-ghost btn-small"
-                              disabled={pending || deletingId === a.id}
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                void handleDelete(a.id);
-                              }}
-                            >
-                              {deletingId === a.id ? 'Löscht…' : 'Löschen'}
-                            </button>
-                          </li>
-                        ))}
+                        {list.map((a) => {
+                          const hours = formatAbsenceTimeRange(a.fromTime, a.toTime);
+                          return (
+                            <li key={a.id}>
+                              <div>
+                                <strong>
+                                  {formatRangeLabel(a.fromDayKey, a.toDayKey)}
+                                  {hours ? ` · ${hours}` : ''}
+                                </strong>
+                                <span>
+                                  {a.fromDayKey}
+                                  {a.fromDayKey !== a.toDayKey ? ` – ${a.toDayKey}` : ''}
+                                  {hours ? ` · ${hours}` : ' · ganztägig'}
+                                  {a.note ? ` · ${a.note}` : ''}
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                className="btn-ghost btn-small"
+                                disabled={pending || deletingId === a.id}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  void handleDelete(a.id);
+                                }}
+                              >
+                                {deletingId === a.id ? 'Löscht…' : 'Löschen'}
+                              </button>
+                            </li>
+                          );
+                        })}
                       </ul>
                     </section>
                   );

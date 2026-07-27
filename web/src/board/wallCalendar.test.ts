@@ -9,6 +9,7 @@ import {
   filterEntriesInDayRange,
   isFahrerTransferEntry,
   isKremationTransferEntry,
+  mergeTransferPlanIntoEntries,
   summarizeWallCalendarDay,
   type WallCalendarEntry,
 } from './wallCalendar';
@@ -171,5 +172,54 @@ describe('isKremationTransferEntry / isFahrerTransferEntry', () => {
   it('normale Überführung braucht Fahrer-Pool', () => {
     expect(isKremationTransferEntry(entry(['ueberfuehrung']))).toBe(false);
     expect(isFahrerTransferEntry(entry(['ueberfuehrung']))).toBe(true);
+  });
+});
+
+describe('mergeTransferPlanIntoEntries', () => {
+  it('zeigt Kremation aus Alamida + Planung nur einmal', () => {
+    const sterbefaelle = [
+      {
+        id: 'doc-krem',
+        sterbefallId: '260777',
+        verstorbenerName: 'Krem Test',
+        ausstehend: [
+          {
+            zeile: 1,
+            schrittTyp: 'kremation',
+            vonOrt: 'Kühlr. Grafenbach',
+            nachOrt: 'Innermanzing',
+            terminAm: '15.07.2026',
+            status: 'geplant',
+          },
+        ],
+      },
+    ];
+    const base = buildWallCalendarEntries(sterbefaelle);
+    expect(base.some((e) => e.arts.includes('ueberfuehrung_kremation'))).toBe(true);
+
+    const merged = mergeTransferPlanIntoEntries(
+      base,
+      {
+        a1: {
+          id: 'a1',
+          docId: 'doc-krem',
+          plannedDayKey: '2026-07-15',
+          plannedZeit: '09:30',
+          vonOrt: 'Kühlr. Grafenbach',
+          nachOrt: 'Innermanzing',
+          schrittTyp: 'kremation',
+        },
+      },
+      sterbefaelle
+    );
+
+    const kremEntries = merged.filter(
+      (e) =>
+        e.docId === 'doc-krem' &&
+        (e.arts.includes('ueberfuehrung_kremation') || /krem/i.test(e.title))
+    );
+    expect(kremEntries).toHaveLength(1);
+    expect(kremEntries[0]?.id).toBe('plan:a1');
+    expect(kremEntries[0]?.badges).toContain('Geplant');
   });
 });

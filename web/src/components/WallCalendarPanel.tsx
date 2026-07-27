@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, createContext } from 'react';
 
 import type { Sterbefall } from '../types';
 
@@ -48,6 +48,7 @@ import {
   type WallCalendarDayRange,
 } from '../board/monthScrollWindow';
 import { dayOfMonthFromDayKey } from '../board/dateUtils';
+import { isBereitschaftRelevantDay } from '../board/bereitschaftRules';
 import {
   calendarDayLayout,
   calendarEventFlexClass,
@@ -67,11 +68,28 @@ import { WallCalendarEventCard } from './WallCalendarEventCard';
 import { WallCalendarMonthOverview } from './WallCalendarMonthOverview';
 import { WallCalendarPeriodOverview } from './WallCalendarPeriodOverview';
 import { PersonnelBookingDialog } from './PersonnelBookingDialog';
+import { PersonnelStandbyDialog } from './PersonnelStandbyDialog';
+import { BereitschaftChips } from './BereitschaftChips';
 import { ZusatzTerminDialog } from './ZusatzTerminDialog';
 import type { ZusatzTermin } from '../types/zusatzTermin';
 import { setSterbefallBestattungsMarkerOverride } from '../services/bestattungsMarkerOverride';
 import type { BestattungsMarker } from '../board/feierterminLogic';
+import type { DispositionPerson, HolidayRegion } from '../types/dispositionSettings';
+import type { PersonnelAbsence, PersonnelStandby } from '../types/personnelBooking';
 
+type BereitschaftUiCtx = {
+  standbys: Record<string, PersonnelStandby>;
+  absences: Record<string, PersonnelAbsence>;
+  personnelById: Map<string, DispositionPerson>;
+  region: HolidayRegion;
+  onOpen: (dayKey: string) => void;
+};
+
+const BereitschaftUiContext = createContext<BereitschaftUiCtx | null>(null);
+
+function useBereitschaftUi() {
+  return useContext(BereitschaftUiContext);
+}
 
 
 interface Props {
@@ -118,14 +136,17 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
     useWallCalendarViewState(now);
 
   const { activeArts, toggle, selectAll, isActive } = useCalendarArtFilter();
-  const { settings } = useDispositionSettings();
+  const { settings, saveSettings } = useDispositionSettings();
   const {
     bookings,
     absences,
+    standbys,
     saving: bookingSaving,
     error: bookingError,
     saveBooking,
     clearBooking,
+    saveStandby,
+    clearStandby,
     setError: setBookingError,
   } = usePersonnelBookings();
   const {
@@ -140,6 +161,8 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [dialogDayKey, setDialogDayKey] = useState<string | null>(null);
   const [bookingEntry, setBookingEntry] = useState<WallCalendarEntry | null>(null);
+  const [standbyOpen, setStandbyOpen] = useState(false);
+  const [standbyInitialDay, setStandbyInitialDay] = useState<string | null>(null);
   const [markerPending, setMarkerPending] = useState(false);
   const [markerError, setMarkerError] = useState<string | null>(null);
   const [zusatzDialog, setZusatzDialog] = useState<{
@@ -246,6 +269,30 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
     return out;
   }, [bookings, settings.personnelPool, allEntries]);
 
+  const personnelById = useMemo(() => {
+    const map = new Map<string, DispositionPerson>();
+    for (const p of settings.personnelPool ?? []) map.set(p.id, p);
+    return map;
+  }, [settings.personnelPool]);
+
+  const holidayRegion: HolidayRegion =
+    settings.holidayRegion === 'DE' ? 'DE' : 'AT';
+
+  const openStandbyDialog = useCallback((dayKey?: string) => {
+    setStandbyInitialDay(dayKey ?? null);
+    setStandbyOpen(true);
+  }, []);
+
+  const bereitschaftUi = useMemo(
+    (): BereitschaftUiCtx => ({
+      standbys,
+      absences,
+      personnelById,
+      region: holidayRegion,
+      onOpen: openStandbyDialog,
+    }),
+    [standbys, absences, personnelById, holidayRegion, openStandbyDialog]
+  );
   const scoped = useMemo(() => {
     let list = allEntries;
     const q = search.trim().toLowerCase();
@@ -639,7 +686,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
 
 
   return (
-
+    <BereitschaftUiContext.Provider value={bereitschaftUi}>
     <div
       className={`wall-cal ${isNarrow ? 'wall-cal--narrow' : ''} ${isNarrow && range === 'month' ? 'wall-cal--mobile-month' : ''}`}
     >
@@ -668,6 +715,14 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
             onClick={() => openZusatzDialog(focusDayKey ?? todayKey)}
           >
             + Termin
+          </button>
+          <button
+            type="button"
+            className="wall-cal-add-termin"
+            title="Bereitschaft planen"
+            onClick={() => openStandbyDialog(focusDayKey ?? todayKey)}
+          >
+            {isNarrow ? 'Ber.' : 'Bereitschaft'}
           </button>
 
         </div>
@@ -790,7 +845,6 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
               days={overviewDays}
               columns={overviewColumns}
               compact
-              monthAnchor={range === 'month' ? now : undefined}
               todayKey={todayKey}
               selectedDayKey={focusDayKey}
               onDaySelect={handleDaySelect}
@@ -908,6 +962,16 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
           onAddTermin={() => {
             openZusatzDialog(dialogDay.dayKey);
           }}
+          headerExtra={
+            <BereitschaftChips
+              dayKey={dialogDay.dayKey}
+              standbys={standbys}
+              absences={absences}
+              personnelById={personnelById}
+              region={holidayRegion}
+              onClick={() => openStandbyDialog(dialogDay.dayKey)}
+            />
+          }
           onClose={() => setDialogDayKey(null)}
         />
       )}
@@ -1008,8 +1072,35 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
         />
       )}
 
-    </div>
+      <PersonnelStandbyDialog
+        open={standbyOpen}
+        dayKeys={days.map((d) => d.dayKey)}
+        initialDayKey={standbyInitialDay}
+        personnelPool={settings.personnelPool ?? []}
+        standbys={standbys}
+        absences={absences}
+        holidayRegion={holidayRegion}
+        pending={bookingSaving}
+        error={bookingError}
+        onClose={() => {
+          if (!bookingSaving) {
+            setStandbyOpen(false);
+            setStandbyInitialDay(null);
+          }
+        }}
+        onSave={async (standby) => {
+          await saveStandby(standby);
+        }}
+        onDelete={async (id) => {
+          await clearStandby(id);
+        }}
+        onHolidayRegionChange={async (region) => {
+          await saveSettings({ ...settings, holidayRegion: region });
+        }}
+      />
 
+    </div>
+    </BereitschaftUiContext.Provider>
   );
 
 }
@@ -1069,6 +1160,21 @@ function WallCalendarPeriodRow({
   onToday: () => void;
   todayDisabled: boolean;
 }) {
+  const ber = useBereitschaftUi();
+  const dayExtra = ber
+    ? (day: WallCalendarDay) => (
+        <BereitschaftChips
+          dayKey={day.dayKey}
+          standbys={ber.standbys}
+          absences={ber.absences}
+          personnelById={ber.personnelById}
+          region={ber.region}
+          compact
+          className="bereitschaft-chips--period"
+        />
+      )
+    : undefined;
+
   return (
     <div className="wall-cal-period-row">
       {monthAnchor ? (
@@ -1078,6 +1184,7 @@ function WallCalendarPeriodRow({
           todayKey={todayKey}
           selectedDayKey={selectedDayKey}
           onDaySelect={onDaySelect}
+          dayExtra={dayExtra}
         />
       ) : (
         <WallCalendarPeriodOverview
@@ -1086,6 +1193,7 @@ function WallCalendarPeriodRow({
           compact={compact}
           selectedDayKey={selectedDayKey}
           onDaySelect={onDaySelect}
+          dayExtra={dayExtra}
         />
       )}
       <button
@@ -1114,6 +1222,7 @@ function WallCalendarMobileAgenda({
   traegerLines?: Record<string, string | null>;
   onEntryClick?: (entry: WallCalendarEntry) => void;
 }) {
+  const ber = useBereitschaftUi();
   return (
     <div
       className={`wall-cal-mobile-strip wall-cal-mobile-strip--${range}`}
@@ -1123,7 +1232,7 @@ function WallCalendarMobileAgenda({
         <section
           key={day.dayKey}
           id={`wall-cal-focus-${day.dayKey}`}
-          className={`wall-cal-agenda-day ${day.isToday ? 'is-today' : ''} ${day.isWeekend ? 'is-weekend' : ''} ${day.entries.length === 0 ? 'is-empty' : ''} ${scrollToDayKey === day.dayKey ? 'is-focused' : ''}`}
+          className={`wall-cal-agenda-day ${day.isToday ? 'is-today' : ''} ${day.isWeekend || (ber && isBereitschaftRelevantDay(day.dayKey, ber.region)) ? 'is-weekend' : ''} ${day.entries.length === 0 ? 'is-empty' : ''} ${scrollToDayKey === day.dayKey ? 'is-focused' : ''}`}
         >
           <header className="wall-cal-agenda-day-head">
             <span className="wall-cal-agenda-wd">{day.weekdayShort}</span>
@@ -1133,6 +1242,17 @@ function WallCalendarMobileAgenda({
             {day.isToday && <span className="wall-cal-today-pill">Heute</span>}
             {day.entries.length > 0 && (
               <span className="wall-cal-agenda-count">{day.entries.length}</span>
+            )}
+            {ber && (
+              <BereitschaftChips
+                dayKey={day.dayKey}
+                standbys={ber.standbys}
+                absences={ber.absences}
+                personnelById={ber.personnelById}
+                region={ber.region}
+                compact
+                onClick={() => ber.onOpen(day.dayKey)}
+              />
             )}
           </header>
           {day.entries.length === 0 ? (
@@ -1192,6 +1312,7 @@ function WallCalendarDaySection({
   onEntryClick?: (entry: WallCalendarEntry) => void;
 
 }) {
+  const ber = useBereitschaftUi();
   const mod = strip ? 'strip' : compact ? 'month' : '';
   const isEmpty = day.entries.length === 0;
   const densityMode = weeksStack ? 'stripCompact' : strip ? 'strip' : 'month';
@@ -1200,6 +1321,9 @@ function WallCalendarDaySection({
   const denseThreshold = weeksStack ? 3 : 4;
   const summary = summarizeWallCalendarDay(day.entries);
   const clickable = Boolean(onOpenDay);
+  const isBereitschaftDay = Boolean(
+    ber && isBereitschaftRelevantDay(day.dayKey, ber.region)
+  );
 
   const body = summaryOnly ? (
     <div className="wall-cal-day-summary">
@@ -1247,7 +1371,8 @@ function WallCalendarDaySection({
     weeksStack ? 'is-strip-compact' : '',
     day.isToday ? 'is-today' : '',
     active ? 'is-active' : '',
-    day.isWeekend ? 'is-weekend' : '',
+    day.isWeekend || isBereitschaftDay ? 'is-weekend' : '',
+    isBereitschaftDay ? 'is-bereitschaft-day' : '',
     isEmpty ? 'is-empty' : 'has-events',
     slotWeight > denseThreshold ? 'is-dense' : '',
     clickable ? 'is-clickable' : '',
@@ -1277,6 +1402,19 @@ function WallCalendarDaySection({
     </header>
   );
 
+  const bereitschaftRow =
+    ber != null ? (
+      <BereitschaftChips
+        dayKey={day.dayKey}
+        standbys={ber.standbys}
+        absences={ber.absences}
+        personnelById={ber.personnelById}
+        region={ber.region}
+        compact={compact || strip || summaryOnly}
+        onClick={() => ber.onOpen(day.dayKey)}
+      />
+    ) : null;
+
   if (!clickable) {
     return (
       <section
@@ -1285,6 +1423,7 @@ function WallCalendarDaySection({
         style={strip || compact ? densityStyle : undefined}
       >
         {head}
+        {bereitschaftRow}
         {body}
       </section>
     );
@@ -1306,6 +1445,7 @@ function WallCalendarDaySection({
         >
           {head}
         </button>
+        {bereitschaftRow}
         {body}
       </section>
     );
@@ -1326,6 +1466,7 @@ function WallCalendarDaySection({
         {head}
         {body}
       </button>
+      {bereitschaftRow}
     </section>
   );
 }

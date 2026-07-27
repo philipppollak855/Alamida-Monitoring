@@ -27,6 +27,30 @@ export type PersonnelAbsence = {
   personId: string;
   fromDayKey: string;
   toDayKey: string;
+  /** HH:mm — Abwesenheitsbeginn am Von-Tag (leer = ganzer Tag). */
+  fromTime?: string;
+  /** HH:mm — Abwesenheitsende am Bis-Tag (leer = ganzer Tag). */
+  toTime?: string;
+  note?: string;
+  updatedAtMs?: number;
+};
+
+/** Zeitfenster, in dem eine Person trotz Bereitschaft nicht erreichbar ist. */
+export type PersonnelStandbyExclusion = {
+  id: string;
+  personId: string;
+  dayKey: string;
+  fromTime: string;
+  toTime: string;
+};
+
+/** Bereitschaft über einen Tag oder eine Spanne (Fr/Sa/So/Feiertag). */
+export type PersonnelStandby = {
+  id: string;
+  fromDayKey: string;
+  toDayKey: string;
+  personIds: string[];
+  exclusions?: PersonnelStandbyExclusion[];
   note?: string;
   updatedAtMs?: number;
 };
@@ -34,6 +58,7 @@ export type PersonnelAbsence = {
 export type PersonnelBookingDocument = {
   bookings: Record<string, PersonnelBooking>;
   absences?: Record<string, PersonnelAbsence>;
+  standbys?: Record<string, PersonnelStandby>;
   updatedAtMs?: number;
 };
 

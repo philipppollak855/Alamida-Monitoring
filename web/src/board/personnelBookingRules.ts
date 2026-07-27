@@ -152,13 +152,73 @@ export function traegerIdsBookedOnDay(
 }
 
 export function isPersonAbsentOnDay(
-  absences: Record<string, Pick<PersonnelAbsence, 'personId' | 'fromDayKey' | 'toDayKey'>>,
+  absences: Record<
+    string,
+    Pick<PersonnelAbsence, 'personId' | 'fromDayKey' | 'toDayKey' | 'fromTime' | 'toTime'>
+  >,
   personId: string,
   dayKey: string
 ): boolean {
   for (const a of Object.values(absences)) {
     if (a.personId !== personId) continue;
     if (a.fromDayKey <= dayKey && dayKey <= a.toDayKey) return true;
+  }
+  return false;
+}
+
+/** Tagesindex yyyy-MM-dd → Minuten seit Epoch-ähnlich (nur relative Vergleiche). */
+function dayKeyToDayIndex(dayKey: string): number | null {
+  const m = dayKey.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  const t = Date.UTC(+m[1], +m[2] - 1, +m[3]);
+  if (!Number.isFinite(t)) return null;
+  return Math.floor(t / 86_400_000);
+}
+
+function absenceBoundMinutes(
+  dayKey: string,
+  time: string | null | undefined,
+  edge: 'start' | 'end'
+): number | null {
+  const day = dayKeyToDayIndex(dayKey);
+  if (day == null) return null;
+  const parsed = parseTimeLabelMinutes(time);
+  const mins =
+    parsed ?? (edge === 'start' ? 0 : 24 * 60 - 1);
+  return day * 1440 + mins;
+}
+
+/**
+ * Abwesend zur konkreten Uhrzeit?
+ * Ohne fromTime/toTime = ganzer Tag. Mit Uhrzeiten nur im angegebenen Fenster.
+ * Ohne buchbare Uhrzeit und stundenweise Abwesenheit → konservativ abwesend am Tag.
+ */
+export function isPersonAbsentAtTime(
+  absences: Record<
+    string,
+    Pick<PersonnelAbsence, 'personId' | 'fromDayKey' | 'toDayKey' | 'fromTime' | 'toTime'>
+  >,
+  personId: string,
+  dayKey: string,
+  timeLabel?: string | null
+): boolean {
+  for (const a of Object.values(absences)) {
+    if (a.personId !== personId) continue;
+    if (dayKey < a.fromDayKey || dayKey > a.toDayKey) continue;
+
+    const hasHours = Boolean(a.fromTime?.trim() || a.toTime?.trim());
+    if (!hasHours) return true;
+
+    const start = absenceBoundMinutes(a.fromDayKey, a.fromTime, 'start');
+    const end = absenceBoundMinutes(a.toDayKey, a.toTime, 'end');
+    if (start == null || end == null) return true;
+
+    const eventMins = parseTimeLabelMinutes(timeLabel);
+    if (eventMins == null) return true; // Termin ohne Zeit → Tag gilt als blockiert
+
+    const point = absenceBoundMinutes(dayKey, timeLabel, 'start');
+    if (point == null) return true;
+    if (point >= start && point <= end) return true;
   }
   return false;
 }
@@ -183,7 +243,10 @@ export function personUnavailableReason(
   personId: string,
   dayKey: string,
   opts: {
-    absences?: Record<string, Pick<PersonnelAbsence, 'personId' | 'fromDayKey' | 'toDayKey'>>;
+    absences?: Record<
+      string,
+      Pick<PersonnelAbsence, 'personId' | 'fromDayKey' | 'toDayKey' | 'fromTime' | 'toTime'>
+    >;
     bookings?: Record<string, BookingTimeSlice>;
     excludeBookingId?: string;
     /** Rolle, für die geprüft wird — nur für Hinweistext. */
@@ -193,7 +256,10 @@ export function personUnavailableReason(
     conflictWindowMinutes?: number;
   }
 ): PersonUnavailableReason | null {
-  if (opts.absences && isPersonAbsentOnDay(opts.absences, personId, dayKey)) {
+  if (
+    opts.absences &&
+    isPersonAbsentAtTime(opts.absences, personId, dayKey, opts.timeLabel)
+  ) {
     return 'absent';
   }
   const bookings = opts.bookings ?? {};

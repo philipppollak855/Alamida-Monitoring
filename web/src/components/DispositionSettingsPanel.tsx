@@ -615,6 +615,21 @@ export function DispositionSettingsPanel({ defaultOpen = false }: { defaultOpen?
                   Fahrer für Überführungen. „Extern“ = von außerhalb — eigener Tab bei der
                   Einbuchung.
                 </p>
+                <label className="personnel-booking-field" style={{ marginBottom: '0.65rem' }}>
+                  <span>Feiertage (Bereitschaft)</span>
+                  <select
+                    value={draft.holidayRegion === 'DE' ? 'DE' : 'AT'}
+                    onChange={(e) =>
+                      setDraft((d) => ({
+                        ...d,
+                        holidayRegion: e.target.value === 'DE' ? 'DE' : 'AT',
+                      }))
+                    }
+                  >
+                    <option value="AT">Österreich</option>
+                    <option value="DE">Deutschland (bundesweit)</option>
+                  </select>
+                </label>
                 <div className="settings-person-table" role="table" aria-label="Personalpool">
                   <div className="settings-person-table-head" role="row">
                     <span role="columnheader">Name</span>

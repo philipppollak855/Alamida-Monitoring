@@ -4,6 +4,7 @@ import {
   availableTraegerPool,
   defaultRequiredTraegerCount,
   isBegraebnisEntry,
+  isPersonAbsentAtTime,
   isPersonAbsentOnDay,
   minTraegerForEntry,
   parseTimeLabelMinutes,
@@ -306,6 +307,50 @@ describe('Abwesenheiten / Nicht verfügbar', () => {
     expect(isPersonAbsentOnDay(absences, 'p1', '2026-07-28')).toBe(true);
     expect(isPersonAbsentOnDay(absences, 'p1', '2026-07-29')).toBe(false);
     expect(isPersonAbsentOnDay(absences, 'p2', '2026-07-27')).toBe(false);
+  });
+
+  it('stundenweise Abwesenheit nur im Zeitfenster', () => {
+    const absences = {
+      a1: {
+        personId: 'p1',
+        fromDayKey: '2026-07-27',
+        toDayKey: '2026-07-27',
+        fromTime: '09:00',
+        toTime: '12:00',
+      },
+    };
+    expect(isPersonAbsentAtTime(absences, 'p1', '2026-07-27', '10:00')).toBe(true);
+    expect(isPersonAbsentAtTime(absences, 'p1', '2026-07-27', '14:00')).toBe(false);
+    expect(isPersonAbsentAtTime(absences, 'p1', '2026-07-27', null)).toBe(true);
+    expect(
+      personUnavailableReason('p1', '2026-07-27', {
+        absences,
+        timeLabel: '14:00',
+      })
+    ).toBeNull();
+    expect(
+      personUnavailableReason('p1', '2026-07-27', {
+        absences,
+        timeLabel: '09:30',
+      })
+    ).toBe('absent');
+  });
+
+  it('mehrtaegige stundenweise Abwesenheit deckt Zwischentage ganz', () => {
+    const absences = {
+      a1: {
+        personId: 'p1',
+        fromDayKey: '2026-07-26',
+        toDayKey: '2026-07-28',
+        fromTime: '14:00',
+        toTime: '10:00',
+      },
+    };
+    expect(isPersonAbsentAtTime(absences, 'p1', '2026-07-26', '13:00')).toBe(false);
+    expect(isPersonAbsentAtTime(absences, 'p1', '2026-07-26', '15:00')).toBe(true);
+    expect(isPersonAbsentAtTime(absences, 'p1', '2026-07-27', '08:00')).toBe(true);
+    expect(isPersonAbsentAtTime(absences, 'p1', '2026-07-28', '09:00')).toBe(true);
+    expect(isPersonAbsentAtTime(absences, 'p1', '2026-07-28', '11:00')).toBe(false);
   });
 
   it('personUnavailableReason priorisiert Abwesenheit', () => {

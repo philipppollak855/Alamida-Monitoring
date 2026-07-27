@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import type { WallCalendarDay, WallCalendarEntry } from '../board/wallCalendar';
 import { summarizeWallCalendarDay } from '../board/wallCalendar';
 import { WallCalendarEventCard } from './WallCalendarEventCard';
@@ -10,6 +10,7 @@ interface Props {
   onEntryClick?: (entry: WallCalendarEntry) => void;
   onAddTermin?: () => void;
   onClose: () => void;
+  headerExtra?: ReactNode;
 }
 
 export function WallCalendarDayDialog({
@@ -19,6 +20,7 @@ export function WallCalendarDayDialog({
   onEntryClick,
   onAddTermin,
   onClose,
+  headerExtra,
 }: Props) {
   const closeRef = useRef<HTMLButtonElement>(null);
   const { total, ueberfuehrungen } = summarizeWallCalendarDay(day.entries);
@@ -67,6 +69,7 @@ export function WallCalendarDayDialog({
                       : ''
                   }`}
             </p>
+            {headerExtra}
           </div>
           <button
             ref={closeRef}

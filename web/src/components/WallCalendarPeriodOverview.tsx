@@ -1,4 +1,5 @@
 import type { WallCalendarDay } from '../board/wallCalendar';
+import type { ReactNode } from 'react';
 
 interface Props {
   days: WallCalendarDay[];
@@ -9,6 +10,8 @@ interface Props {
   denseMonth?: boolean;
   selectedDayKey?: string | null;
   onDaySelect?: (dayKey: string) => void;
+  /** Optionale Zusatzzeile pro Tag (z. B. Bereitschaftskürzel). */
+  dayExtra?: (day: WallCalendarDay) => ReactNode;
 }
 
 /** Kompakte Tagesübersicht mit Terminanzahl (Monat, 7/14 Tage). */
@@ -19,6 +22,7 @@ export function WallCalendarPeriodOverview({
   denseMonth,
   selectedDayKey,
   onDaySelect,
+  dayExtra,
 }: Props) {
   const interactive = Boolean(onDaySelect);
   const evenCells = denseMonth || !compact;
@@ -66,6 +70,7 @@ export function WallCalendarPeriodOverview({
               {day.entries.length > 0 && (
                 <span className="wall-cal-period-badge">{day.entries.length}</span>
               )}
+              {dayExtra?.(day)}
             </button>
           );
         }
@@ -79,6 +84,7 @@ export function WallCalendarPeriodOverview({
             {day.entries.length > 0 && (
               <span className="wall-cal-period-badge">{day.entries.length}</span>
             )}
+            {dayExtra?.(day)}
           </div>
         );
       })}

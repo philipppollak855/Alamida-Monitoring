@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { formatDayLabelDe } from '../../board/dateUtils';
 import type {
   CeremonyInfo,
@@ -61,6 +61,7 @@ type Props = {
   onPrevWeek: () => void;
   onNextWeek: () => void;
   onGoToday: () => void;
+  dayHeaderExtra?: ReactNode;
 };
 
 const TAB_LABELS: Record<MobilePlanTab, string> = {
@@ -107,6 +108,7 @@ export function PlanningMobileView({
   onPrevWeek,
   onNextWeek,
   onGoToday,
+  dayHeaderExtra,
 }: Props) {
   const [tab, setTab] = useState<MobilePlanTab>('tag');
   const selectionActive = Boolean(draggingId);
@@ -227,6 +229,7 @@ export function PlanningMobileView({
             onZusatzPersonnel={onZusatzPersonnel}
             onZusatzEdit={onZusatzEdit}
             tapSelect
+            headerExtra={dayHeaderExtra}
           />
         </div>
 

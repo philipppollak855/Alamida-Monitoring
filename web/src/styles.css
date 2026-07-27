@@ -5147,7 +5147,7 @@ code {
   align-items: end;
 }
 
-.personnel-absence-form .personnel-booking-field:nth-child(4) {
+.personnel-absence-form .personnel-absence-note {
   grid-column: 1 / 3;
 }
 
@@ -5155,6 +5155,206 @@ code {
   justify-self: start;
   align-self: end;
 }
+
+.personnel-standby-region {
+  margin-bottom: 0.5rem;
+}
+
+.personnel-standby-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.personnel-standby-form .personnel-booking-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.personnel-standby-people {
+  margin: 0;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  max-height: 9rem;
+  overflow: auto;
+}
+
+.personnel-standby-people legend {
+  font-size: 0.75rem;
+  color: var(--muted);
+  padding: 0 0.25rem;
+}
+
+.personnel-standby-people ul {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.personnel-standby-people label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.86rem;
+  cursor: pointer;
+}
+
+.personnel-standby-abbrev {
+  font-style: normal;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.personnel-standby-warn {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #b85a68;
+}
+
+.personnel-standby-excl {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.personnel-standby-excl-title {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.personnel-standby-excl-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.personnel-standby-excl-row select,
+.personnel-standby-excl-row input {
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 0.25rem 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface, #fff);
+  color: inherit;
+}
+
+.personnel-standby-excl-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.personnel-standby-excl-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.personnel-absence-cal-day.is-bereitschaft-day:not(.is-outside) {
+  outline: 1px dashed rgba(61, 122, 140, 0.35);
+  outline-offset: -2px;
+}
+
+.bereitschaft-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem;
+  margin-top: 0.2rem;
+  max-width: 100%;
+  font-size: 0.68rem;
+  line-height: 1.2;
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+}
+
+.bereitschaft-chips.is-clickable {
+  cursor: pointer;
+}
+
+.bereitschaft-chips-label {
+  font-weight: 600;
+  color: var(--muted);
+  margin-right: 0.15rem;
+  letter-spacing: 0.02em;
+}
+
+.bereitschaft-chips.is-compact .bereitschaft-chips-label {
+  font-size: 0.62rem;
+}
+
+.bereitschaft-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.55rem;
+  padding: 0.08rem 0.28rem;
+  border-radius: 0.25rem;
+  background: rgba(61, 122, 140, 0.18);
+  color: inherit;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.bereitschaft-chips.is-short .bereitschaft-chip,
+.bereitschaft-chips.is-empty .bereitschaft-chips-empty {
+  background: rgba(184, 90, 104, 0.2);
+}
+
+.bereitschaft-chips-empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.1rem;
+  padding: 0.05rem 0.25rem;
+  border-radius: 0.25rem;
+  font-weight: 700;
+  color: #b85a68;
+}
+
+.wall-cal-day-head .bereitschaft-chips {
+  flex-basis: 100%;
+  margin-top: 0.15rem;
+}
+
+.bereitschaft-chips--period {
+  margin-top: 0.1rem;
+  justify-content: center;
+}
+
+.bereitschaft-chips--period .bereitschaft-chips-label {
+  display: none;
+}
+
+.wall-cal-agenda-day-head .bereitschaft-chips {
+  flex-basis: 100%;
+}
+
+.wall-cal-period-cell .bereitschaft-chip {
+  font-size: 0.55rem;
+  min-width: 1.2rem;
+  padding: 0.02rem 0.15rem;
+}
+
+
 
 .personnel-absence-filter {
   margin: 0;
@@ -5251,7 +5451,7 @@ code {
   }
 
   .personnel-absence-form .personnel-booking-field:first-child,
-  .personnel-absence-form .personnel-booking-field:nth-child(4) {
+  .personnel-absence-form .personnel-absence-note {
     grid-column: 1 / -1;
   }
 }

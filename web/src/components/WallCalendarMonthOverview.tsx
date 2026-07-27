@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { buildMonthOverviewGrid, type WallCalendarDay } from '../board/wallCalendar';
 import { dayOfMonthFromDayKey } from '../board/dateUtils';
 
@@ -8,6 +8,7 @@ interface Props {
   todayKey: string;
   selectedDayKey?: string | null;
   onDaySelect?: (dayKey: string) => void;
+  dayExtra?: (day: WallCalendarDay) => ReactNode;
 }
 
 /** Monatsübersicht: Wochentage Mo–So, darunter Kalenderraster nur mit Tageszahl. */
@@ -17,6 +18,7 @@ export function WallCalendarMonthOverview({
   todayKey,
   selectedDayKey,
   onDaySelect,
+  dayExtra,
 }: Props) {
   const grid = useMemo(
     () => buildMonthOverviewGrid(monthDays, anchor, todayKey),
@@ -78,6 +80,7 @@ export function WallCalendarMonthOverview({
               {day.entries.length > 0 && (
                 <span className="wall-cal-period-badge">{day.entries.length}</span>
               )}
+              {dayExtra?.(day)}
             </button>
           );
         }
@@ -88,6 +91,7 @@ export function WallCalendarMonthOverview({
             {day.entries.length > 0 && (
               <span className="wall-cal-period-badge">{day.entries.length}</span>
             )}
+            {dayExtra?.(day)}
           </div>
         );
       })}

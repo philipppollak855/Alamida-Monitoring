@@ -2,6 +2,7 @@ import type {
   DispositionPerson,
   DispositionSettings,
   EigenerKuehlraumConfig,
+  HolidayRegion,
   PersonnelRole,
   WallTabRotationEnabled,
   WallTabWechselSekunden,
@@ -125,8 +126,13 @@ export function normalizeDispositionSettings(
     ),
     eigeneKuehlraeume,
     personnelPool: normalizePersonnelPool(raw.personnelPool),
+    holidayRegion: normalizeHolidayRegion(raw.holidayRegion),
     wallTabWechselSekunden,
     wallTabRotationEnabled,
     updatedAt: raw.updatedAt,
   };
+}
+
+function normalizeHolidayRegion(raw: unknown): HolidayRegion {
+  return raw === 'DE' ? 'DE' : 'AT';
 }

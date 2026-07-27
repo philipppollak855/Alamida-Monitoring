@@ -2,6 +2,9 @@ export type KuehlraumWandTab = 'kuehlraum' | 'extern';
 
 export type PersonnelRole = 'arrangeur' | 'traeger' | 'fahrer';
 
+/** Feiertagskalender für Bereitschaftstage. */
+export type HolidayRegion = 'AT' | 'DE';
+
 /** Person im Disposition-Personalpool (Arrangeur / Träger / Fahrer). */
 export interface DispositionPerson {
   id: string;
@@ -62,6 +65,8 @@ export interface DispositionSettings {
   eigeneKuehlraeume: EigenerKuehlraumConfig[];
   /** Pool für Kalender-Personal-Einbuchung (Arrangeur / Träger / Fahrer). */
   personnelPool?: DispositionPerson[];
+  /** Feiertage für Bereitschaft (Default AT). */
+  holidayRegion?: HolidayRegion;
   /** Wandmonitor: Sekunden pro Tab bis zum nächsten Übergang */
   wallTabWechselSekunden?: WallTabWechselSekunden;
   /** Wandmonitor: welche Tabs in der Rotation angezeigt werden */

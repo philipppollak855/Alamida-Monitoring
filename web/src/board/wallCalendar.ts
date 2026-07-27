@@ -286,7 +286,7 @@ function collectAtomics(s: Sterbefall): AtomicTermin[] {
     const nach = a.nachOrt ?? '—';
     const key = ueberfuehrungKey(datum, a.schrittTyp, von, nach);
     add(
-      'ueberfuehrung',
+      calendarArtFromSchritt(a.schrittTyp),
       schrittTypLabel(a.schrittTyp),
       datum,
       undefined,
@@ -800,7 +800,8 @@ export function mergeTransferPlanIntoEntries(
     const name = fallName(s);
     const route = `${von} → ${nach}`;
     const id = `plan:${assignment.id}`;
-    coveredKeys.add(`${assignment.docId}|${dayKey}|${art}`);
+    // Dedup über Tag (Art-agnostisch): Alamida „ueberfuehrung“ vs. Planung „ueberfuehrung_kremation“
+    coveredKeys.add(`${assignment.docId}|${dayKey}`);
     planned.push({
       id,
       docId: s.id,
@@ -825,11 +826,10 @@ export function mergeTransferPlanIntoEntries(
 
   if (planned.length === 0) return entries;
 
-  // Alamida-Überführungen am selben Tag/Art für geplante Fälle ausblenden
-  // (Planungsdatum hat Vorrang)
+  // Alamida-Überführungen am selben Tag für geplante Fälle ausblenden (Planung hat Vorrang)
   const filtered = entries.filter((e) => {
     if (!isUeberfuehrungCalendarEntry(e) && !isPureTransferEntry(e)) return true;
-    return !coveredKeys.has(`${e.docId}|${e.dayKey}|${e.arts.find(isUeberfuehrungCalendarArt)}`);
+    return !coveredKeys.has(`${e.docId}|${e.dayKey}`);
   });
 
   // Geplante Überführungen an Feiertermine hängen (kein eigener Personalbedarf)

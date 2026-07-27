@@ -120,5 +120,6 @@ function normalizeForCompare(s: DispositionSettings) {
         extern: p.extern === true,
       }))
       .sort((a, b) => a.name.localeCompare(b.name, 'de')),
+    holidayRegion: s.holidayRegion === 'DE' ? 'DE' : 'AT',
   };
 }

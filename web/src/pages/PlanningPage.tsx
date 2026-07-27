@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { LiveDataBar } from '../components/LiveDataBar';
 import { PersonnelAbsenceDialog } from '../components/PersonnelAbsenceDialog';
 import { PersonnelBookingDialog } from '../components/PersonnelBookingDialog';
+import { PersonnelStandbyDialog } from '../components/PersonnelStandbyDialog';
+import { BereitschaftChips } from '../components/BereitschaftChips';
 import { PlanningCenterDay } from '../components/planning/PlanningCenterDay';
 import { PlanningKuehlraumRail } from '../components/planning/PlanningKuehlraumRail';
 import { PlanningLocationRail } from '../components/planning/PlanningLocationRail';
@@ -81,6 +83,7 @@ import type { WallCalendarEntry } from '../board/wallCalendar';
 import { firebaseConfigured } from '../firebase';
 import { setSterbefallBestattungsMarkerOverride } from '../services/bestattungsMarkerOverride';
 import type { BestattungsMarker } from '../board/feierterminLogic';
+import type { DispositionPerson } from '../types/dispositionSettings';
 
 const HORIZON_DAYS = 7;
 
@@ -99,19 +102,22 @@ export function PlanningPage() {
 
   const [rangeStart, setRangeStart] = useState(() => startOfWeekMonday(new Date()));
   const [focusDayKey, setFocusDayKey] = useState<string>(() => calendarDay);
-  const { settings } = useDispositionSettings();
+  const { settings, saveSettings } = useDispositionSettings();
   const { items: sterbefaelleRaw, loading: casesLoading, error: casesError } = useSterbefaelle();
   const { plan, loading: planLoading, saving, error: planError, savePlan, setError } =
     useTransferPlan();
   const {
     bookings,
     absences,
+    standbys,
     saving: bookingSaving,
     error: bookingError,
     saveBooking,
     clearBooking,
     saveAbsence,
     clearAbsence,
+    saveStandby,
+    clearStandby,
     setError: setBookingError,
   } = usePersonnelBookings();
   const {
@@ -130,6 +136,8 @@ export function PlanningPage() {
   const [scheduleDraft, setScheduleDraft] = useState<ScheduleDraft | null>(null);
   const [bookingEntry, setBookingEntry] = useState<WallCalendarEntry | null>(null);
   const [absenceOpen, setAbsenceOpen] = useState(false);
+  const [standbyOpen, setStandbyOpen] = useState(false);
+  const [standbyInitialDay, setStandbyInitialDay] = useState<string | null>(null);
   const [markerPending, setMarkerPending] = useState(false);
   const [eventsOpen, setEventsOpen] = useState(false);
   const [zusatzDialog, setZusatzDialog] = useState<{
@@ -806,6 +814,17 @@ export function PlanningPage() {
     [plan.assignments, plan.events, savePlan, saving]
   );
 
+  const personnelById = useMemo(() => {
+    const map = new Map<string, DispositionPerson>();
+    for (const p of settings.personnelPool ?? []) map.set(p.id, p);
+    return map;
+  }, [settings.personnelPool]);
+
+  const openStandbyDialog = useCallback((dayKey?: string) => {
+    setStandbyInitialDay(dayKey ?? null);
+    setStandbyOpen(true);
+  }, []);
+
   const loading = casesLoading || planLoading;
   const error = casesError || planError;
   const draggingId =
@@ -845,6 +864,13 @@ export function PlanningPage() {
             onClick={() => setAbsenceOpen(true)}
           >
             {isNarrow ? 'Abw.' : 'Abwesenheiten'}
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => openStandbyDialog(focusDayKey)}
+          >
+            {isNarrow ? 'Ber.' : 'Bereitschaft'}
           </button>
           <button
             type="button"
@@ -985,6 +1011,18 @@ export function PlanningPage() {
             setRangeStart(startOfWeekMonday(today));
             setFocusDayKey(calendarDay);
           }}
+          dayHeaderExtra={
+            <div className="plan-day-bereitschaft">
+              <BereitschaftChips
+                dayKey={focusDayKey}
+                standbys={standbys}
+                absences={absences}
+                personnelById={personnelById}
+                region={settings.holidayRegion === 'DE' ? 'DE' : 'AT'}
+                onClick={() => openStandbyDialog(focusDayKey)}
+              />
+            </div>
+          }
         />
       ) : (
         <>
@@ -1065,6 +1103,18 @@ export function PlanningPage() {
                         onAddZusatz={() => openZusatzDialog(dayKey)}
                         onZusatzPersonnel={openZusatzPersonnel}
                         onZusatzEdit={(termin) => openZusatzDialog(termin.dayKey, termin)}
+                        headerExtra={
+                          <div className="plan-day-bereitschaft">
+                            <BereitschaftChips
+                              dayKey={dayKey}
+                              standbys={standbys}
+                              absences={absences}
+                              personnelById={personnelById}
+                              region={settings.holidayRegion === 'DE' ? 'DE' : 'AT'}
+                              onClick={() => openStandbyDialog(dayKey)}
+                            />
+                          </div>
+                        }
                       />
                     </div>
                   );
@@ -1238,6 +1288,33 @@ export function PlanningPage() {
         }}
         onDelete={async (id) => {
           await clearAbsence(id);
+        }}
+      />
+
+      <PersonnelStandbyDialog
+        open={standbyOpen}
+        dayKeys={dayKeys}
+        initialDayKey={standbyInitialDay}
+        personnelPool={settings.personnelPool ?? []}
+        standbys={standbys}
+        absences={absences}
+        holidayRegion={settings.holidayRegion === 'DE' ? 'DE' : 'AT'}
+        pending={bookingSaving}
+        error={bookingError}
+        onClose={() => {
+          if (!bookingSaving) {
+            setStandbyOpen(false);
+            setStandbyInitialDay(null);
+          }
+        }}
+        onSave={async (standby) => {
+          await saveStandby(standby);
+        }}
+        onDelete={async (id) => {
+          await clearStandby(id);
+        }}
+        onHolidayRegionChange={async (region) => {
+          await saveSettings({ ...settings, holidayRegion: region });
         }}
       />
 

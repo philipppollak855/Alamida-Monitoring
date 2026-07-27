@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { CeremonyInfo, KuehlraumDayCapacity, PlanningCard } from '../../planning/types';
 import type { PersonnelBooking } from '../../types/personnelBooking';
 import type { ZusatzTermin } from '../../types/zusatzTermin';
@@ -64,6 +65,8 @@ type Props = {
   onZusatzEdit?: (termin: ZusatzTermin) => void;
   /** Mobile: Tippen statt Drag. */
   tapSelect?: boolean;
+  /** z. B. Bereitschafts-Chips unter dem Tageskopf. */
+  headerExtra?: ReactNode;
 };
 
 function ceremonyKindLabel(kind: CeremonyInfo['kind']): string {
@@ -126,6 +129,7 @@ export function PlanningCenterDay({
   onZusatzPersonnel,
   onZusatzEdit,
   tapSelect,
+  headerExtra,
 }: Props) {
   const sortedCeremonies = [...ceremonies].sort(
     (a, b) => ceremonyTimeSortKey(a.ceremony) - ceremonyTimeSortKey(b.ceremony)
@@ -209,6 +213,8 @@ export function PlanningCenterDay({
           <span className="plan-column-count">{looseCount}</span>
         </div>
       </header>
+
+      {headerExtra}
 
       {capacities.length > 0 && <PlanningCapacityMeters capacities={capacities} />}
 

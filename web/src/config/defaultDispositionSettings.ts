@@ -50,4 +50,5 @@ export const DEFAULT_DISPOSITION_SETTINGS: DispositionSettings = {
     },
   ],
   personnelPool: [],
+  holidayRegion: 'AT',
 };
