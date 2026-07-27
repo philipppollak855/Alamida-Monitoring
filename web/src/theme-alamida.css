@@ -576,6 +576,20 @@
   color: #451a03;
 }
 
+[data-theme='alamida'] .wall-retour-btn--subtle,
+[data-theme='alamida'] .kr-platz-urne {
+  color: var(--muted);
+  background: transparent;
+  border-color: transparent;
+}
+
+[data-theme='alamida'] .wall-retour-btn--subtle:hover:not(:disabled),
+[data-theme='alamida'] .kr-platz-urne:hover:not(:disabled) {
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.04);
+  border-color: var(--border);
+}
+
 [data-theme='alamida'] .urnen-undo-btn {
   color: #2a4048;
   background: #fff;

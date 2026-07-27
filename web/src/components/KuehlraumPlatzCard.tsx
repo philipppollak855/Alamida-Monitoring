@@ -145,7 +145,7 @@ export function KuehlraumPlatzCard({
             onClick={onAlsUrne}
             title="Als Urne übernehmen (externe Kremation / Retour)"
           >
-            {pending ? '…' : 'Urne'}
+            {pending ? '…' : 'als Urne'}
           </button>
         )}
         <button
