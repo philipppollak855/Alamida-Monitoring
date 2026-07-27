@@ -69,7 +69,7 @@ netlify login
 netlify deploy --prod --dir=dist
 ```
 
-Env-Vars in Netlify: alle `VITE_FIREBASE_*` aus `web/.env.example`.
+Env-Vars für CI/Hosting: alle `VITE_FIREBASE_*` aus `web/.env.example` als GitHub Actions Secrets (siehe `docs/auth-setup.md`).
 
 ## Firebase (erledigt)
 

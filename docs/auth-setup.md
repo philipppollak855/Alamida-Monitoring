@@ -49,3 +49,19 @@ scripts\deploy-web.ps1
 ```
 
 Deployt Hosting; Rules separat mit `firebase deploy --only firestore:rules`.
+
+### GitHub Actions (CI)
+
+Repository-Secrets (Settings → Secrets and variables → Actions):
+
+| Secret | Quelle |
+|--------|--------|
+| `FIREBASE_TOKEN` | `npx firebase-tools login:ci` |
+| `VITE_FIREBASE_API_KEY` | Firebase Console → Projekteinstellungen → Web-App |
+| `VITE_FIREBASE_APP_ID` | dieselbe Web-App |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | dieselbe Web-App |
+| `VITE_FIREBASE_AUTH_DOMAIN` | optional, Default `alamida---monitoring.firebaseapp.com` |
+| `VITE_FIREBASE_PROJECT_ID` | optional, Default `alamida---monitoring` |
+| `VITE_FIREBASE_STORAGE_BUCKET` | optional, Default `alamida---monitoring.firebasestorage.app` |
+
+Ohne `VITE_FIREBASE_API_KEY` / `VITE_FIREBASE_APP_ID` baut CI eine App ohne Auth („Firebase Auth nicht konfiguriert“).
