@@ -1,4 +1,12 @@
-import { doc, getDoc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore';
+import {
+  deleteField,
+  doc,
+  getDoc,
+  onSnapshot,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+} from 'firebase/firestore';
 import { db } from '../firebase';
 import {
   isZusatzTerminArt,
@@ -67,6 +75,7 @@ export function subscribeZusatzTermine(
 
 export async function saveZusatzTermin(termin: ZusatzTermin): Promise<void> {
   if (!db) throw new Error('Firebase nicht konfiguriert');
+  const ref = doc(db, PLAN_DOC[0], PLAN_DOC[1]);
   const current = await loadZusatzTermine();
   const termine = {
     ...current.termine,
@@ -75,29 +84,27 @@ export async function saveZusatzTermin(termin: ZusatzTermin): Promise<void> {
       updatedAtMs: Date.now(),
     },
   };
-  await setDoc(
-    doc(db, PLAN_DOC[0], PLAN_DOC[1]),
-    {
-      termine,
-      updatedAtMs: Date.now(),
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true }
-  );
+  const data = {
+    termine,
+    updatedAtMs: Date.now(),
+    updatedAt: serverTimestamp(),
+  };
+  const snap = await getDoc(ref);
+  if (!snap.exists()) {
+    await setDoc(ref, data);
+  } else {
+    await updateDoc(ref, data);
+  }
 }
 
 export async function deleteZusatzTermin(id: string): Promise<void> {
   if (!db) throw new Error('Firebase nicht konfiguriert');
-  const current = await loadZusatzTermine();
-  const termine = { ...current.termine };
-  delete termine[id];
-  await setDoc(
-    doc(db, PLAN_DOC[0], PLAN_DOC[1]),
-    {
-      termine,
-      updatedAtMs: Date.now(),
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true }
-  );
+  const ref = doc(db, PLAN_DOC[0], PLAN_DOC[1]);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+  await updateDoc(ref, {
+    [`termine.${id}`]: deleteField(),
+    updatedAtMs: Date.now(),
+    updatedAt: serverTimestamp(),
+  });
 }

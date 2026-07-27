@@ -114,7 +114,9 @@ export function usePersonnelBookings() {
   const clearAbsence = useCallback(async (id: string) => {
     setSaving(true);
     setError(null);
+    let rollback: PersonnelBookingDocument | null = null;
     setDoc((prev) => {
+      rollback = prev;
       const absences = { ...(prev.absences ?? {}) };
       delete absences[id];
       return { ...prev, absences, updatedAtMs: Date.now() };
@@ -122,6 +124,7 @@ export function usePersonnelBookings() {
     try {
       await deletePersonnelAbsence(id);
     } catch (e) {
+      if (rollback) setDoc(rollback);
       setError(e instanceof Error ? e.message : 'Abwesenheit löschen fehlgeschlagen');
       throw e;
     } finally {

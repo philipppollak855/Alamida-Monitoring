@@ -61,6 +61,18 @@ function absenceCoversDay(a: PersonnelAbsence, dayKey: string): boolean {
   return a.fromDayKey <= dayKey && dayKey <= a.toDayKey;
 }
 
+function absenceOverlapsRange(
+  a: PersonnelAbsence,
+  fromDayKey: string,
+  toDayKey: string
+): boolean {
+  return a.fromDayKey <= toDayKey && a.toDayKey >= fromDayKey;
+}
+
+function orderedRange(a: string, b: string): { from: string; to: string } {
+  return a <= b ? { from: a, to: b } : { from: b, to: a };
+}
+
 export function PersonnelAbsenceDialog({
   open,
   dayKeys,
@@ -91,7 +103,11 @@ export function PersonnelAbsenceDialog({
   const [note, setNote] = useState('');
   const [filterPersonId, setFilterPersonId] = useState<string>('all');
   const [monthCursor, setMonthCursor] = useState(() => startOfMonth(new Date()));
-  const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
+  /** Erster Klick der Spannenauswahl — zweiter Klick setzt Bis. */
+  const [rangeAnchor, setRangeAnchor] = useState<string | null>(null);
+  /** Kalenderfilter aktiv (nach Auswahl). */
+  const [calFilterActive, setCalFilterActive] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -102,7 +118,9 @@ export function PersonnelAbsenceDialog({
     setPersonId((prev) => prev || people[0]?.id || '');
     setNote('');
     setFilterPersonId('all');
-    setSelectedDayKey(null);
+    setRangeAnchor(null);
+    setCalFilterActive(false);
+    setDeletingId(null);
     setMonthCursor(startOfMonth(dateFromDayKey(start)));
   }, [open, dayKeys, people]);
 
@@ -129,11 +147,11 @@ export function PersonnelAbsenceDialog({
     if (filterPersonId !== 'all') {
       list = list.filter((a) => a.personId === filterPersonId);
     }
-    if (selectedDayKey) {
-      list = list.filter((a) => absenceCoversDay(a, selectedDayKey));
+    if (calFilterActive) {
+      list = list.filter((a) => absenceOverlapsRange(a, fromDayKey, toDayKey));
     }
     return list;
-  }, [allAbsences, filterPersonId, selectedDayKey]);
+  }, [allAbsences, filterPersonId, calFilterActive, fromDayKey, toDayKey]);
 
   const absencesByPerson = useMemo(() => {
     const map = new Map<string, PersonnelAbsence[]>();
@@ -157,9 +175,17 @@ export function PersonnelAbsenceDialog({
       dayKey: string;
       inMonth: boolean;
       isToday: boolean;
+      inRange: boolean;
+      isRangeEdge: boolean;
       absences: PersonnelAbsence[];
     }> = [];
     const todayKey = dayKeyFromDate(new Date());
+    const preview =
+      rangeAnchor != null
+        ? orderedRange(rangeAnchor, rangeAnchor)
+        : calFilterActive
+          ? orderedRange(fromDayKey, toDayKey)
+          : null;
     for (let i = 0; i < 42; i++) {
       const d = addDays(gridStart, i);
       const dayKey = dayKeyFromDate(d);
@@ -168,22 +194,85 @@ export function PersonnelAbsenceDialog({
           absenceCoversDay(a, dayKey) &&
           (filterPersonId === 'all' || a.personId === filterPersonId)
       );
+      const inRange = Boolean(
+        preview && dayKey >= preview.from && dayKey <= preview.to
+      );
+      const isRangeEdge = Boolean(
+        preview && (dayKey === preview.from || dayKey === preview.to)
+      );
       cells.push({
         dayKey,
         inMonth: d.getMonth() === monthCursor.getMonth(),
         isToday: dayKey === todayKey,
+        inRange,
+        isRangeEdge,
         absences: dayAbs,
       });
     }
     return cells;
-  }, [monthCursor, allAbsences, filterPersonId]);
+  }, [
+    monthCursor,
+    allAbsences,
+    filterPersonId,
+    rangeAnchor,
+    calFilterActive,
+    fromDayKey,
+    toDayKey,
+  ]);
 
   const monthLabel = monthCursor.toLocaleDateString('de-AT', {
     month: 'long',
     year: 'numeric',
   });
 
+  function clearCalSelection() {
+    setRangeAnchor(null);
+    setCalFilterActive(false);
+  }
+
+  function handleDayClick(dayKey: string) {
+    if (rangeAnchor == null) {
+      // 1. Klick: Spanne starten
+      setRangeAnchor(dayKey);
+      setFromDayKey(dayKey);
+      setToDayKey(dayKey);
+      setCalFilterActive(true);
+      return;
+    }
+    if (rangeAnchor === dayKey) {
+      // Gleicher Tag nochmal → Einzel-Tag behalten, Auswahl abschließen
+      setRangeAnchor(null);
+      setFromDayKey(dayKey);
+      setToDayKey(dayKey);
+      setCalFilterActive(true);
+      return;
+    }
+    // 2. Klick: Spanne festlegen
+    const { from, to } = orderedRange(rangeAnchor, dayKey);
+    setFromDayKey(from);
+    setToDayKey(to);
+    setRangeAnchor(null);
+    setCalFilterActive(true);
+  }
+
+  async function handleDelete(id: string) {
+    if (pending || deletingId) return;
+    setDeletingId(id);
+    try {
+      await onDelete(id);
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   if (!open) return null;
+
+  const rangeHint =
+    rangeAnchor != null
+      ? `Von ${formatDayLabelDe(rangeAnchor)} — jetzt Enddatum tippen`
+      : calFilterActive
+        ? `Auswahl: ${formatRangeLabel(fromDayKey, toDayKey)}`
+        : 'Tag tippen, danach zweiten Tag für die Spanne';
 
   return createPortal(
     <div
@@ -210,7 +299,7 @@ export function PersonnelAbsenceDialog({
             <p className="personnel-booking-kicker">Personal</p>
             <h2 id={titleId}>Abwesenheiten</h2>
             <p className="personnel-booking-sub">
-              Alle Einträge im Überblick — Kalender zeigt, wer wann fehlt.
+              Alle Einträge im Überblick — Kalender: zwei Klicks setzen Von–Bis.
             </p>
           </div>
           <button type="button" className="btn-ghost" onClick={onClose} disabled={pending}>
@@ -254,7 +343,6 @@ export function PersonnelAbsenceDialog({
             </div>
             <div className="personnel-absence-cal-grid">
               {monthCells.map((cell) => {
-                const selected = selectedDayKey === cell.dayKey;
                 const title =
                   cell.absences.length === 0
                     ? formatDayLabelDe(cell.dayKey)
@@ -270,19 +358,15 @@ export function PersonnelAbsenceDialog({
                       'personnel-absence-cal-day',
                       cell.inMonth ? '' : ' is-outside',
                       cell.isToday ? ' is-today' : '',
-                      selected ? ' is-selected' : '',
+                      cell.inRange ? ' is-in-range' : '',
+                      cell.isRangeEdge ? ' is-selected' : '',
+                      rangeAnchor === cell.dayKey ? ' is-anchor' : '',
                       cell.absences.length > 0 ? ' has-absence' : '',
                     ]
                       .filter(Boolean)
                       .join('')}
                     disabled={pending}
-                    onClick={() => {
-                      setSelectedDayKey((prev) =>
-                        prev === cell.dayKey ? null : cell.dayKey
-                      );
-                      setFromDayKey(cell.dayKey);
-                      setToDayKey(cell.dayKey);
-                    }}
+                    onClick={() => handleDayClick(cell.dayKey)}
                   >
                     <span className="personnel-absence-cal-num">
                       {Number(cell.dayKey.slice(-2))}
@@ -301,18 +385,18 @@ export function PersonnelAbsenceDialog({
                 );
               })}
             </div>
-            {selectedDayKey && (
-              <p className="personnel-absence-cal-hint">
-                Filter: {formatDayLabelDe(selectedDayKey)}{' '}
+            <p className="personnel-absence-cal-hint">
+              {rangeHint}{' '}
+              {(calFilterActive || rangeAnchor) && (
                 <button
                   type="button"
                   className="btn-ghost btn-small"
-                  onClick={() => setSelectedDayKey(null)}
+                  onClick={clearCalSelection}
                 >
                   zurücksetzen
                 </button>
-              </p>
-            )}
+              )}
+            </p>
           </section>
 
           <div className="personnel-absence-side">
@@ -338,7 +422,11 @@ export function PersonnelAbsenceDialog({
                 <input
                   type="date"
                   value={fromDayKey}
-                  onChange={(e) => setFromDayKey(e.target.value)}
+                  onChange={(e) => {
+                    setFromDayKey(e.target.value);
+                    setRangeAnchor(null);
+                    setCalFilterActive(true);
+                  }}
                   disabled={pending}
                 />
               </label>
@@ -347,7 +435,11 @@ export function PersonnelAbsenceDialog({
                 <input
                   type="date"
                   value={toDayKey}
-                  onChange={(e) => setToDayKey(e.target.value)}
+                  onChange={(e) => {
+                    setToDayKey(e.target.value);
+                    setRangeAnchor(null);
+                    setCalFilterActive(true);
+                  }}
                   disabled={pending}
                 />
               </label>
@@ -411,7 +503,7 @@ export function PersonnelAbsenceDialog({
             <div className="personnel-absence-groups">
               {absencesByPerson.length === 0 ? (
                 <p className="personnel-booking-empty">
-                  {selectedDayKey || filterPersonId !== 'all'
+                  {calFilterActive || filterPersonId !== 'all'
                     ? 'Keine Abwesenheiten für diesen Filter.'
                     : 'Noch keine Abwesenheiten eingetragen.'}
                 </p>
@@ -446,10 +538,14 @@ export function PersonnelAbsenceDialog({
                             <button
                               type="button"
                               className="btn-ghost btn-small"
-                              disabled={pending}
-                              onClick={() => void onDelete(a.id)}
+                              disabled={pending || deletingId === a.id}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                void handleDelete(a.id);
+                              }}
                             >
-                              Löschen
+                              {deletingId === a.id ? 'Löscht…' : 'Löschen'}
                             </button>
                           </li>
                         ))}

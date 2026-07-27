@@ -1,5 +1,7 @@
 import type { CeremonyInfo, KuehlraumDayCapacity, PlanningCard } from '../../planning/types';
 import type { PersonnelBooking } from '../../types/personnelBooking';
+import type { ZusatzTermin } from '../../types/zusatzTermin';
+import { ZUSATZ_TERMIN_ART_LABELS } from '../../types/zusatzTermin';
 import {
   isAttachableCeremonyKind,
   isCardAttachedToAnyCeremony,
@@ -23,12 +25,20 @@ type DayCeremony = {
   personnelIncomplete?: boolean;
 };
 
+export type DayZusatzItem = {
+  termin: ZusatzTermin;
+  personnelLine?: string | null;
+  personnelIncomplete?: boolean;
+};
+
 type Props = {
   dayKey: string;
   title: string;
   isToday?: boolean;
+  isFocus?: boolean;
   transfers: PlanningCard[];
   ceremonies: DayCeremony[];
+  zusatzItems?: DayZusatzItem[];
   capacities: KuehlraumDayCapacity[];
   isDropTarget: boolean;
   ceremonyDropKey?: string | null;
@@ -49,6 +59,9 @@ type Props = {
   onDropOnKremation?: (card: PlanningCard) => void;
   onOpenPersonnel?: (card: PlanningCard) => void;
   personnelByCardId?: Record<string, string | null>;
+  onAddZusatz?: () => void;
+  onZusatzPersonnel?: (termin: ZusatzTermin) => void;
+  onZusatzEdit?: (termin: ZusatzTermin) => void;
 };
 
 function ceremonyKindLabel(kind: CeremonyInfo['kind']): string {
@@ -83,8 +96,10 @@ export function PlanningCenterDay({
   dayKey,
   title,
   isToday,
+  isFocus,
   transfers,
   ceremonies,
+  zusatzItems = [],
   capacities,
   isDropTarget,
   ceremonyDropKey,
@@ -105,6 +120,9 @@ export function PlanningCenterDay({
   onDropOnKremation,
   onOpenPersonnel,
   personnelByCardId,
+  onAddZusatz,
+  onZusatzPersonnel,
+  onZusatzEdit,
 }: Props) {
   const sortedCeremonies = [...ceremonies].sort(
     (a, b) => ceremonyTimeSortKey(a.ceremony) - ceremonyTimeSortKey(b.ceremony)
@@ -152,7 +170,9 @@ export function PlanningCenterDay({
 
   return (
     <section
-      className={`plan-center-day${isToday ? ' is-today' : ''}${isDropTarget ? ' is-drop-target' : ''}`}
+      className={`plan-center-day${isToday ? ' is-today' : ''}${
+        isFocus ? ' is-focus-day' : ''
+      }${isDropTarget ? ' is-drop-target' : ''}`}
       data-day={dayKey}
       onDragOver={(e) => {
         e.preventDefault();
@@ -169,12 +189,117 @@ export function PlanningCenterDay({
           <h3>{title}</h3>
           {isToday && <p>Heute</p>}
         </div>
-        <span className="plan-column-count">{looseCount}</span>
+        <div className="plan-center-day-head-actions">
+          {onAddZusatz && (
+            <button
+              type="button"
+              className="plan-day-add-termin"
+              title="Benutzerdefinierten Termin anlegen"
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddZusatz();
+              }}
+            >
+              + Termin
+            </button>
+          )}
+          <span className="plan-column-count">{looseCount}</span>
+        </div>
       </header>
 
       {capacities.length > 0 && <PlanningCapacityMeters capacities={capacities} />}
 
       <div className="plan-center-day-body">
+        {zusatzItems.length > 0 && (
+          <ul className="plan-center-ceremonies plan-center-zusatz" aria-label="Zusatztermine">
+            {zusatzItems.map(({ termin, personnelLine, personnelIncomplete }) => (
+              <li key={termin.id}>
+                <div
+                  className={`plan-center-ceremony is-zusatz is-${termin.art}${
+                    onZusatzPersonnel ? ' is-clickable' : ''
+                  }`}
+                  role={onZusatzPersonnel ? 'button' : undefined}
+                  tabIndex={onZusatzPersonnel ? 0 : undefined}
+                  title={
+                    onZusatzPersonnel
+                      ? 'Klicken: Personal einbuchen'
+                      : termin.note || termin.title
+                  }
+                  onClick={
+                    onZusatzPersonnel
+                      ? () => onZusatzPersonnel(termin)
+                      : undefined
+                  }
+                  onKeyDown={
+                    onZusatzPersonnel
+                      ? (e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            onZusatzPersonnel(termin);
+                          }
+                        }
+                      : undefined
+                  }
+                >
+                  <div className="plan-center-ceremony-top">
+                    <span className={`plan-ceremony-kind is-zusatz is-${termin.art}`}>
+                      {ZUSATZ_TERMIN_ART_LABELS[termin.art]}
+                    </span>
+                    {termin.zeit && (
+                      <span className="plan-center-ceremony-when">{termin.zeit}</span>
+                    )}
+                    {onZusatzEdit && (
+                      <button
+                        type="button"
+                        className="plan-zusatz-edit"
+                        title="Termin bearbeiten"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onZusatzEdit(termin);
+                        }}
+                      >
+                        Bearbeiten
+                      </button>
+                    )}
+                  </div>
+                  <strong className="plan-center-ceremony-name" title={termin.title}>
+                    {termin.title}
+                  </strong>
+                  <span className="plan-center-ceremony-ort" title={termin.name}>
+                    {termin.name}
+                  </span>
+                  {termin.note && (
+                    <span className="plan-center-ceremony-needs" title={termin.note}>
+                      {termin.note}
+                    </span>
+                  )}
+                  {personnelLine && !personnelIncomplete ? (
+                    <span className="plan-center-ceremony-personnel" title={personnelLine}>
+                      {personnelLine}
+                    </span>
+                  ) : personnelLine ? (
+                    <span
+                      className="plan-center-ceremony-personnel is-open"
+                      title={personnelLine}
+                    >
+                      {personnelLine.includes('Personal offen')
+                        ? personnelLine
+                        : `${personnelLine} · Personal offen`}
+                    </span>
+                  ) : (
+                    <span
+                      className="plan-center-ceremony-personnel is-optional"
+                      title="Personal optional — klicken zum Einbuchen"
+                    >
+                      Personal optional
+                    </span>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+
         {visibleCeremonies.length > 0 && (
           <ul className="plan-center-ceremonies" aria-label="Termine an diesem Tag">
             {visibleCeremonies.map((c) => {

@@ -1006,6 +1006,15 @@
   border-color: var(--accent);
 }
 
+[data-theme='alamida'] .personnel-absence-cal-day.is-in-range {
+  background: rgba(61, 122, 140, 0.1);
+  border-color: rgba(61, 122, 140, 0.35);
+}
+
+[data-theme='alamida'] .personnel-absence-cal-day.is-anchor {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
 [data-theme='alamida'] .personnel-booking-pool-item.is-unavailable {
   color: var(--muted);
   opacity: 0.5;

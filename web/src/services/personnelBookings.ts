@@ -1,4 +1,12 @@
-import { doc, getDoc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore';
+import {
+  deleteField,
+  doc,
+  getDoc,
+  onSnapshot,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+} from 'firebase/firestore';
 import { db } from '../firebase';
 import type {
   PersonnelAbsence,
@@ -127,13 +135,21 @@ async function writePersonnelDoc(
   }
 ): Promise<void> {
   if (!db) throw new Error('Firebase nicht konfiguriert');
+  const ref = doc(db, PLAN_DOC[0], PLAN_DOC[1]);
   const data: Record<string, unknown> = {
     updatedAtMs: Date.now(),
     updatedAt: serverTimestamp(),
   };
   if (patch.bookings) data.bookings = sanitizeBookingsMap(patch.bookings);
   if (patch.absences) data.absences = sanitizeAbsencesMap(patch.absences);
-  await setDoc(doc(db, PLAN_DOC[0], PLAN_DOC[1]), data, { merge: true });
+
+  // updateDoc ersetzt Map-Felder komplett — setDoc({merge:true}) würde gelöschte Keys behalten.
+  const snap = await getDoc(ref);
+  if (!snap.exists()) {
+    await setDoc(ref, data);
+  } else {
+    await updateDoc(ref, data);
+  }
 }
 
 export async function loadPersonnelBookings(): Promise<PersonnelBookingDocument> {
@@ -172,12 +188,14 @@ export async function savePersonnelBooking(booking: PersonnelBooking): Promise<v
 }
 
 export async function deletePersonnelBooking(id: string): Promise<void> {
-  const current = await loadPersonnelBookings();
-  const bookings = { ...current.bookings };
-  delete bookings[id];
-  await writePersonnelDoc({
-    bookings,
-    absences: current.absences ?? {},
+  if (!db) throw new Error('Firebase nicht konfiguriert');
+  const ref = doc(db, PLAN_DOC[0], PLAN_DOC[1]);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+  await updateDoc(ref, {
+    [`bookings.${id}`]: deleteField(),
+    updatedAtMs: Date.now(),
+    updatedAt: serverTimestamp(),
   });
 }
 
@@ -193,11 +211,14 @@ export async function savePersonnelAbsence(absence: PersonnelAbsence): Promise<v
 }
 
 export async function deletePersonnelAbsence(id: string): Promise<void> {
-  const current = await loadPersonnelBookings();
-  const absences = { ...(current.absences ?? {}) };
-  delete absences[id];
-  await writePersonnelDoc({
-    bookings: current.bookings,
-    absences,
+  if (!db) throw new Error('Firebase nicht konfiguriert');
+  const ref = doc(db, PLAN_DOC[0], PLAN_DOC[1]);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+  // Explizites deleteField — merge würde den Key sonst wiederherstellen.
+  await updateDoc(ref, {
+    [`absences.${id}`]: deleteField(),
+    updatedAtMs: Date.now(),
+    updatedAt: serverTimestamp(),
   });
 }

@@ -7,18 +7,27 @@ import { PlanningCenterDay } from '../components/planning/PlanningCenterDay';
 import { PlanningKuehlraumRail } from '../components/planning/PlanningKuehlraumRail';
 import { PlanningLocationRail } from '../components/planning/PlanningLocationRail';
 import { PlanningScheduleDialog } from '../components/planning/PlanningScheduleDialog';
+import { ZusatzTerminDialog } from '../components/ZusatzTerminDialog';
 import {
   addDays,
   dayKeyFromDate,
   formatDayLabelDe,
   startOfWeekMonday,
 } from '../board/dateUtils';
+import {
+  findBookingForWallEntry,
+  isPersonnelBookingIncomplete,
+  personnelBookingDisplayLine,
+} from '../board/personnelBookingRules';
+import { zusatzTerminToEntry } from '../board/wallCalendar';
 import { filterAktiveSterbefaelle } from '../board/historieLogic';
 import { useCalendarDay } from '../hooks/useCalendarDay';
 import { usePersonnelBookings } from '../hooks/usePersonnelBookings';
 import { useSterbefaelle } from '../hooks/useSterbefaelle';
 import { useTransferPlan } from '../hooks/useTransferPlan';
+import { useZusatzTermine } from '../hooks/useZusatzTermine';
 import { useDispositionSettings } from '../settings/SettingsProvider';
+import type { ZusatzTermin } from '../types/zusatzTermin';
 import {
   enrichPlanningCeremonies,
   findBookingForPlanningTransfer,
@@ -102,6 +111,14 @@ export function PlanningPage() {
     clearAbsence,
     setError: setBookingError,
   } = usePersonnelBookings();
+  const {
+    termine: zusatzTermine,
+    saving: zusatzSaving,
+    error: zusatzError,
+    saveTermin,
+    clearTermin,
+    setError: setZusatzError,
+  } = useZusatzTermine();
 
   const [drag, setDrag] = useState<DragState>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
@@ -112,6 +129,10 @@ export function PlanningPage() {
   const [absenceOpen, setAbsenceOpen] = useState(false);
   const [markerPending, setMarkerPending] = useState(false);
   const [eventsOpen, setEventsOpen] = useState(false);
+  const [zusatzDialog, setZusatzDialog] = useState<{
+    dayKey?: string;
+    existing: ZusatzTermin | null;
+  } | null>(null);
 
   const sterbefaelle = useMemo(
     () => filterAktiveSterbefaelle(sterbefaelleRaw),
@@ -215,6 +236,65 @@ export function PlanningPage() {
     }
     return out;
   }, [cards, bookings, settings.personnelPool]);
+
+  const zusatzByDay = useMemo(() => {
+    const pool = settings.personnelPool ?? [];
+    const q = search.trim().toLowerCase();
+    const map = new Map<
+      string,
+      Array<{
+        termin: ZusatzTermin;
+        personnelLine: string | null;
+        personnelIncomplete: boolean;
+      }>
+    >();
+    for (const termin of Object.values(zusatzTermine)) {
+      if (!dayKeys.includes(termin.dayKey)) continue;
+      if (
+        q &&
+        ![termin.name, termin.title, termin.note, termin.sterbefallId, termin.ort]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+          .includes(q)
+      ) {
+        continue;
+      }
+      const entry = zusatzTerminToEntry(termin);
+      const booking = entry ? findBookingForWallEntry(bookings, entry) : null;
+      const personnelLine = personnelBookingDisplayLine(booking, pool);
+      const personnelIncomplete = entry
+        ? isPersonnelBookingIncomplete(entry, booking)
+        : !booking;
+      const list = map.get(termin.dayKey) ?? [];
+      list.push({ termin, personnelLine, personnelIncomplete });
+      map.set(termin.dayKey, list);
+    }
+    for (const [, list] of map) {
+      list.sort((a, b) =>
+        (a.termin.zeit ?? '').localeCompare(b.termin.zeit ?? '', 'de')
+      );
+    }
+    return map;
+  }, [zusatzTermine, dayKeys, bookings, settings.personnelPool, search]);
+
+  const openZusatzDialog = useCallback(
+    (dayKey?: string, existing: ZusatzTermin | null = null) => {
+      setZusatzError(null);
+      setZusatzDialog({ dayKey: dayKey ?? focusDayKey, existing });
+    },
+    [focusDayKey, setZusatzError]
+  );
+
+  const openZusatzPersonnel = useCallback(
+    (termin: ZusatzTermin) => {
+      const entry = zusatzTerminToEntry(termin);
+      if (!entry) return;
+      setBookingError(null);
+      setBookingEntry(entry);
+    },
+    [setBookingError]
+  );
 
   const clearDrag = useCallback(() => {
     setDrag(null);
@@ -742,6 +822,14 @@ export function PlanningPage() {
           >
             Abwesenheiten
           </button>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            title="Benutzerdefinierten Termin am fokussierten Tag anlegen"
+            onClick={() => openZusatzDialog(focusDayKey)}
+          >
+            + Termin
+          </button>
           <Link to="/disposition?tab=ueberfuehrungen" className="btn btn-ghost">
             Listen
           </Link>
@@ -754,15 +842,16 @@ export function PlanningPage() {
           Firebase ist nicht konfiguriert.
         </p>
       )}
-      {(error || bookingError) && (
+      {(error || bookingError || zusatzError) && (
         <p className="board-inline-error" role="alert">
-          {error || bookingError}
+          {error || bookingError || zusatzError}
           <button
             type="button"
             className="btn btn-ghost"
             onClick={() => {
               setError(null);
               setBookingError(null);
+              setZusatzError(null);
             }}
           >
             Schließen
@@ -840,8 +929,10 @@ export function PlanningPage() {
                         dayKey={dayKey}
                         title={formatDayLabelDe(dayKey)}
                         isToday={dayKey === calendarDay}
+                        isFocus={focusDayKey === dayKey}
                         transfers={dayCards}
                         ceremonies={dayCeremonies}
+                        zusatzItems={zusatzByDay.get(dayKey) ?? []}
                         capacities={dayCaps}
                         isDropTarget={dropTarget === `day:${dayKey}`}
                         ceremonyDropKey={
@@ -880,6 +971,9 @@ export function PlanningPage() {
                         onDropOnKremation={(card) => handleDropOnKremation(card)}
                         onOpenPersonnel={openTransferPersonnel}
                         personnelByCardId={personnelByCardId}
+                        onAddZusatz={() => openZusatzDialog(dayKey)}
+                        onZusatzPersonnel={openZusatzPersonnel}
+                        onZusatzEdit={(termin) => openZusatzDialog(termin.dayKey, termin)}
                       />
                     </div>
                   );
@@ -1055,6 +1149,50 @@ export function PlanningPage() {
           await clearAbsence(id);
         }}
       />
+
+      {zusatzDialog && (
+        <ZusatzTerminDialog
+          open
+          initialDayKey={zusatzDialog.dayKey}
+          existing={zusatzDialog.existing}
+          sterbefaelle={sterbefaelleRaw}
+          pending={zusatzSaving}
+          error={zusatzError}
+          offerBookPersonnel
+          onClose={() => {
+            if (!zusatzSaving) setZusatzDialog(null);
+          }}
+          onSave={(termin, opts) => {
+            void (async () => {
+              try {
+                await saveTermin(termin);
+                setZusatzDialog(null);
+                setFocusDayKey(termin.dayKey);
+                if (opts?.bookPersonnel) {
+                  openZusatzPersonnel(termin);
+                }
+              } catch {
+                /* Fehler im Hook */
+              }
+            })();
+          }}
+          onDelete={
+            zusatzDialog.existing
+              ? () => {
+                  void (async () => {
+                    try {
+                      const id = zusatzDialog.existing!.id;
+                      await clearTermin(id);
+                      setZusatzDialog(null);
+                    } catch {
+                      /* Fehler im Hook */
+                    }
+                  })();
+                }
+              : undefined
+          }
+        />
+      )}
     </div>
   );
 }

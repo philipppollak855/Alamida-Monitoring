@@ -24,8 +24,10 @@ type Props = {
   sterbefaelle: Sterbefall[];
   pending?: boolean;
   error?: string | null;
+  /** Checkbox „danach Personal einbuchen“ beim Anlegen. */
+  offerBookPersonnel?: boolean;
   onClose: () => void;
-  onSave: (termin: ZusatzTermin) => void;
+  onSave: (termin: ZusatzTermin, opts?: { bookPersonnel?: boolean }) => void;
   onDelete?: () => void;
 };
 
@@ -55,6 +57,7 @@ export function ZusatzTerminDialog({
   sterbefaelle,
   pending,
   error,
+  offerBookPersonnel = false,
   onClose,
   onSave,
   onDelete,
@@ -74,6 +77,7 @@ export function ZusatzTerminDialog({
   const [ort, setOrt] = useState('');
   const [note, setNote] = useState('');
   const [fallQuery, setFallQuery] = useState('');
+  const [bookPersonnel, setBookPersonnel] = useState(false);
 
   const options = useMemo(() => {
     if (existing || showAllFaelle) return allOptions;
@@ -103,6 +107,7 @@ export function ZusatzTerminDialog({
     setOrt('');
     setNote('');
     setFallQuery('');
+    setBookPersonnel(false);
     setDocId(activeOptions[0]?.docId ?? '');
   }, [open, existing, initialDayKey, sterbefaelle, activeOptions]);
 
@@ -162,8 +167,10 @@ export function ZusatzTerminDialog({
         <header className="zusatz-termin-head">
           <div>
             <p className="zusatz-termin-kicker">Zusatztermin</p>
-            <h2 id={titleId}>{existing ? 'Termin bearbeiten' : 'Termin zu Fall anlegen'}</h2>
-            <p className="zusatz-termin-sub">z. B. Graben für Begräbnis — erscheint im Kalender</p>
+            <h2 id={titleId}>{existing ? 'Termin bearbeiten' : 'Benutzerdefinierten Termin anlegen'}</h2>
+            <p className="zusatz-termin-sub">
+              z. B. Graben — mit Notiz{offerBookPersonnel ? ', optional Personal' : ''}
+            </p>
           </div>
           <button type="button" className="btn-ghost" onClick={onClose} disabled={pending}>
             Schließen
@@ -307,14 +314,26 @@ export function ZusatzTerminDialog({
 
           <label className="zusatz-termin-field">
             <span>Notiz</span>
-            <input
-              type="text"
+            <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
               disabled={pending}
-              placeholder="optional"
+              placeholder="optional — z. B. Hinweise für Disposition"
+              rows={3}
             />
           </label>
+
+          {offerBookPersonnel && !existing && (
+            <label className="zusatz-termin-check">
+              <input
+                type="checkbox"
+                checked={bookPersonnel}
+                onChange={(e) => setBookPersonnel(e.target.checked)}
+                disabled={pending}
+              />
+              <span>Danach Personal einbuchen</span>
+            </label>
+          )}
         </div>
 
         {error && (
@@ -355,10 +374,18 @@ export function ZusatzTerminDialog({
                 ort: ort.trim() || undefined,
                 note: note.trim() || undefined,
                 updatedAtMs: Date.now(),
+              }, {
+                bookPersonnel: offerBookPersonnel && !existing && bookPersonnel,
               });
             }}
           >
-            {pending ? 'Speichert…' : existing ? 'Speichern' : 'Anlegen'}
+            {pending
+              ? 'Speichert…'
+              : existing
+                ? 'Speichern'
+                : bookPersonnel && offerBookPersonnel
+                  ? 'Anlegen & Personal'
+                  : 'Anlegen'}
           </button>
         </footer>
       </div>

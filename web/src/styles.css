@@ -5070,8 +5070,21 @@ code {
   background: rgba(77, 159, 255, 0.14);
 }
 
+.personnel-absence-cal-day.is-in-range {
+  background: rgba(77, 159, 255, 0.1);
+  border-color: rgba(77, 159, 255, 0.28);
+}
+
+.personnel-absence-cal-day.is-anchor {
+  box-shadow: inset 0 0 0 2px var(--accent, #4d9fff);
+}
+
 .personnel-absence-cal-day.has-absence {
   background: rgba(184, 90, 104, 0.08);
+}
+
+.personnel-absence-cal-day.has-absence.is-in-range {
+  background: rgba(77, 159, 255, 0.12);
 }
 
 .personnel-absence-cal-num {
@@ -5403,7 +5416,8 @@ code {
 }
 
 .zusatz-termin-field input,
-.zusatz-termin-field select {
+.zusatz-termin-field select,
+.zusatz-termin-field textarea {
   padding: 0.55rem 0.7rem;
   border-radius: 8px;
   border: 1px solid var(--border-strong);
@@ -5412,10 +5426,32 @@ code {
   font: inherit;
 }
 
+.zusatz-termin-field textarea {
+  resize: vertical;
+  min-height: 4.5rem;
+  line-height: 1.35;
+}
+
 .zusatz-termin-field input:focus,
-.zusatz-termin-field select:focus {
+.zusatz-termin-field select:focus,
+.zusatz-termin-field textarea:focus {
   outline: 2px solid var(--accent-dim);
   border-color: var(--accent);
+}
+
+.zusatz-termin-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.zusatz-termin-check input {
+  width: 1rem;
+  height: 1rem;
 }
 
 .zusatz-termin-actions {
@@ -7784,6 +7820,86 @@ code {
   justify-content: space-between;
   align-items: flex-start;
   gap: 0.4rem;
+}
+
+.plan-center-day-head h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+}
+
+.plan-center-day-head p {
+  margin: 0.15rem 0 0;
+  font-size: 0.72rem;
+  color: var(--accent);
+}
+
+.plan-center-day-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.plan-day-add-termin {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  border-radius: 6px;
+  padding: 0.15rem 0.4rem;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 650;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.plan-day-add-termin:hover {
+  color: var(--text);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.plan-center-day.is-focus-day .plan-day-add-termin {
+  color: var(--accent);
+  border-color: rgba(77, 159, 255, 0.4);
+}
+
+.plan-center-ceremony.is-zusatz {
+  background: rgba(138, 107, 61, 0.12);
+  border-color: rgba(138, 107, 61, 0.28);
+}
+
+.plan-center-ceremony.is-zusatz.is-clickable {
+  cursor: pointer;
+}
+
+.plan-ceremony-kind.is-zusatz {
+  color: #c4a574;
+}
+
+.plan-zusatz-edit {
+  appearance: none;
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.65rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.05rem 0.2rem;
+}
+
+.plan-zusatz-edit:hover {
+  color: var(--accent);
+}
+
+.plan-center-ceremony-personnel.is-optional {
+  color: var(--muted);
+  font-weight: 550;
+  opacity: 0.85;
 }
 
 .plan-center-day-head h3 {
