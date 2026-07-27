@@ -54,6 +54,7 @@ export type CeremonyInfo = {
   datum: string;
   dayKey: string | null;
   zeit?: string;
+  ort?: string;
   label: string;
   relativeLabel?: string;
   bestattungsMarker?: 'S' | 'U';

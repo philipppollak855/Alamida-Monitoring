@@ -109,4 +109,26 @@ describe('buildKuehlraumTerminMarkers', () => {
     expect(markers.some((m) => m.kind === 'trauerfeier')).toBe(true);
     expect(markers.some((m) => m.kind === 'beisetzung')).toBe(true);
   });
+
+  it('liefert Uhrzeit und Ort für Feiertermine', () => {
+    const markers = buildKuehlraumTerminMarkers(
+      fall({
+        trauerfeierdatum: '08.06.2026',
+        trauerfeierzeit: '10:00',
+        trauerfeierort: 'Pfarrkirche Gloggnitz',
+        beisetzungsdatum: '08.06.2026',
+        beisetzungszeit: '12:00',
+        endziel: 'Friedhof Gloggnitz',
+        endzielTyp: 'erde',
+      }),
+      now
+    );
+
+    const tf = markers.find((m) => m.kind === 'trauerfeier');
+    const bs = markers.find((m) => m.kind === 'beisetzung');
+    expect(tf?.zeit).toBe('10:00');
+    expect(tf?.ort).toBe('Pfarrkirche Gloggnitz');
+    expect(bs?.zeit).toBe('12:00');
+    expect(bs?.ort).toBe('Friedhof Gloggnitz');
+  });
 });

@@ -835,9 +835,24 @@
   background: rgba(184, 90, 104, 0.12);
 }
 
-[data-theme='alamida'] .plan-center-ceremonies li {
+[data-theme='alamida'] .plan-center-ceremonies li,
+[data-theme='alamida'] .plan-center-ceremony {
   background: rgba(106, 122, 154, 0.12);
   color: var(--text);
+  border-color: rgba(106, 122, 154, 0.18);
+}
+
+[data-theme='alamida'] .plan-center-ceremony-name {
+  color: #2a4048;
+}
+
+[data-theme='alamida'] .plan-center-ceremony-ort,
+[data-theme='alamida'] .plan-center-ceremony-when {
+  color: var(--muted);
+}
+
+[data-theme='alamida'] .plan-center-ceremony-when {
+  color: #2a4048;
 }
 
 [data-theme='alamida'] .plan-kr-panel {

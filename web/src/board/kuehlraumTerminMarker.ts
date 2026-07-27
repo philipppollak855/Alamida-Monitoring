@@ -1,8 +1,9 @@
 import type { Sterbefall } from '../types';
 import { isAusstehendHeuteOrGeplant } from './ausstehendStatus';
-import { extractDeDatum, parseDatumDeToDate } from './dateUtils';
+import { extractDeDatum, extractZeitDe, parseDatumDeToDate } from './dateUtils';
 import {
   beisetzungAlsEigenerTermin,
+  beisetzungImAnschlussAmTrauerfeierTag,
   type BestattungsMarker,
   findeKremationTermin,
   hatKremationImSterbefall,
@@ -24,6 +25,8 @@ export interface KuehlraumTerminMarker {
   /** Anzeigezeile, z. B. „Kremation in 2 Tagen · 24.05.2026“ */
   label: string;
   bestattungsMarker?: BestattungsMarker;
+  zeit?: string;
+  ort?: string;
 }
 
 const MARKER_PREFIX: Record<KuehlraumTerminMarkerKind, string> = {
@@ -76,24 +79,31 @@ function formatMarkerLabel(
   kind: KuehlraumTerminMarkerKind,
   datum: string | undefined,
   now: Date,
-  offenLabel?: string
+  opts?: { offenLabel?: string; zeit?: string; ort?: string }
 ): KuehlraumTerminMarker | null {
   const prefix = MARKER_PREFIX[kind];
+  const zeit = opts?.zeit?.trim() || undefined;
+  const ort = opts?.ort?.trim() || undefined;
   if (!datum?.trim() || !parseDatumDeToDate(datum)) {
-    if (kind === 'kremation' || offenLabel) {
+    if (kind === 'kremation' || opts?.offenLabel) {
       return {
         kind,
         datum: '',
         relativeLabel: '',
-        label: offenLabel ?? `${prefix} — Termin offen`,
+        label: opts?.offenLabel ?? `${prefix} — Termin offen`,
+        zeit,
+        ort,
       };
     }
     return null;
   }
   const d = datum.trim();
   const relativeLabel = relativeTerminLabel(d, now);
-  const label = relativeLabel ? `${prefix} ${relativeLabel} · ${d}` : `${prefix} · ${d}`;
-  return { kind, datum: d, relativeLabel, label };
+  const detail = [zeit, ort].filter(Boolean).join(' · ');
+  const label = relativeLabel
+    ? `${prefix} ${relativeLabel} · ${d}${detail ? ` · ${detail}` : ''}`
+    : `${prefix} · ${d}${detail ? ` · ${detail}` : ''}`;
+  return { kind, datum: d, relativeLabel, label, zeit, ort };
 }
 
 function withKuehlraumBestattungsMarker(
@@ -113,9 +123,10 @@ function pushFeierMarker(
   s: Sterbefall,
   kind: Exclude<KuehlraumTerminMarkerKind, 'kremation'>,
   datum: string | undefined,
-  now: Date
+  now: Date,
+  opts?: { zeit?: string; ort?: string }
 ) {
-  const m = formatMarkerLabel(kind, datum, now);
+  const m = formatMarkerLabel(kind, datum, now, opts);
   if (m) list.push(withKuehlraumBestattungsMarker(s, m, now));
 }
 
@@ -126,21 +137,48 @@ export function buildKuehlraumTerminMarkers(
 ): KuehlraumTerminMarker[] {
   const markers: KuehlraumTerminMarker[] = [];
   const bsEigenerTermin = beisetzungAlsEigenerTermin(s);
+  const ortTf = s.trauerfeierort?.trim() || s.endziel?.trim() || undefined;
+  const ortBeisetzung = s.endziel?.trim() || undefined;
 
   const tf1 = extractDeDatum(s.trauerfeierdatum);
-  if (tf1) pushFeierMarker(markers, s, feierMarkerKindTf1(s), tf1, now);
+  if (tf1) {
+    pushFeierMarker(markers, s, feierMarkerKindTf1(s), tf1, now, {
+      zeit: extractZeitDe(s.trauerfeierdatum, s.trauerfeierzeit),
+      ort: ortTf,
+    });
+  }
 
   const tf2 = extractDeDatum(s.trauerfeier2datum);
-  if (tf2) pushFeierMarker(markers, s, feierMarkerKindTf2(s), tf2, now);
+  if (tf2) {
+    pushFeierMarker(markers, s, feierMarkerKindTf2(s), tf2, now, {
+      zeit: extractZeitDe(s.trauerfeier2datum, s.trauerfeier2zeit),
+      ort: s.trauerfeier2ort?.trim() || ortTf,
+    });
+  }
 
   if (hatKremationImAblauf(s) && !istBereitsAlsUrne(s)) {
-    const kr = formatMarkerLabel('kremation', findeKremationTermin(s), now);
+    const kremDatum = findeKremationTermin(s);
+    const kremSchritt =
+      (s.ausstehend ?? []).find((a) => a.schrittTyp === 'kremation') ??
+      (s.verlauf ?? []).find((v) => (v.typ ?? v.schrittTyp) === 'kremation');
+    const kr = formatMarkerLabel('kremation', kremDatum, now, {
+      zeit: extractZeitDe(kremDatum),
+      ort: kremSchritt?.nachOrt?.trim() || kremSchritt?.vonOrt?.trim() || kremSchritt?.ort?.trim(),
+    });
     if (kr) markers.push(kr);
   }
 
   if (bsEigenerTermin) {
     const beisetzung = extractDeDatum(s.beisetzungsdatum);
-    if (beisetzung) pushFeierMarker(markers, s, 'beisetzung', beisetzung, now);
+    if (beisetzung) {
+      const imAnschluss = beisetzungImAnschlussAmTrauerfeierTag(s);
+      pushFeierMarker(markers, s, 'beisetzung', beisetzung, now, {
+        zeit: imAnschluss
+          ? 'Im Anschluss'
+          : extractZeitDe(s.beisetzungsdatum, s.beisetzungszeit),
+        ort: ortBeisetzung,
+      });
+    }
   }
 
   return markers;

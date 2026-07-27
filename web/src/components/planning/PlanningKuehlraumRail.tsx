@@ -95,8 +95,20 @@ export function PlanningKuehlraumRail({
                           {freigabeLabel(occ.freigabeState, occ.freigabeDatum)}
                         </span>
                         {occ.nextCeremony && (
-                          <span className="plan-ceremony-chip">
-                            {occ.nextCeremony.relativeLabel || occ.nextCeremony.datum}
+                          <span className="plan-ceremony-chip" title={occ.nextCeremony.label}>
+                            {occ.nextCeremony.kind === 'beisetzung'
+                              ? 'Beisetzung'
+                              : occ.nextCeremony.kind === 'trauerfeier'
+                                ? 'Trauerfeier'
+                                : occ.nextCeremony.kind === 'kremation'
+                                  ? 'Kremation'
+                                  : 'Verabschiedung'}
+                            {occ.nextCeremony.zeit
+                              ? ` ${occ.nextCeremony.zeit}`
+                              : occ.nextCeremony.relativeLabel
+                                ? ` ${occ.nextCeremony.relativeLabel}`
+                                : ''}
+                            {occ.nextCeremony.ort ? ` · ${occ.nextCeremony.ort}` : ''}
                           </span>
                         )}
                         {occ.freesOnDayKey && (
