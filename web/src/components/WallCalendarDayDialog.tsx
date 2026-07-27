@@ -9,6 +9,7 @@ interface Props {
   traegerLines?: Record<string, string | null | undefined>;
   onEntryClick?: (entry: WallCalendarEntry) => void;
   onAddTermin?: () => void;
+  onOpenStandby?: () => void;
   onClose: () => void;
   headerExtra?: ReactNode;
 }
@@ -19,6 +20,7 @@ export function WallCalendarDayDialog({
   traegerLines,
   onEntryClick,
   onAddTermin,
+  onOpenStandby,
   onClose,
   headerExtra,
 }: Props) {
@@ -81,11 +83,18 @@ export function WallCalendarDayDialog({
             ×
           </button>
         </header>
-        {onAddTermin && (
+        {(onAddTermin || onOpenStandby) && (
           <div className="wall-cal-day-dialog-actions">
-            <button type="button" className="wall-cal-add-termin" onClick={onAddTermin}>
-              + Termin zu Fall
-            </button>
+            {onOpenStandby && (
+              <button type="button" className="wall-cal-add-termin" onClick={onOpenStandby}>
+                Bereitschaft einplanen
+              </button>
+            )}
+            {onAddTermin && (
+              <button type="button" className="wall-cal-add-termin" onClick={onAddTermin}>
+                + Termin zu Fall
+              </button>
+            )}
           </div>
         )}
         {total === 0 ? (

@@ -199,12 +199,26 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
     [setFocusDayKey]
   );
 
+  const holidayRegion: HolidayRegion =
+    settings.holidayRegion === 'DE' ? 'DE' : 'AT';
+
+  const openStandbyDialog = useCallback((dayKey?: string) => {
+    setStandbyInitialDay(dayKey ?? null);
+    setStandbyOpen(true);
+  }, []);
+
   const openDayDialog = useCallback(
     (dayKey: string) => {
-      setDialogDayKey(dayKey);
       setFocusDayKey(dayKey);
+      // Fr/Sa/So/Feiertag: Bereitschaft einplanen per Tagesklick
+      if (isBereitschaftRelevantDay(dayKey, holidayRegion)) {
+        setStandbyInitialDay(dayKey);
+        setStandbyOpen(true);
+        return;
+      }
+      setDialogDayKey(dayKey);
     },
-    [setFocusDayKey]
+    [setFocusDayKey, holidayRegion]
   );
 
   const handleEntryClick = useCallback(
@@ -236,8 +250,11 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
         return;
       }
       selectFocusDay(dayKey);
+      if (isBereitschaftRelevantDay(dayKey, holidayRegion)) {
+        openStandbyDialog(dayKey);
+      }
     },
-    [range, openDayDialog, selectFocusDay]
+    [range, openDayDialog, selectFocusDay, holidayRegion, openStandbyDialog]
   );
 
   const changeRange = useCallback(
@@ -274,14 +291,6 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
     for (const p of settings.personnelPool ?? []) map.set(p.id, p);
     return map;
   }, [settings.personnelPool]);
-
-  const holidayRegion: HolidayRegion =
-    settings.holidayRegion === 'DE' ? 'DE' : 'AT';
-
-  const openStandbyDialog = useCallback((dayKey?: string) => {
-    setStandbyInitialDay(dayKey ?? null);
-    setStandbyOpen(true);
-  }, []);
 
   const bereitschaftUi = useMemo(
     (): BereitschaftUiCtx => ({
@@ -932,6 +941,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
                   weeksStack
                   traegerLines={traegerLines}
                   onEntryClick={handleEntryClick}
+                  onOpenDay={openDayDialog}
                 />
 
               ))}
@@ -945,6 +955,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
               focusDayKey={focusDayKey}
               traegerLines={traegerLines}
               onEntryClick={handleEntryClick}
+              onOpenDay={openDayDialog}
             />
 
           )}
@@ -962,6 +973,14 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
           onAddTermin={() => {
             openZusatzDialog(dialogDay.dayKey);
           }}
+          onOpenStandby={
+            isBereitschaftRelevantDay(dialogDay.dayKey, holidayRegion)
+              ? () => {
+                  setDialogDayKey(null);
+                  openStandbyDialog(dialogDay.dayKey);
+                }
+              : undefined
+          }
           headerExtra={
             <BereitschaftChips
               dayKey={dialogDay.dayKey}
@@ -969,7 +988,10 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
               absences={absences}
               personnelById={personnelById}
               region={holidayRegion}
-              onClick={() => openStandbyDialog(dialogDay.dayKey)}
+              onClick={() => {
+                setDialogDayKey(null);
+                openStandbyDialog(dialogDay.dayKey);
+              }}
             />
           }
           onClose={() => setDialogDayKey(null)}
@@ -1113,12 +1135,14 @@ function WallCalendarWeekStrip({
   weeksStack = false,
   traegerLines,
   onEntryClick,
+  onOpenDay,
 }: {
   days: WallCalendarDay[];
   focusDayKey: string | null;
   weeksStack?: boolean;
   traegerLines?: Record<string, string | null>;
   onEntryClick?: (entry: WallCalendarEntry) => void;
+  onOpenDay?: (dayKey: string) => void;
 }) {
   return (
     <div className={`wall-cal-strip wall-cal-strip--week${weeksStack ? ' wall-cal-strip--stacked' : ''}`}>
@@ -1133,6 +1157,7 @@ function WallCalendarWeekStrip({
           active={focusDayKey === day.dayKey}
           traegerLines={traegerLines}
           onEntryClick={onEntryClick}
+          onOpenDay={onOpenDay}
         />
       ))}
     </div>
