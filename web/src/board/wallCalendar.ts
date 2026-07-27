@@ -39,6 +39,19 @@ export type CalendarColorGroup = 'fahrt' | 'kremation' | 'feier' | 'aufnahme' | 
 
 export function calendarColorGroupFromArts(arts: readonly CalendarTerminArt[]): CalendarColorGroup {
   if (arts.some((a) => a === 'aufnahme')) return 'aufnahme';
+  // Feier-/Begräbnis-Termin mit angehängter Überführung bleibt Feier-Farbe
+  if (
+    arts.some(
+      (a) =>
+        a === 'beisetzung' ||
+        a === 'verabschiedung' ||
+        a === 'trauerfeier' ||
+        a === 'trauerfeier2' ||
+        a === 'rosenkranz'
+    )
+  ) {
+    return 'feier';
+  }
   if (arts.some((a) => a === 'ueberfuehrung_kremation')) return 'kremation';
   if (arts.some((a) => a === 'ueberfuehrung')) return 'fahrt';
   if (arts.some((a) => a === 'graben' || a === 'sonstiges')) return 'zusatz';
@@ -132,6 +145,11 @@ export interface WallCalendarEntry {
   bestattungsMarker?: BestattungsMarker;
   /** Manuell angelegter Zusatztermin (settings/zusatzTermine) */
   zusatzTerminId?: string;
+  /**
+   * Überführung ist dem Feier-/Begräbnis-/Retour-Termin zugehörig
+   * (kein eigener Personalbedarf).
+   */
+  attachedTransfer?: boolean;
 }
 
 export interface WallCalendarDay {
@@ -504,7 +522,98 @@ function isUeberfuehrungCalendarArt(art: CalendarTerminArt): boolean {
 }
 
 export function isUeberfuehrungCalendarEntry(entry: WallCalendarEntry): boolean {
+  // Zugehörige Überführung am Feiertermin zählt nicht als eigene Überführung.
+  if (entry.attachedTransfer) return false;
   return entry.arts.some((a) => isUeberfuehrungCalendarArt(a));
+}
+
+const CEREMONY_HOST_ARTS: CalendarTerminArt[] = [
+  'beisetzung',
+  'verabschiedung',
+  'trauerfeier',
+  'trauerfeier2',
+];
+
+/** Feier-/Begräbnis-/Verabschiedungstermin, an den Überführungen hängen können. */
+export function isCeremonyHostEntry(entry: Pick<WallCalendarEntry, 'arts'>): boolean {
+  return entry.arts.some((a) => CEREMONY_HOST_ARTS.includes(a));
+}
+
+/** Reine Überführungs-Karte (ohne Feieranteil). */
+export function isPureTransferEntry(entry: Pick<WallCalendarEntry, 'arts'>): boolean {
+  return (
+    entry.arts.length > 0 &&
+    entry.arts.every((a) => isUeberfuehrungCalendarArt(a))
+  );
+}
+
+function ceremonyHostRank(entry: Pick<WallCalendarEntry, 'arts'>): number {
+  if (entry.arts.includes('beisetzung')) return 4;
+  if (entry.arts.includes('verabschiedung')) return 3;
+  if (entry.arts.includes('trauerfeier')) return 2;
+  if (entry.arts.includes('trauerfeier2')) return 1;
+  return 0;
+}
+
+/**
+ * Hängt Überführungen am gleichen Tag an Begräbnis-/Verabschiedungs-/Trauerfeier-Termine.
+ * Diese brauchen kein eigenes Personal — Personal läuft über den Feiertermin.
+ */
+export function attachTransfersToCeremonyEntries(
+  entries: WallCalendarEntry[]
+): WallCalendarEntry[] {
+  const byFallDay = new Map<string, WallCalendarEntry[]>();
+  for (const e of entries) {
+    const key = `${e.docId}|${e.dayKey}`;
+    const list = byFallDay.get(key) ?? [];
+    list.push(e);
+    byFallDay.set(key, list);
+  }
+
+  const removeIds = new Set<string>();
+  const updates = new Map<string, WallCalendarEntry>();
+
+  for (const group of byFallDay.values()) {
+    const hosts = group.filter(isCeremonyHostEntry);
+    const transfers = group.filter(isPureTransferEntry);
+    if (hosts.length === 0 || transfers.length === 0) continue;
+
+    let host = hosts[0]!;
+    for (const h of hosts.slice(1)) {
+      if (ceremonyHostRank(h) > ceremonyHostRank(host)) host = h;
+    }
+
+    let next: WallCalendarEntry = {
+      ...host,
+      badges: [...host.badges],
+      arts: [...host.arts],
+    };
+    for (const t of transfers) {
+      removeIds.add(t.id);
+      for (const art of t.arts) {
+        if (!next.arts.includes(art)) next.arts.push(art);
+      }
+      const routeOrBadge = t.subtitle?.trim()
+        ? `Überf. ${t.subtitle}`
+        : t.badges.find((b) => /über|krem|retour|abholung/i.test(b)) || 'Überführung';
+      if (!next.badges.some((b) => b === routeOrBadge || b === 'Überführung')) {
+        next.badges.push(routeOrBadge);
+      }
+      const subParts = [next.subtitle, t.subtitle].filter((s) => Boolean(s?.trim()));
+      next.subtitle = [...new Set(subParts)].join(' · ');
+      next.searchText = `${next.searchText} ${t.searchText} überführung`.toLowerCase();
+      next.grouped = true;
+      next.attachedTransfer = true;
+    }
+    updates.set(host.id, next);
+  }
+
+  if (removeIds.size === 0) return entries;
+
+  return entries
+    .filter((e) => !removeIds.has(e.id))
+    .map((e) => updates.get(e.id) ?? e)
+    .sort((a, b) => a.sortMs - b.sortMs || a.name.localeCompare(b.name, 'de'));
 }
 
 export function summarizeWallCalendarDay(entries: readonly WallCalendarEntry[]): {
@@ -555,7 +664,9 @@ export function buildWallCalendarEntries(sterbefaelle: Sterbefall[]): WallCalend
     }
   }
 
-  return entries.sort((a, b) => a.sortMs - b.sortMs || a.name.localeCompare(b.name, 'de'));
+  return attachTransfersToCeremonyEntries(
+    entries.sort((a, b) => a.sortMs - b.sortMs || a.name.localeCompare(b.name, 'de'))
+  );
 }
 
 function dayKeyToDeDatum(dayKey: string): string | null {
@@ -631,6 +742,88 @@ export function mergeZusatzTermineIntoEntries(
   if (extra.length === 0) return entries;
   return [...entries, ...extra].sort(
     (a, b) => a.sortMs - b.sortMs || a.name.localeCompare(b.name, 'de')
+  );
+}
+
+/**
+ * Geplante Überführungen aus der Planung in den Kalender mischen.
+ * Bestehende Alamida-Überführungen am gleichen Tag/Route werden ersetzt/ergänzt.
+ */
+export function mergeTransferPlanIntoEntries(
+  entries: WallCalendarEntry[],
+  assignments: Record<
+    string,
+    {
+      id: string;
+      docId: string;
+      plannedDayKey: string | null;
+      plannedZeit?: string | null;
+      vonOrt?: string | null;
+      nachOrt?: string | null;
+      schrittTyp?: string | null;
+    }
+  >,
+  sterbefaelle: Sterbefall[]
+): WallCalendarEntry[] {
+  const byId = new Map(sterbefaelle.map((s) => [s.id, s]));
+  const planned: WallCalendarEntry[] = [];
+  const coveredKeys = new Set<string>();
+
+  for (const assignment of Object.values(assignments)) {
+    const dayKey = assignment.plannedDayKey;
+    if (!dayKey) continue;
+    const s = byId.get(assignment.docId);
+    if (!s) continue;
+    const deDatum = dayKeyToDeDatum(dayKey);
+    if (!deDatum) continue;
+    const zeit = formatZeitDe(assignment.plannedZeit ?? undefined) || undefined;
+    const sortMs =
+      parseDatumZeitDe(deDatum, zeit) ?? parseDatumZeitDe(deDatum, undefined, true);
+    if (sortMs == null) continue;
+    const art = calendarArtFromSchritt(assignment.schrittTyp ?? undefined);
+    const von = assignment.vonOrt?.trim() || '—';
+    const nach = assignment.nachOrt?.trim() || '—';
+    const title = schrittTypLabel(assignment.schrittTyp ?? 'ueberfuehrung');
+    const name = fallName(s);
+    const route = `${von} → ${nach}`;
+    const id = `plan:${assignment.id}`;
+    coveredKeys.add(`${assignment.docId}|${dayKey}|${art}`);
+    planned.push({
+      id,
+      docId: s.id,
+      sterbefallId: s.sterbefallId ?? s.id,
+      dayKey,
+      dayLabel: formatDayLabelDe(dayKey),
+      timeLabel: zeit || '—',
+      sortMs,
+      name,
+      title,
+      subtitle: route,
+      badges: [title, 'Geplant'],
+      grouped: false,
+      arts: [art],
+      searchText: [name, title, route, s.sterbefallId, 'geplant']
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase(),
+      bestattungsMarker: calendarBestattungsMarker(s, [art], title),
+    });
+  }
+
+  if (planned.length === 0) return entries;
+
+  // Alamida-Überführungen am selben Tag/Art für geplante Fälle ausblenden
+  // (Planungsdatum hat Vorrang)
+  const filtered = entries.filter((e) => {
+    if (!isUeberfuehrungCalendarEntry(e) && !isPureTransferEntry(e)) return true;
+    return !coveredKeys.has(`${e.docId}|${e.dayKey}|${e.arts.find(isUeberfuehrungCalendarArt)}`);
+  });
+
+  // Geplante Überführungen an Feiertermine hängen (kein eigener Personalbedarf)
+  return attachTransfersToCeremonyEntries(
+    [...filtered, ...planned].sort(
+      (a, b) => a.sortMs - b.sortMs || a.name.localeCompare(b.name, 'de')
+    )
   );
 }
 

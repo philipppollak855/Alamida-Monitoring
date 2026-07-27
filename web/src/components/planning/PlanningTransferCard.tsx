@@ -75,6 +75,11 @@ export function PlanningTransferCard({
             {c.bestattungsMarker ? ` · ${c.bestattungsMarker}` : ''}
           </span>
         ))}
+        {attachedToCeremony && (
+          <span className="plan-ceremony-chip" title="Personal über den zugehörigen Feiertermin">
+            zugehörig · kein Extra-Personal
+          </span>
+        )}
         <EndzielChip typ={card.endzielTyp} ort={card.endziel} />
       </div>
 

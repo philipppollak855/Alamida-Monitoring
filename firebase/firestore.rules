@@ -79,6 +79,8 @@ service cloud.firestore {
     function sterbefallDispositionCloseGrundValid(grund) {
       return grund in [
         'manuell_entfernt',
+        'duplikat_bereinigt',
+        'duplikat_ersetzt',
         'uebergabe_anderer_bestatter',
         'beisetzung_durch_dritte',
         'kremation_extern',
@@ -92,7 +94,11 @@ service cloud.firestore {
         && request.resource.data.aktivInDisposition == false
         && sterbefallDispositionCloseGrundValid(request.resource.data.historieGrund)
         && (
-          request.resource.data.historieGrund == 'manuell_entfernt'
+          request.resource.data.historieGrund in [
+            'manuell_entfernt',
+            'duplikat_bereinigt',
+            'duplikat_ersetzt',
+          ]
           || (
             request.resource.data.abschlussGrund == request.resource.data.historieGrund
             && request.resource.data.abgeschlossenAm != null

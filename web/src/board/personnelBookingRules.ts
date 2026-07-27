@@ -223,3 +223,69 @@ export function personnelBookingTraegerLine(
   if (names.length === 0) return `${booking.traegerIds.length} Träger`;
   return names.join(', ');
 }
+
+/** Kalenderzeile: Arrangeur + Träger (Namen). */
+export function personnelBookingDisplayLine(
+  booking: PersonnelBooking | null | undefined,
+  pool: { id: string; name: string; extern?: boolean }[]
+): string | null {
+  if (!booking) return null;
+  const byId = new Map(pool.map((p) => [p.id, p]));
+  const parts: string[] = [];
+  if (booking.arrangeurId) {
+    const p = byId.get(booking.arrangeurId);
+    if (p?.name?.trim()) {
+      parts.push(p.extern ? `Arr. ${p.name.trim()} (extern)` : `Arr. ${p.name.trim()}`);
+    } else {
+      parts.push('Arrangeur');
+    }
+  }
+  const traeger = personnelBookingTraegerLine(booking, pool);
+  if (traeger) parts.push(traeger);
+  if (parts.length === 0 && booking.note?.trim()) return booking.note.trim();
+  return parts.length > 0 ? parts.join(' · ') : null;
+}
+
+/**
+ * Findet Personalbuchung für einen Kalendereintrag:
+ * exakte ID, Ceremony-ID, oder gleicher Fall/Tag/Art.
+ */
+export function findBookingForWallEntry(
+  bookings: Record<string, PersonnelBooking>,
+  entry: {
+    id: string;
+    docId: string;
+    dayKey: string;
+    arts: readonly string[];
+    title: string;
+  }
+): PersonnelBooking | null {
+  const exact = bookings[entry.id];
+  if (exact) return exact;
+
+  for (const art of entry.arts) {
+    const kind =
+      art === 'ueberfuehrung_kremation'
+        ? 'kremation'
+        : art === 'beisetzung'
+          ? 'beisetzung'
+          : art === 'verabschiedung'
+            ? 'verabschiedung'
+            : art === 'trauerfeier' || art === 'trauerfeier2'
+              ? 'trauerfeier'
+              : art;
+    const ceremony = findBookingForCeremony(bookings, entry.docId, entry.dayKey, kind);
+    if (ceremony) return ceremony;
+  }
+
+  return (
+    Object.values(bookings).find(
+      (b) =>
+        b.docId === entry.docId &&
+        b.dayKey === entry.dayKey &&
+        (b.entryArts.some((a) => entry.arts.includes(a)) ||
+          entry.arts.some((a) => b.entryTitle.toLowerCase().includes(a)) ||
+          b.entryTitle.toLowerCase().includes(entry.title.toLowerCase()))
+    ) ?? null
+  );
+}

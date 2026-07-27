@@ -295,6 +295,12 @@ export function PersonnelBookingDialog({
           </p>
         )}
 
+        {entry.attachedTransfer && (
+          <p className="personnel-booking-rule">
+            Überführung ist diesem Termin zugehörig — kein separates Personal für die Überführung.
+          </p>
+        )}
+
         <div className="personnel-booking-fields">
           <label className="personnel-booking-field">
             <span>Arrangeur{validation.requiresArrangeur ? ' *' : ''}</span>
