@@ -1,0 +1,50 @@
+name: Deploy Web
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'web/**'
+      - 'firebase/**'
+      - '.github/workflows/deploy-web.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install & build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Prepare Firebase public
+        working-directory: .
+        run: |
+          rm -rf firebase/public
+          cp -a web/dist firebase/public
+
+      - name: Deploy Firebase Hosting + Rules
+        working-directory: .
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          if [ -z "$FIREBASE_TOKEN" ]; then
+            echo "FIREBASE_TOKEN fehlt — Secret im Repo setzen (firebase login:ci)."
+            exit 1
+          fi
+          npx --yes firebase-tools@13 deploy --only hosting,firestore --project alamida---monitoring --non-interactive --token "$FIREBASE_TOKEN"

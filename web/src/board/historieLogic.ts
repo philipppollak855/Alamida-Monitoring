@@ -6,6 +6,39 @@ function hatGueltigesDatum(raw?: string): boolean {
   return !!raw?.trim() && /\d{1,2}\.\d{1,2}\.\d{4}/.test(raw.trim());
 }
 
+function normalizeNameKey(raw?: string): string {
+  return (raw ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+}
+
+/**
+ * Alamida-Platzhalter „Nachname Verstorbener“ (und Varianten) — immer Fehleinträge.
+ */
+export function istFehlerhafterPlatzhalterFall(s: Sterbefall): boolean {
+  const name = normalizeNameKey(s.verstorbenerName);
+  if (
+    name === 'nachname verstorbener' ||
+    name === 'verstorbener nachname' ||
+    name === 'nachname, verstorbener' ||
+    name === 'verstorbener, nachname'
+  ) {
+    return true;
+  }
+
+  const vor = normalizeNameKey(s.verstorbenerVorname);
+  const nach = normalizeNameKey(s.verstorbenerNachname);
+  if (
+    (vor === 'verstorbener' && nach === 'nachname') ||
+    (vor === 'nachname' && nach === 'verstorbener')
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 export function istImAnschluss(raw?: boolean | string): boolean {
   if (raw === true) return true;
   if (!raw) return false;
@@ -38,6 +71,7 @@ export function hatFeierterminInDaten(s: Sterbefall): boolean {
 /** Kalender: auch archivierte Fälle mit Feierterminen (Wall-Tabs nutzen weiter filterAktive). */
 export function filterSterbefaelleFuerKalender(sterbefaelle: Sterbefall[]): Sterbefall[] {
   return sterbefaelle.filter((s) => {
+    if (istFehlerhafterPlatzhalterFall(s)) return false;
     if (istManuellAusgeschlossen(s.historieGrund)) return false;
     if (!istInHistory(s)) return true;
     return hatFeierterminInDaten(s);
@@ -100,6 +134,7 @@ export function istNachBeisetzungOderTrauerfeierAbgelaufen(s: Sterbefall): boole
  * Fall aus Disposition/Wall ausblenden (Agent-Flag oder abgelaufene Beisetzung/Trauerfeier).
  */
 export function istInHistory(s: Sterbefall): boolean {
+  if (istFehlerhafterPlatzhalterFall(s)) return true;
   if (s.inHistory === true) return true;
   if (s.aktivInDisposition === false) return true;
   return istNachBeisetzungOderTrauerfeierAbgelaufen(s);

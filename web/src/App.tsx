@@ -8,6 +8,7 @@ import { AppShell } from './layout/AppShell';
 import { BoardPage } from './pages/BoardPage';
 import { LoginPage } from './pages/LoginPage';
 import { PendingPage } from './pages/PendingPage';
+import { PlanningPage } from './pages/PlanningPage';
 import { WallPage } from './pages/WallPage';
 import { InstallPwa } from './components/InstallPwa';
 import { useWidgetBadge } from './hooks/useWidgetBadge';
@@ -48,8 +49,10 @@ export function App() {
           >
             <Route path="/" element={<Navigate to="/wall" replace />} />
             <Route path="/disposition" element={<BoardPage />} />
+            <Route path="/planung" element={<PlanningPage />} />
             <Route path="/wall" element={<WallPage />} />
             <Route path="/widgets" element={<WidgetsHubPage />} />
+            <Route path="*" element={<Navigate to="/disposition" replace />} />
           </Route>
           <Route
             element={

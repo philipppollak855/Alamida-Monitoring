@@ -150,5 +150,19 @@ service cloud.firestore {
       allow read: if isActivatedUser() || isPublicWallRead();
       allow write: if isActivatedUser();
     }
+
+    // Disposition-Canvas: geplante Überführungen als Events weitergeben
+    match /dispositionEvents/{id} {
+      allow read: if isActivatedUser();
+      allow create: if isActivatedUser()
+        && request.resource.data.type in [
+          'ueberfuehrung_geplant',
+          'ueberfuehrung_umgeplant',
+          'ueberfuehrung_entfernt',
+        ]
+        && request.resource.data.docId is string
+        && request.resource.data.docId.size() > 0;
+      allow update, delete: if false;
+    }
   }
 }
