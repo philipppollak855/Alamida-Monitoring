@@ -966,37 +966,62 @@ export function attachKremationToGroup(
   const dayKey = target.plannedDayKey ?? dragged.plannedDayKey;
   if (!dayKey) return null;
 
-  const groupId =
-    target.kremationGroupId?.trim() ||
-    dragged.kremationGroupId?.trim() ||
-    newKremationGroupId();
-
-  let next = { ...assignments };
+  const oldDraggedGroup = dragged.kremationGroupId?.trim() || null;
+  const oldTargetGroup = target.kremationGroupId?.trim() || null;
+  const groupId = oldTargetGroup || oldDraggedGroup || newKremationGroupId();
   const syncZeit = target.plannedZeit ?? dragged.plannedZeit ?? null;
 
-  const ensureMember = (card: PlanningCard, memberOrder: number) => {
-    next = moveCardAssignment(next, card, dayKey, memberOrder, {
+  let next = { ...assignments };
+
+  const memberIds = new Set<string>([dragged.id, target.id]);
+  for (const [id, a] of Object.entries(assignments)) {
+    const gid = a.kremationGroupId?.trim();
+    if (gid && (gid === oldDraggedGroup || gid === oldTargetGroup)) {
+      memberIds.add(id);
+    }
+  }
+
+  for (const id of memberIds) {
+    const existing = next[id];
+    const cardLike =
+      id === dragged.id
+        ? dragged
+        : id === target.id
+          ? target
+          : existing
+            ? {
+                ...dragged,
+                id,
+                docId: existing.docId,
+                zeile: existing.zeile,
+                order: existing.order,
+                plannedDayKey: existing.plannedDayKey,
+                plannedZeit: existing.plannedZeit,
+                vonOrt: existing.vonOrt ?? dragged.vonOrt,
+                nachOrt: existing.nachOrt ?? dragged.nachOrt,
+                schrittTyp: existing.schrittTyp ?? 'kremation',
+                kuehlraumId: existing.plannedKuehlraumId ?? null,
+                source: existing.source === 'canvas' ? 'canvas' : 'alamida',
+                hasManualPlan: true,
+                targetsEigenerKr: false,
+                leavesEigenerKr: true,
+                sterbefallId: '',
+                name: '',
+                terminAm: '',
+                sourceDayKey: null,
+                status: 'geplant',
+              }
+            : null;
+    if (!cardLike) continue;
+    const memberOrder =
+      id === dragged.id ? order : id === target.id ? target.order : (existing?.order ?? order);
+    next = moveCardAssignment(next, cardLike as PlanningCard, dayKey, memberOrder, {
       kremationGroupId: groupId,
-      plannedZeit: syncZeit ?? card.plannedZeit ?? null,
+      plannedZeit: syncZeit ?? cardLike.plannedZeit ?? null,
       attachedCeremony: null,
       detachedFromCeremony: true,
+      schrittTyp: 'kremation',
     });
-  };
-
-  ensureMember(target, target.order);
-  ensureMember(dragged, order);
-
-  // Bereits in einer der Gruppen → auf gemeinsame ID ziehen
-  for (const cardId of Object.keys(next)) {
-    const a = next[cardId]!;
-    if (
-      a.kremationGroupId &&
-      (a.kremationGroupId === dragged.kremationGroupId ||
-        a.kremationGroupId === target.kremationGroupId) &&
-      a.kremationGroupId !== groupId
-    ) {
-      next[cardId] = { ...a, kremationGroupId: groupId, plannedZeit: syncZeit ?? a.plannedZeit };
-    }
   }
 
   return { assignments: next, groupId };

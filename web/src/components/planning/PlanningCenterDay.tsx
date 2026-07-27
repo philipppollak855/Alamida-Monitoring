@@ -128,9 +128,26 @@ export function PlanningCenterDay({
     attachedByHost.set(key, list);
   }
 
-  const { groups: kremationGroups, singles: looseSingles } =
+  const { groups: kremationGroups, singles: looseSinglesRaw } =
     partitionKremationGroups(looseTransfers);
-  const looseCount = kremationGroups.reduce((n, g) => n + g.members.length, 0) + looseSingles.length;
+
+  const groupedMemberIds = new Set(
+    kremationGroups.flatMap((g) => g.members.map((m) => m.id))
+  );
+  const groupedDocIds = new Set(
+    kremationGroups.flatMap((g) => g.members.map((m) => m.docId))
+  );
+
+  // Mitglieder einer Kremationsfahrt nie zusätzlich als Einzelkarte
+  const looseSingles = looseSinglesRaw.filter((c) => !groupedMemberIds.has(c.id));
+
+  // Kremations-Termine der zusammengefassten Fälle ausblenden — nur die Gruppenkarte bleibt
+  const visibleCeremonies = sortedCeremonies.filter(
+    (c) => !(c.ceremony.kind === 'kremation' && groupedDocIds.has(c.docId))
+  );
+
+  const looseCount =
+    kremationGroups.reduce((n, g) => n + g.members.length, 0) + looseSingles.length;
 
   return (
     <section
@@ -157,9 +174,9 @@ export function PlanningCenterDay({
       {capacities.length > 0 && <PlanningCapacityMeters capacities={capacities} />}
 
       <div className="plan-center-day-body">
-        {sortedCeremonies.length > 0 && (
+        {visibleCeremonies.length > 0 && (
           <ul className="plan-center-ceremonies" aria-label="Termine an diesem Tag">
-            {sortedCeremonies.map((c) => {
+            {visibleCeremonies.map((c) => {
               const { ceremony } = c;
               const when =
                 ceremony.zeit ||
@@ -327,7 +344,7 @@ export function PlanningCenterDay({
 
         <div className="plan-column-cards">
           {looseCount === 0 ? (
-            sortedCeremonies.length === 0 ? (
+            visibleCeremonies.length === 0 ? (
               <p className="plan-column-empty">Überführung hierher ziehen (X → Y)</p>
             ) : null
           ) : (
