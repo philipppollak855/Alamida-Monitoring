@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { currentWeekDayRange } from './monthScrollWindow';
 import {
+  attachTransfersToCeremonyEntries,
   buildMonthOverviewGrid,
   buildWallCalendarDaysInRange,
   buildWallCalendarEntries,
@@ -58,6 +59,68 @@ describe('summarizeWallCalendarDay', () => {
       entry(['ueberfuehrung_kremation']),
     ]);
     expect(summary).toEqual({ total: 3, ueberfuehrungen: 2 });
+  });
+
+  it('zählt zugehörige Überführung nicht separat', () => {
+    const summary = summarizeWallCalendarDay([
+      {
+        ...entry(['beisetzung', 'ueberfuehrung']),
+        attachedTransfer: true,
+      },
+    ]);
+    expect(summary).toEqual({ total: 1, ueberfuehrungen: 0 });
+  });
+});
+
+describe('attachTransfersToCeremonyEntries', () => {
+  it('hängt Überführung am gleichen Tag an Beisetzung', () => {
+    const entries = buildWallCalendarEntries([
+      {
+        id: 'doc-s',
+        sterbefallId: '260999',
+        verstorbenerName: 'Sulzer Test',
+        beisetzungsdatum: '30.07.2026',
+        beisetzungszeit: '14:00',
+        endziel: 'Friedhof',
+        ausstehend: [
+          {
+            zeile: 1,
+            schrittTyp: 'ueberfuehrung',
+            vonOrt: 'Kühlr. Grafenbach',
+            nachOrt: 'Friedhof',
+            terminAm: '30.07.2026 10:00',
+            status: 'geplant',
+          },
+        ],
+      },
+    ]);
+
+    expect(entries.length).toBe(1);
+    expect(entries[0]?.arts).toContain('beisetzung');
+    expect(entries[0]?.arts).toContain('ueberfuehrung');
+    expect(entries[0]?.attachedTransfer).toBe(true);
+    expect(entries[0]?.badges.some((b) => /Überf/i.test(b))).toBe(true);
+
+    const merged = attachTransfersToCeremonyEntries([
+      {
+        ...entry(['beisetzung']),
+        id: 'c1',
+        docId: 'd1',
+        dayKey: '2026-07-30',
+        title: 'Beisetzung',
+      },
+      {
+        ...entry(['ueberfuehrung']),
+        id: 't1',
+        docId: 'd1',
+        dayKey: '2026-07-30',
+        title: 'Überführung',
+        subtitle: 'KR → Friedhof',
+      },
+    ]);
+    expect(merged).toHaveLength(1);
+    expect(merged[0]?.id).toBe('c1');
+    expect(merged[0]?.attachedTransfer).toBe(true);
   });
 });
 
