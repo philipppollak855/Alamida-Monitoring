@@ -4,7 +4,7 @@ import { dayKeyFromDeDatum, extractDeDatum, extractZeitDe, parseDatumDe } from '
 import { istImAnschluss, sterbefallImAnschluss } from './historieLogic';
 import { istKrematorium } from './ortKeywords';
 
-/** S = Sarg (ohne Kremation), U = Urne (mit Kremation im Ablauf). */
+/** S = Sarg (ohne Kremation), U = Urne (mit Kremation im Ablauf / schon als Urne). */
 export type BestattungsMarker = 'S' | 'U';
 
 function istOffenerKremationsschritt(a: {
@@ -16,6 +16,44 @@ function istOffenerKremationsschritt(a: {
   if (a.schrittTyp !== 'kremation') return false;
   if (a.status === 'abholung_noetig') return true;
   return isAusstehendHeuteOrGeplant(a);
+}
+
+function hatOffenenKremationsschritt(s: Sterbefall): boolean {
+  if ((s.ausstehend ?? []).some(istOffenerKremationsschritt)) return true;
+  return s.naechsterSchrittTyp === 'kremation';
+}
+
+/**
+ * Alamida Bestattungsart / Agent-Resolver: Urne, Feuerbestattung, Kremation …
+ * (auch Enum-Fallback „Urne“ wenn Feld leer und Art aus Resolver kommt).
+ */
+export function istUrnenBestattungsart(s: Pick<Sterbefall, 'bestattungsart'>): boolean {
+  const art = (s.bestattungsart ?? '').trim().toLowerCase();
+  if (!art) return false;
+  return (
+    art.includes('urne') ||
+    art.includes('feuer') ||
+    art.includes('kremation') ||
+    art.includes('einäscher') ||
+    art.includes('einaescher')
+  );
+}
+
+function istKremationEndzielTyp(typ?: string): boolean {
+  const t = (typ ?? '').trim().toLowerCase();
+  return t === 'kremation' || t === 'krematorium';
+}
+
+/**
+ * Schon als Urne da (externe Kremation erledigt / Retour / Urnen-Art ohne offene eigene Kremation).
+ * Dann: Feiertermine = U, kein offener „Kremation“-Chip nötig.
+ */
+export function istBereitsAlsUrne(s: Sterbefall, now: Date = new Date()): boolean {
+  if (s.urnenBereich === true) return true;
+  if (istKremationErledigt(s, now)) return true;
+  // Externe Kremation: Urnen-/Feuerbestattung ohne offenen Kremationsschritt bei uns
+  if (istUrnenBestattungsart(s) && !hatOffenenKremationsschritt(s)) return true;
+  return false;
 }
 
 /**
@@ -50,13 +88,15 @@ export function findeKremationTermin(s: Sterbefall): string | undefined {
   return undefined;
 }
 
-/** Kremation geplant, offen oder bereits im Verlauf (Kühlraum-Chip „Kremation“). */
+/** Kremation geplant, offen, erledigt — oder Sterbefall ist / wird Urne (auch externe Kremation). */
 export function hatKremationImSterbefall(s: Sterbefall): boolean {
-  if ((s.ausstehend ?? []).some(istOffenerKremationsschritt)) return true;
+  if ((s.ausstehend ?? []).some((a) => a.schrittTyp === 'kremation')) return true;
   if (istKremationErledigt(s)) return true;
   if (s.naechsterSchrittTyp === 'kremation') return true;
-  if (s.endzielTyp === 'kremation') return true;
+  if (istKremationEndzielTyp(s.endzielTyp)) return true;
   if (s.endziel?.trim() && istKrematorium(s.endziel)) return true;
+  if (istUrnenBestattungsart(s)) return true;
+  if (s.urnenBereich === true) return true;
   return false;
 }
 
@@ -70,6 +110,13 @@ function kremationTerminVorFeier(s: Sterbefall, feierDayKey: string | null): boo
     if (krDay && krDay < feierDayKey) return true;
   }
 
+  // Auch nicht-offene / vergangene Kremationsschritte (Urnenweg-Timing)
+  for (const a of s.ausstehend ?? []) {
+    if (a.schrittTyp !== 'kremation') continue;
+    const krDay = dayKeyFromDeDatum(a.terminAm ?? a.abholungAm);
+    if (krDay && krDay < feierDayKey) return true;
+  }
+
   for (const v of s.verlauf ?? []) {
     if ((v.typ ?? '').toLowerCase() !== 'kremation') continue;
     const raw = v.terminAm ?? v.abholungAm;
@@ -80,13 +127,13 @@ function kremationTerminVorFeier(s: Sterbefall, feierDayKey: string | null): boo
   return false;
 }
 
-/** U auf Feiertermin: Kremation erledigt oder Urnenweg (Kremation vor/am Feiertag). */
+/** U auf Feiertermin: schon Urne, Kremation erledigt oder Urnenweg (Kremation vor Feiertag). */
 export function hatUrnenMarkerAufFeier(
   s: Sterbefall,
   feierDayKey: string | null,
   now: Date = new Date()
 ): boolean {
-  if (istKremationErledigt(s, now)) return true;
+  if (istBereitsAlsUrne(s, now)) return true;
   return kremationTerminVorFeier(s, feierDayKey);
 }
 

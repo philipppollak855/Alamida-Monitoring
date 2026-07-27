@@ -1219,6 +1219,22 @@ code {
   background: rgba(77, 159, 255, 0.22);
 }
 
+.kr-platz-urne {
+  flex: 0 0 auto;
+  padding: 0.28rem 0.45rem;
+  border-radius: 6px;
+  border: 1px solid rgba(77, 159, 255, 0.45);
+  background: rgba(77, 159, 255, 0.08);
+  color: var(--accent);
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.kr-platz-urne:hover:not(:disabled) {
+  background: rgba(77, 159, 255, 0.18);
+}
+
 .kr-platz-details {
   width: 1.65rem;
   padding: 0.28rem 0;

@@ -147,7 +147,13 @@ function ersterKrematoriumOrt(...candidates: (string | undefined)[]): string | n
 function hatKremationExternBezug(s: Sterbefall): boolean {
   if (istAktuellImKrematorium(s)) return true;
   if (s.naechsterSchrittTyp === 'kremation') return true;
-  if (s.endzielTyp === 'kremation' || (s.endziel && istKrematorium(s.endziel))) return true;
+  if (
+    s.endzielTyp === 'kremation' ||
+    s.endzielTyp === 'krematorium' ||
+    (s.endziel && istKrematorium(s.endziel))
+  ) {
+    return true;
+  }
   return getEffectiveAusstehend(s).some(
     (a) =>
       a.schrittTyp === 'kremation' &&

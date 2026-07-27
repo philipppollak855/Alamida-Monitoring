@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   calendarBestattungsMarker,
   hatKremationImSterbefall,
+  istBereitsAlsUrne,
   trauerfeier1AlsVerabschiedung,
 } from './feierterminLogic';
 import { buildKuehlraumTerminMarkers } from './kuehlraumTerminMarker';
@@ -19,6 +20,51 @@ describe('calendarBestattungsMarker', () => {
     expect(
       calendarBestattungsMarker(
         { ...base, trauerfeierdatum: '08.06.2026' },
+        ['trauerfeier'],
+        'Trauerfeier'
+      )
+    ).toBe('S');
+  });
+
+  it('U bei Beisetzung wenn schon als Urne (externe Kremation / Bestattungsart)', () => {
+    expect(
+      calendarBestattungsMarker(
+        {
+          ...base,
+          bestattungsart: 'Feuerbestattung',
+          endzielTyp: 'krematorium',
+          beisetzungsdatum: '10.06.2026',
+        },
+        ['beisetzung'],
+        'Beisetzung'
+      )
+    ).toBe('U');
+  });
+
+  it('U bei Trauerfeier wenn schon als Urne ohne offene Kremation', () => {
+    expect(
+      calendarBestattungsMarker(
+        {
+          ...base,
+          bestattungsart: 'Urne',
+          trauerfeierdatum: '08.06.2026',
+        },
+        ['trauerfeier'],
+        'Trauerfeier'
+      )
+    ).toBe('U');
+  });
+
+  it('S bei Trauerfeier mit Urnen-Art aber offener Kremation (noch Sarg)', () => {
+    expect(
+      calendarBestattungsMarker(
+        {
+          ...base,
+          bestattungsart: 'Feuerbestattung',
+          endzielTyp: 'krematorium',
+          trauerfeierdatum: '08.06.2026',
+          ausstehend: [{ schrittTyp: 'kremation', status: 'geplant' }],
+        },
         ['trauerfeier'],
         'Trauerfeier'
       )
@@ -196,6 +242,19 @@ describe('integration S/U markers', () => {
     expect(hatKremationImSterbefall({ ...base, endzielTyp: 'kremation' })).toBe(true);
   });
 
+  it('erkennt Agent-EndzielTyp krematorium und Bestattungsart Urne', () => {
+    expect(hatKremationImSterbefall({ ...base, endzielTyp: 'krematorium' })).toBe(true);
+    expect(hatKremationImSterbefall({ ...base, bestattungsart: 'Urne' })).toBe(true);
+    expect(istBereitsAlsUrne({ ...base, bestattungsart: 'Feuerbestattung' })).toBe(true);
+    expect(
+      istBereitsAlsUrne({
+        ...base,
+        bestattungsart: 'Feuerbestattung',
+        ausstehend: [{ schrittTyp: 'kremation', status: 'geplant' }],
+      })
+    ).toBe(false);
+  });
+
   it('Heute-Tab: Überführungen nicht in Feierliste (kommen aus flattenOffene)', () => {
     const sterbefaelle = [
       {
@@ -294,8 +353,9 @@ describe('integration S/U markers', () => {
       },
       new Date(2026, 5, 8)
     );
-    const tf = markers.find((m) => m.kind === 'trauerfeier');
-    expect(tf?.bestattungsMarker).toBe('U');
+    // Ohne eigenen Beisetzungstermin → Verabschiedung (Urnenweg)
+    const feier = markers.find((m) => m.kind === 'verabschiedung' || m.kind === 'trauerfeier');
+    expect(feier?.bestattungsMarker).toBe('U');
   });
 
   it('Kühlraum: Bernhard-Bock-Fall — Verabschiedung mit S, Kremation offen', () => {

@@ -9,6 +9,7 @@ const cfg: EigenerKuehlraumConfig = {
   id: 'grafenbach',
   label: 'Grafenbach',
   matchKeywords: ['grafenbach'],
+  externKeywords: [],
   plaetze: 4,
 };
 
@@ -53,5 +54,27 @@ describe('belegeKuehlraumSlots', () => {
     const slots = belegeKuehlraumSlots(faelle, cfg);
     expect(slots[2]?.id).toBe('a');
     expect(slots[0]?.id).toBe('b');
+  });
+
+  it('lässt Urnen-Bereich außen vor (kein Sarg-Platz)', () => {
+    const faelle: Sterbefall[] = [
+      {
+        id: 'urne',
+        aktivInAlamida: true,
+        urnenBereich: true,
+        kuehlplatz: '1',
+        kuehlraumId: 'Kühlr. Grafenbach',
+        status: 'im_kuehlraum',
+        ausstehend: [
+          {
+            vonOrt: 'UK',
+            nachOrt: 'Kühl. Grafenbach',
+            terminAm: '01.01.2020',
+          },
+        ],
+      },
+    ];
+    const slots = belegeKuehlraumSlots(faelle, cfg);
+    expect(slots.every((s) => s === null)).toBe(true);
   });
 });

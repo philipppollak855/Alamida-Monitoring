@@ -6,6 +6,7 @@ import {
   type BestattungsMarker,
   findeKremationTermin,
   hatKremationImSterbefall,
+  istBereitsAlsUrne,
   kuehlraumBestattungsMarker,
   trauerfeier1AlsVerabschiedung,
 } from './feierterminLogic';
@@ -132,7 +133,7 @@ export function buildKuehlraumTerminMarkers(
   const tf2 = extractDeDatum(s.trauerfeier2datum);
   if (tf2) pushFeierMarker(markers, s, feierMarkerKindTf2(s), tf2, now);
 
-  if (hatKremationImAblauf(s)) {
+  if (hatKremationImAblauf(s) && !istBereitsAlsUrne(s)) {
     const kr = formatMarkerLabel('kremation', findeKremationTermin(s), now);
     if (kr) markers.push(kr);
   }

@@ -33,7 +33,7 @@ import { useFallAbschluss } from '../hooks/useFallAbschluss';
 import { getErledigteZeilen } from '../board/ueberfuehrungErledigt';
 import { removeSterbefallFromDisposition } from '../services/dispositionFall';
 import { toggleUeberfuehrungErledigt } from '../services/ueberfuehrungErledigt';
-import { clearSterbefallUrnenRetour } from '../services/urnenRetour';
+import { clearSterbefallUrnenRetour, markSterbefallUrnenRetour } from '../services/urnenRetour';
 import { DispositionSettingsPanel } from '../components/DispositionSettingsPanel';
 import { EndzielChip, SchrittBadge } from '../ui/SchrittBadge';
 import { StatCard } from '../ui/StatCard';
@@ -279,6 +279,18 @@ export function BoardPage() {
       await clearSterbefallUrnenRetour(docId);
     } catch (e) {
       setUrnenError(e instanceof Error ? e.message : 'Rückgängig fehlgeschlagen');
+    } finally {
+      setUrnenPending(null);
+    }
+  }
+
+  async function handleAlsUrne(fall: Sterbefall) {
+    setUrnenError(null);
+    setUrnenPending(fall.id);
+    try {
+      await markSterbefallUrnenRetour(fall.id, fall.aktuellePosition ?? fall.endziel);
+    } catch (e) {
+      setUrnenError(e instanceof Error ? e.message : 'Urne-Übernahme fehlgeschlagen');
     } finally {
       setUrnenPending(null);
     }
@@ -698,12 +710,13 @@ export function BoardPage() {
                       now={calendarNow}
                       lagerSearchActive={lagerSearchActive}
                       expandedKrKey={expandedKrKey}
-                      abschlussPendingId={abschluss.pendingId}
+                      abschlussPendingId={abschluss.pendingId ?? urnenPending}
                       matchFall={(fall) => matchSterbefallQuery(fall, searchQuery)}
                       onToggleExpand={(key) =>
                         setExpandedKrKey((prev) => (prev === key ? null : key))
                       }
                       onAbschliessen={(fall) => abschluss.open(fall)}
+                      onAlsUrne={(fall) => void handleAlsUrne(fall)}
                     />
                   </section>
                 );
