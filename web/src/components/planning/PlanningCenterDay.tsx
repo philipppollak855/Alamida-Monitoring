@@ -20,6 +20,7 @@ type DayCeremony = {
   personnelLine?: string | null;
   needsLine?: string | null;
   needsPersonnel?: boolean;
+  personnelIncomplete?: boolean;
 };
 
 type Props = {
@@ -221,7 +222,7 @@ export function PlanningCenterDay({
                       {c.needsLine}
                     </span>
                   )}
-                  {c.personnelLine ? (
+                  {c.personnelLine && !c.personnelIncomplete ? (
                     <span className="plan-center-ceremony-personnel" title={c.personnelLine}>
                       {c.personnelLine}
                     </span>
@@ -230,7 +231,16 @@ export function PlanningCenterDay({
                       Kein Personal
                     </span>
                   ) : (
-                    <span className="plan-center-ceremony-personnel is-open">Personal offen</span>
+                    <span
+                      className="plan-center-ceremony-personnel is-open"
+                      title={c.personnelLine ?? 'Personal noch nicht vollständig'}
+                    >
+                      {c.personnelLine?.includes('Personal offen')
+                        ? c.personnelLine
+                        : c.personnelLine
+                          ? `${c.personnelLine} · Personal offen`
+                          : 'Personal offen'}
+                    </span>
                   )}
                   {acceptDrop && !isMerged && (
                     <span className="plan-center-ceremony-drop-hint">

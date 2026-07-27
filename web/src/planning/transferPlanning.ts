@@ -207,9 +207,10 @@ function cardFromAssignment(
       ? resolveAusstehendStatus(terminAm, 'geplant')
       : 'geplant',
     erledigt: false,
-    istAbholungVomSterbeort: true,
-    targetsEigenerKr: true,
-    leavesEigenerKr: false,
+    istAbholungVomSterbeort: !schrittStartIstEigeneKr({ vonOrt, nachOrt }),
+    targetsEigenerKr:
+      schrittZielIstEigeneKr({ vonOrt, nachOrt }) || Boolean(kuehlraumId),
+    leavesEigenerKr: schrittStartIstEigeneKr({ vonOrt, nachOrt }),
     kuehlraumId,
     order: assignment.order,
     hasManualPlan: true,
@@ -340,7 +341,8 @@ export function buildSlotFreeEvents(
 
   for (const card of cards) {
     if (card.erledigt || !card.plannedDayKey) continue;
-    if (!(card.leavesEigenerKr && !card.targetsEigenerKr)) continue;
+    // Abgang aus eigenem KR (auch KR→KR): Platz im Quell-Kühlraum wird frei
+    if (!card.leavesEigenerKr) continue;
     const reason: SlotFreeEvent['reason'] =
       card.schrittTyp === 'kremation' ? 'kremation' : 'ueberfuehrung';
     events.push({
@@ -449,13 +451,19 @@ export function buildLocationGroups(pool: SterbeortPoolItem[]): LocationGroup[] 
 }
 
 /**
- * Kühlräume mit Flag „linke Spalte“ als Anzeige-Gruppen für die Location-Rail.
+ * Kühlräume mit Flag „linke Spalte“ — ziehbar für KR→KR-Überführung.
  */
 export function buildKuehlraumLocationGroups(
   sterbefaelle: Sterbefall[],
+  cards: PlanningCard[],
   settings: DispositionSettings,
   now = new Date()
 ): LocationGroup[] {
+  const scheduledDocIds = new Set(
+    cards
+      .filter((c) => c.targetsEigenerKr && c.plannedDayKey != null && !c.erledigt)
+      .map((c) => c.docId)
+  );
   const groups: LocationGroup[] = [];
   for (const cfg of settings.eigeneKuehlraeume) {
     if (cfg.zeigeInLinkerPlanungsspalte !== true) continue;
@@ -463,20 +471,25 @@ export function buildKuehlraumLocationGroups(
     const items: SterbeortPoolItem[] = [];
     slots.forEach((fall) => {
       if (!fall) return;
+      if (scheduledDocIds.has(fall.id)) return;
       const ceremonies = buildCeremoniesForFall(fall, now);
+      const existing = cards.find(
+        (c) => c.docId === fall.id && c.targetsEigenerKr && !c.erledigt
+      );
       items.push({
         docId: fall.id,
         sterbefallId: fall.sterbefallId ?? fall.id,
         name: fall.verstorbenerName ?? fall.sterbefallId ?? fall.id,
         vonOrt: cfg.alamidaName || cfg.label,
+        existingCardId: existing?.id,
         suggestedKuehlraumId: cfg.id,
+        fromKuehlraumId: cfg.id,
         freigabeState: resolveFreigabeState(fall, now),
         freigabeDatum: fall.freigabeDatum,
         tageSeitFreigabe: tageSeitFreigabe(fall.freigabeFrei, fall.freigabeDatum, now),
         nextCeremony: ceremonies[0],
         endzielTyp: fall.endzielTyp,
         endziel: fall.endziel,
-        displayOnly: true,
       });
     });
     if (items.length === 0) {
@@ -496,6 +509,44 @@ export function buildKuehlraumLocationGroups(
     });
   }
   return groups;
+}
+
+/** Pool-Item aus rechter Kühlraum-Belegung (KR→KR ziehen). */
+export function poolItemFromKuehlraumOccupant(
+  kr: Pick<KuehlraumRailState, 'id' | 'label' | 'alamidaName'>,
+  occ: KuehlraumOccupant,
+  cards: PlanningCard[]
+): SterbeortPoolItem {
+  const existing = cards.find(
+    (c) => c.docId === occ.docId && c.targetsEigenerKr && !c.erledigt
+  );
+  return {
+    docId: occ.docId,
+    sterbefallId: occ.sterbefallId,
+    name: occ.name,
+    vonOrt: kr.alamidaName?.trim() || kr.label,
+    existingCardId: existing?.id,
+    suggestedKuehlraumId: kr.id,
+    fromKuehlraumId: kr.id,
+    freigabeState: occ.freigabeState,
+    freigabeDatum: occ.freigabeDatum,
+    tageSeitFreigabe: occ.tageSeitFreigabe,
+    nextCeremony: occ.nextCeremony,
+  };
+}
+
+/** Ziel-KR für Drop: bei KR-Quelle ein anderer Kühlraum, sonst Vorschlag/erster. */
+export function defaultTargetKuehlraumId(
+  item: SterbeortPoolItem,
+  settings: DispositionSettings
+): string | null {
+  if (item.fromKuehlraumId) {
+    const other = settings.eigeneKuehlraeume.find((k) => k.id !== item.fromKuehlraumId);
+    return other?.id ?? null;
+  }
+  return (
+    item.suggestedKuehlraumId ?? settings.eigeneKuehlraeume[0]?.id ?? null
+  );
 }
 
 export function buildKuehlraumRailStates(
@@ -592,13 +643,18 @@ export function buildKuehlraumCapacities(
     const baseOccupied = running;
 
     for (const dayKey of dayKeys) {
-      const dayCards = cards.filter(
-        (c) => c.plannedDayKey === dayKey && c.kuehlraumId === cfg.id && !c.erledigt
-      );
-      const arrivals = dayCards.filter((c) => c.targetsEigenerKr).length;
-      const transferDeps = dayCards.filter(
-        (c) => c.leavesEigenerKr && !c.targetsEigenerKr
+      const arrivals = cards.filter(
+        (c) =>
+          c.plannedDayKey === dayKey &&
+          !c.erledigt &&
+          c.targetsEigenerKr &&
+          c.kuehlraumId === cfg.id
       ).length;
+      const transferDeps = cards.filter((c) => {
+        if (c.plannedDayKey !== dayKey || c.erledigt || !c.leavesEigenerKr) return false;
+        const fromId = matchEigenerKuehlraum(c.vonOrt, settings)?.id;
+        return fromId === cfg.id;
+      }).length;
       const beisetzungDeps = slotFrees.filter((e) => {
         if (e.dayKey !== dayKey || e.reason !== 'beisetzung') return false;
         const fall = sterbefaelle.find((s) => s.id === e.docId);
@@ -1312,6 +1368,7 @@ export function buildScheduleDraftFromSterbeort(opts: {
   defaultZeit?: string;
 }): ScheduleDraft {
   const { item, dayKey, kuehlraum, existingCard, defaultZeit = '10:00' } = opts;
+  const fromKr = Boolean(item.fromKuehlraumId);
   return {
     docId: item.docId,
     cardId: existingCard?.id ?? item.existingCardId,
@@ -1322,7 +1379,9 @@ export function buildScheduleDraftFromSterbeort(opts: {
     kuehlraumLabel: kuehlraum.label,
     dayKey,
     zeit: existingCard?.plannedZeit || defaultZeit,
-    schrittTyp: existingCard?.schrittTyp || 'abholung',
+    schrittTyp: fromKr
+      ? 'ueberfuehrung'
+      : existingCard?.schrittTyp || 'abholung',
     existingZeile: existingCard && existingCard.zeile > 0 ? existingCard.zeile : undefined,
   };
 }

@@ -880,7 +880,23 @@
 }
 
 [data-theme='alamida'] .plan-center-ceremony-personnel.is-open {
-  color: #9a6b1f;
+  color: #b42318;
+  font-weight: 750;
+}
+
+[data-theme='alamida'] .plan-personnel-chip.is-open {
+  color: #b42318;
+  font-weight: 700;
+}
+
+[data-theme='alamida'] .wall-cal-traeger-line.is-open {
+  color: #b42318;
+  font-weight: 700;
+}
+
+[data-theme='alamida'] .personnel-booking-warn {
+  color: #b42318;
+  font-weight: 700;
 }
 
 [data-theme='alamida'] .plan-center-ceremony.is-merged {

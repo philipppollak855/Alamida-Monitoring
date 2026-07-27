@@ -541,8 +541,8 @@ export function DispositionSettingsPanel({ defaultOpen = false }: { defaultOpen?
                       In Planung: Belegung in linker Spalte anzeigen
                     </label>
                     <p className="settings-hint settings-hint--inline">
-                      Zusätzlich zur rechten Kühlraum-Leiste — Belegung unter „Aktuelle Orte“ (nur
-                      Anzeige).
+                      Zusätzlich zur rechten Kühlraum-Leiste — Belegung unter „Aktuelle Orte“,
+                      ziehbar für Überführung in einen anderen Kühlraum.
                     </p>
                     <label>
                       Alamida-Name (optional)

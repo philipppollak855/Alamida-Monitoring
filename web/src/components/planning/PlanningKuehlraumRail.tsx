@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { KuehlraumRailState } from '../../planning/types';
+import type { KuehlraumOccupant, KuehlraumRailState } from '../../planning/types';
 import { formatDayLabelDe } from '../../board/dateUtils';
 import {
   tageSeitFreigabeLabel,
@@ -10,17 +10,23 @@ import { formatTerminDisplay, freigabeLabel } from '../../planning/transferPlann
 type Props = {
   rails: KuehlraumRailState[];
   dropTargetId: string | null;
+  draggingId?: string | null;
   onDragOver: (kuehlraumId: string) => void;
   onDragLeave: (kuehlraumId: string) => void;
   onDrop: (kuehlraumId: string) => void;
+  onOccupantDragStart?: (kr: KuehlraumRailState, occ: KuehlraumOccupant) => void;
+  onOccupantDragEnd?: () => void;
 };
 
 export function PlanningKuehlraumRail({
   rails,
   dropTargetId,
+  draggingId,
   onDragOver,
   onDragLeave,
   onDrop,
+  onOccupantDragStart,
+  onOccupantDragEnd,
 }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -114,60 +120,84 @@ export function PlanningKuehlraumRail({
 
                 {expanded && (
                   <div className="plan-kr-panel-body">
-                    <p className="plan-kr-drop-hint">Fall hierher ziehen → Termin planen</p>
+                    <p className="plan-kr-drop-hint">
+                      Fall hierher ziehen → Termin planen · Belegung ziehen → anderer KR
+                    </p>
 
                     {kr.occupants.length > 0 && (
                       <ul className="plan-kr-occupants">
-                        {kr.occupants.map((occ) => (
-                          <li
-                            key={occ.docId}
-                            className={`plan-kr-occupant freigabe-${occ.freigabeState}`}
-                          >
-                            <div className="plan-kr-occupant-main">
-                              <span className="plan-kr-occupant-platz">P{occ.platz}</span>
-                              <strong title={occ.name}>{occ.name}</strong>
-                              {kr.zeigeTageSeitFreigabe &&
-                                occ.tageSeitFreigabe != null &&
-                                occ.tageSeitFreigabe > 0 && (
-                                  <span
-                                    className="plan-freigabe-tage-chip"
-                                    title={tageSeitFreigabeTitle(
-                                      occ.tageSeitFreigabe,
-                                      occ.freigabeDatum
-                                    )}
-                                  >
-                                    {tageSeitFreigabeLabel(occ.tageSeitFreigabe)}
+                        {kr.occupants.map((occ) => {
+                          const canDrag = Boolean(onOccupantDragStart);
+                          return (
+                            <li
+                              key={occ.docId}
+                              className={`plan-kr-occupant freigabe-${occ.freigabeState}${
+                                canDrag ? ' is-draggable' : ''
+                              }${draggingId === occ.docId ? ' is-dragging' : ''}`}
+                              draggable={canDrag}
+                              onDragStart={
+                                canDrag
+                                  ? (e) => {
+                                      e.stopPropagation();
+                                      e.dataTransfer.effectAllowed = 'move';
+                                      e.dataTransfer.setData('text/plain', occ.docId);
+                                      onOccupantDragStart?.(kr, occ);
+                                    }
+                                  : undefined
+                              }
+                              onDragEnd={canDrag ? onOccupantDragEnd : undefined}
+                            >
+                              <div className="plan-kr-occupant-main">
+                                {canDrag && (
+                                  <span className="plan-card-grip" aria-hidden>
+                                    ⠿
                                   </span>
                                 )}
-                            </div>
-                            <span className={`plan-freigabe-chip is-${occ.freigabeState}`}>
-                              {freigabeLabel(occ.freigabeState, occ.freigabeDatum)}
-                            </span>
-                            {occ.nextCeremony && (
-                              <span className="plan-ceremony-chip" title={occ.nextCeremony.label}>
-                                {occ.nextCeremony.kind === 'beisetzung'
-                                  ? 'Beisetzung'
-                                  : occ.nextCeremony.kind === 'trauerfeier'
-                                    ? 'Trauerfeier'
-                                    : occ.nextCeremony.kind === 'kremation'
-                                      ? 'Kremation'
-                                      : 'Verabschiedung'}
-                                {occ.nextCeremony.zeit
-                                  ? ` ${occ.nextCeremony.zeit}`
-                                  : occ.nextCeremony.relativeLabel
-                                    ? ` ${occ.nextCeremony.relativeLabel}`
-                                    : ''}
-                                {occ.nextCeremony.ort ? ` · ${occ.nextCeremony.ort}` : ''}
+                                <span className="plan-kr-occupant-platz">P{occ.platz}</span>
+                                <strong title={occ.name}>{occ.name}</strong>
+                                {kr.zeigeTageSeitFreigabe &&
+                                  occ.tageSeitFreigabe != null &&
+                                  occ.tageSeitFreigabe > 0 && (
+                                    <span
+                                      className="plan-freigabe-tage-chip"
+                                      title={tageSeitFreigabeTitle(
+                                        occ.tageSeitFreigabe,
+                                        occ.freigabeDatum
+                                      )}
+                                    >
+                                      {tageSeitFreigabeLabel(occ.tageSeitFreigabe)}
+                                    </span>
+                                  )}
+                              </div>
+                              <span className={`plan-freigabe-chip is-${occ.freigabeState}`}>
+                                {freigabeLabel(occ.freigabeState, occ.freigabeDatum)}
                               </span>
-                            )}
-                            {occ.freesOnDayKey && (
-                              <span className="plan-free-chip">
-                                frei {formatDayLabelDe(occ.freesOnDayKey)}
-                                {occ.freesReason ? ` (${occ.freesReason})` : ''}
-                              </span>
-                            )}
-                          </li>
-                        ))}
+                              {occ.nextCeremony && (
+                                <span className="plan-ceremony-chip" title={occ.nextCeremony.label}>
+                                  {occ.nextCeremony.kind === 'beisetzung'
+                                    ? 'Beisetzung'
+                                    : occ.nextCeremony.kind === 'trauerfeier'
+                                      ? 'Trauerfeier'
+                                      : occ.nextCeremony.kind === 'kremation'
+                                        ? 'Kremation'
+                                        : 'Verabschiedung'}
+                                  {occ.nextCeremony.zeit
+                                    ? ` ${occ.nextCeremony.zeit}`
+                                    : occ.nextCeremony.relativeLabel
+                                      ? ` ${occ.nextCeremony.relativeLabel}`
+                                      : ''}
+                                  {occ.nextCeremony.ort ? ` · ${occ.nextCeremony.ort}` : ''}
+                                </span>
+                              )}
+                              {occ.freesOnDayKey && (
+                                <span className="plan-free-chip">
+                                  frei {formatDayLabelDe(occ.freesOnDayKey)}
+                                  {occ.freesReason ? ` (${occ.freesReason})` : ''}
+                                </span>
+                              )}
+                            </li>
+                          );
+                        })}
                       </ul>
                     )}
 

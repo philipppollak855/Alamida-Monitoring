@@ -4740,6 +4740,11 @@ code {
   overflow-wrap: anywhere;
 }
 
+.wall-cal-traeger-line.is-open {
+  color: var(--danger, #ef4444);
+  font-weight: 700;
+}
+
 .wall-cal-day-open--head {
   width: 100%;
   display: block;
@@ -5231,8 +5236,9 @@ code {
 
 .personnel-booking-warn {
   margin: 0.45rem 0 0;
-  font-size: 0.82rem;
-  color: var(--warning, #d97706);
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--danger, #dc2626);
 }
 
 .personnel-booking-actions {
@@ -6871,8 +6877,15 @@ code {
 }
 
 .plan-personnel-chip.is-open {
-  color: var(--warn);
-  opacity: 0.9;
+  color: var(--danger, #ef4444);
+  font-weight: 700;
+  opacity: 1;
+}
+
+.plan-center-ceremony-personnel.is-open {
+  color: var(--danger, #ef4444);
+  font-weight: 750;
+  letter-spacing: 0.01em;
 }
 
 @keyframes plan-card-enter {
@@ -8094,8 +8107,8 @@ code {
 }
 
 .plan-center-ceremony-personnel.is-open {
-  color: var(--warn, #fbbf24);
-  font-weight: 550;
+  color: var(--danger, #ef4444);
+  font-weight: 750;
 }
 
 .plan-center-ceremonies li strong {
@@ -8194,6 +8207,14 @@ code {
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.25);
   border: 1px solid var(--border);
+}
+
+.plan-kr-occupant.is-draggable {
+  cursor: grab;
+}
+
+.plan-kr-occupant.is-dragging {
+  opacity: 0.55;
 }
 
 .plan-kr-occupant-main {

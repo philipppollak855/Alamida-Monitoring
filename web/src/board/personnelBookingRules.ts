@@ -86,12 +86,11 @@ export function validatePersonnelBooking(
 
   if (isBegraebnis && !draft.traegerVonFamilie) {
     const needed = Math.max(minTraeger, draft.requiredTraegerCount || 0);
-    if (minTraeger > 0 && draft.traegerIds.length < minTraeger) {
-      errors.push(
-        `Sarg-Begräbnis ohne Träger von Familie: mindestens ${minTraeger} Träger einbuchen.`
+    if (needed > 0 && draft.traegerIds.length < needed) {
+      warnings.push(
+        `Personal offen: noch ${needed - draft.traegerIds.length} von ${needed} Träger einbuchen` +
+          (draft.traegerIds.length === 0 ? ' (Anzahl bereits vorgemerkt).' : '.')
       );
-    } else if (needed > 0 && draft.traegerIds.length < needed) {
-      errors.push(`Bitte ${needed} Träger einbuchen (aktuell ${draft.traegerIds.length}).`);
     }
   }
 
@@ -246,6 +245,36 @@ export function ceremonyBookingId(docId: string, kind: string, dayKey: string): 
   return `${docId}:ceremony:${kind}:${dayKey}`;
 }
 
+/** Benötigte Trägerzahl aus Regel + vorgemerkter Anzahl. */
+export function neededTraegerForBooking(
+  entry: Pick<WallCalendarEntry, 'arts' | 'title' | 'bestattungsMarker'>,
+  booking: Pick<PersonnelBooking, 'traegerVonFamilie' | 'requiredTraegerCount'>
+): number {
+  if (booking.traegerVonFamilie) return 0;
+  return Math.max(
+    minTraegerForEntry(entry, false),
+    booking.requiredTraegerCount || 0
+  );
+}
+
+/** true wenn Arrangeur da, aber Träger noch unter Bedarf (oder gar nicht). */
+export function isPersonnelBookingIncomplete(
+  entry: Pick<WallCalendarEntry, 'arts' | 'title' | 'bestattungsMarker'>,
+  booking: PersonnelBooking | null | undefined
+): boolean {
+  if (!booking) return true;
+  if (isTransferPersonnelBooking(booking)) {
+    return booking.traegerIds.length === 0 && !booking.note?.trim();
+  }
+  if (isBegraebnisEntry(entry)) {
+    if (!booking.arrangeurId) return true;
+    if (booking.traegerVonFamilie) return false;
+    const needed = neededTraegerForBooking(entry, booking);
+    return needed > 0 && booking.traegerIds.length < needed;
+  }
+  return false;
+}
+
 export function findBookingForCeremony(
   bookings: Record<string, PersonnelBooking>,
   docId: string,
@@ -280,6 +309,17 @@ export function personnelBookingSummary(booking: PersonnelBooking | null | undef
   if (booking.arrangeurId) parts.push('Arrangeur');
   if (booking.traegerVonFamilie) parts.push('Träger Familie');
   else if (booking.traegerIds.length > 0) parts.push(`${booking.traegerIds.length} Träger`);
+  const needed = Math.max(
+    booking.requiredTraegerCount || 0,
+    0
+  );
+  if (
+    !booking.traegerVonFamilie &&
+    needed > 0 &&
+    booking.traegerIds.length < needed
+  ) {
+    parts.push('Personal offen');
+  }
   return parts.length > 0 ? parts.join(' · ') : 'Personal offen';
 }
 
@@ -333,6 +373,14 @@ export function personnelBookingDisplayLine(
   }
   const traeger = personnelBookingTraegerLine(booking, pool);
   if (traeger) parts.push(traeger);
+  const entryLike = {
+    arts: booking.entryArts,
+    title: booking.entryTitle,
+    bestattungsMarker: booking.bestattungsMarker,
+  };
+  if (isPersonnelBookingIncomplete(entryLike, booking)) {
+    parts.push('Personal offen');
+  }
   if (parts.length === 0 && booking.note?.trim()) return booking.note.trim();
   return parts.length > 0 ? parts.join(' · ') : null;
 }

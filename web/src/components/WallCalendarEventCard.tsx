@@ -26,8 +26,14 @@ export function WallCalendarEventCard({
   const bestattungsBadge = entry.bestattungsMarker ? (
     <WallCalBestattungsBadge marker={entry.bestattungsMarker} />
   ) : null;
+  const traegerOpen = Boolean(traegerLine?.includes('Personal offen'));
   const traegerBadge = traegerLine ? (
-    <span className="wall-cal-traeger-line">{traegerLine}</span>
+    <span
+      className={`wall-cal-traeger-line${traegerOpen ? ' is-open' : ''}`}
+      title={traegerOpen ? 'Personal noch nicht vollständig' : undefined}
+    >
+      {traegerLine}
+    </span>
   ) : null;
 
   const className = [

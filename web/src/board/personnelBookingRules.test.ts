@@ -75,15 +75,27 @@ describe('validatePersonnelBooking', () => {
     expect(v.errors.some((e) => e.includes('Arrangeur'))).toBe(true);
   });
 
-  it('Sarg ohne Familie mit weniger als 4 Trägern ist ungültig', () => {
+  it('Sarg ohne Familie mit weniger als 4 Trägern speicherbar, aber Personal offen', () => {
     const v = validatePersonnelBooking(sargBegraebnis, {
       arrangeurId: 'arr-1',
       traegerIds: ['t1', 't2'],
       traegerVonFamilie: false,
       requiredTraegerCount: 4,
     });
-    expect(v.ok).toBe(false);
+    expect(v.ok).toBe(true);
     expect(v.minTraeger).toBe(4);
+    expect(v.warnings.some((w) => w.includes('Personal offen'))).toBe(true);
+  });
+
+  it('mind. Träger ohne Einbuchung speicherbar, Warnung Personal offen', () => {
+    const v = validatePersonnelBooking(sargBegraebnis, {
+      arrangeurId: 'arr-1',
+      traegerIds: [],
+      traegerVonFamilie: false,
+      requiredTraegerCount: 4,
+    });
+    expect(v.ok).toBe(true);
+    expect(v.warnings.some((w) => w.includes('Personal offen'))).toBe(true);
   });
 
   it('Sarg mit Familie braucht keine Firmenträger', () => {
@@ -169,6 +181,15 @@ describe('personnelBookingSummary', () => {
     expect(
       personnelBookingSummary({ ...booking, traegerVonFamilie: true, traegerIds: [] })
     ).toBe('Arrangeur · Träger Familie');
+    expect(
+      personnelBookingSummary({ ...booking, traegerIds: [], requiredTraegerCount: 4 })
+    ).toBe('Arrangeur · Personal offen');
+    expect(
+      personnelBookingDisplayLine(
+        { ...booking, traegerIds: [], requiredTraegerCount: 4, bestattungsMarker: 'S' },
+        [{ id: 'a1', name: 'Alex' }]
+      )
+    ).toBe('Arr. Alex · Personal offen');
   });
 
   it('zeigt Fahrer bei Überführungsbuchung', () => {

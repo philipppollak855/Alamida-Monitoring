@@ -10,6 +10,7 @@ import {
   findBookingForCeremony,
   findBookingForWallEntry,
   isBegraebnisEntry,
+  isPersonnelBookingIncomplete,
   minTraegerForEntry,
   personnelBookingTraegerLine,
 } from '../board/personnelBookingRules';
@@ -149,7 +150,8 @@ export function isKremationTransferCard(card: Pick<PlanningCard, 'schrittTyp'>):
 
 export function planningCeremonyPersonnelLine(
   booking: PersonnelBooking | null | undefined,
-  pool: DispositionPerson[]
+  pool: DispositionPerson[],
+  ceremony?: CeremonyInfo
 ): string | null {
   if (!booking) return null;
   if (
@@ -183,6 +185,23 @@ export function planningCeremonyPersonnelLine(
   }
   const traeger = personnelBookingTraegerLine(booking, pool);
   if (traeger) parts.push(traeger);
+
+  const entryLike = ceremony
+    ? {
+        arts: [kindToArt(ceremony.kind)],
+        title: kindTitle(ceremony.kind),
+        bestattungsMarker: ceremony.bestattungsMarker ?? booking.bestattungsMarker,
+      }
+    : {
+        arts: booking.entryArts,
+        title: booking.entryTitle,
+        bestattungsMarker: booking.bestattungsMarker,
+      };
+
+  if (isPersonnelBookingIncomplete(entryLike, booking)) {
+    parts.push('Personal offen');
+  }
+
   return parts.length > 0 ? parts.join(' · ') : null;
 }
 
@@ -213,12 +232,20 @@ export function enrichPlanningCeremonies(
       c.ceremony.kind
     );
     const needsPersonnel = c.ceremony.kind !== 'kremation';
+    const entryLike = {
+      arts: [kindToArt(c.ceremony.kind)],
+      title: kindTitle(c.ceremony.kind),
+      bestattungsMarker: c.ceremony.bestattungsMarker ?? booking?.bestattungsMarker,
+    };
+    const personnelIncomplete =
+      needsPersonnel && isPersonnelBookingIncomplete(entryLike, booking);
     return {
       ...c,
       booking,
       needsPersonnel,
+      personnelIncomplete,
       needsLine: planningCeremonyNeedsLine(c.ceremony, booking, pool),
-      personnelLine: planningCeremonyPersonnelLine(booking, pool),
+      personnelLine: planningCeremonyPersonnelLine(booking, pool, c.ceremony),
     };
   });
 }

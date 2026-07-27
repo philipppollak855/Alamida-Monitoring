@@ -7,6 +7,7 @@ import {
   attachKremationToGroup,
   attachTransferToCeremony,
   buildKuehlraumCapacities,
+  buildKuehlraumLocationGroups,
   buildKuehlraumRailStates,
   buildLocationGroups,
   buildPlanningCards,
@@ -16,6 +17,7 @@ import {
   canUndoPlanEvent,
   canvasPlanningId,
   clearCardToAbholort,
+  defaultTargetKuehlraumId,
   detachKremationFromGroup,
   detachTransferFromCeremony,
   dismissPlanEvent,
@@ -116,6 +118,74 @@ describe('transferPlanning board', () => {
 
     const caps = buildKuehlraumCapacities(sterbefaelle, cards, settings, ['2026-07-28']);
     expect(caps[0].arrivals).toBe(1);
+  });
+
+  it('plant Überführung Kühlraum→Kühlraum und zählt Kapazität Quell/Ziel', () => {
+    const twoKr: DispositionSettings = {
+      ...settings,
+      eigeneKuehlraeume: [
+        {
+          ...settings.eigeneKuehlraeume[0],
+          zeigeInLinkerPlanungsspalte: true,
+        },
+        {
+          id: 'wrn',
+          label: 'Kühlraum Wr. Neustadt',
+          alamidaName: 'Kühlr. Wr. Neustadt',
+          matchKeywords: ['wr. neustadt', 'wrneustadt', 'kühlr. wr'],
+          externKeywords: [],
+          wandTab: 'kuehlraum',
+          plaetze: 4,
+          zeigeInLinkerPlanungsspalte: true,
+        },
+      ],
+    };
+    setDispositionSettings(twoKr);
+
+    const occupied = fall({
+      id: 'kr1',
+      sterbefallId: 'SF-KR',
+      verstorbenerName: 'Im Kühlraum',
+      aktuellePosition: 'Kühlr. Grafenbach',
+      kuehlraumIdDisposition: 'grafenbach',
+      kuehlplatzDisposition: '1',
+      freigabeFrei: true,
+      freigabeDatum: '20.07.2026',
+    });
+
+    const groups = buildKuehlraumLocationGroups([occupied], [], twoKr);
+    expect(groups.some((g) => g.kind === 'kuehlraum' && g.items.length === 1)).toBe(true);
+    const item = groups.flatMap((g) => g.items).find((i) => i.docId === 'kr1')!;
+    expect(item.fromKuehlraumId).toBe('grafenbach');
+    expect(defaultTargetKuehlraumId(item, twoKr)).toBe('wrn');
+
+    const draft = buildScheduleDraftFromSterbeort({
+      item,
+      dayKey: '2026-07-28',
+      kuehlraum: twoKr.eigeneKuehlraeume[1],
+      defaultZeit: '09:30',
+    });
+    expect(draft.schrittTyp).toBe('ueberfuehrung');
+    expect(draft.vonOrt).toContain('Grafenbach');
+    expect(draft.nachOrt).toContain('Neustadt');
+
+    const scheduled = scheduleToKuehlraum({}, draft, 10, null);
+    const cards = buildPlanningCards([occupied], scheduled.assignments, twoKr);
+    expect(cards).toHaveLength(1);
+    expect(cards[0].leavesEigenerKr).toBe(true);
+    expect(cards[0].targetsEigenerKr).toBe(true);
+    expect(cards[0].kuehlraumId).toBe('wrn');
+
+    const frees = buildSlotFreeEvents([occupied], cards, twoKr);
+    expect(frees.some((f) => f.docId === 'kr1' && f.reason === 'ueberfuehrung')).toBe(true);
+
+    const caps = buildKuehlraumCapacities([occupied], cards, twoKr, ['2026-07-28']);
+    const src = caps.find((c) => c.kuehlraumId === 'grafenbach')!;
+    const dst = caps.find((c) => c.kuehlraumId === 'wrn')!;
+    expect(src.departures).toBe(1);
+    expect(src.arrivals).toBe(0);
+    expect(dst.arrivals).toBe(1);
+    expect(dst.departures).toBe(0);
   });
 
   it('meldet Platz frei bei Beisetzung aus dem Kühlraum', () => {

@@ -42,6 +42,7 @@ import {
   canUndoPlanEvent,
   cardsForLane,
   clearCardToAbholort,
+  defaultTargetKuehlraumId,
   detachKremationFromGroup,
   detachTransferFromCeremony,
   dismissPlanEvent,
@@ -50,6 +51,7 @@ import {
   isKremationPlanningCard,
   moveCardAssignment,
   nextOrderInLane,
+  poolItemFromKuehlraumOccupant,
   snapshotFromAssignment,
   undoOrRemoveAssignment,
   undoPlanEvent,
@@ -58,6 +60,8 @@ import {
 import type {
   CeremonyInfo,
   DispositionPlanEvent,
+  KuehlraumOccupant,
+  KuehlraumRailState,
   PlanningCard,
   ScheduleDraft,
   SterbeortPoolItem,
@@ -153,7 +157,7 @@ export function PlanningPage() {
             p.vonOrt.toLowerCase().includes(q)
         );
     const ortGroups = buildLocationGroups(filtered);
-    const krGroups = buildKuehlraumLocationGroups(sterbefaelle, settings, today).map((g) => {
+    const krGroups = buildKuehlraumLocationGroups(sterbefaelle, cards, settings, today).map((g) => {
       if (!q) return g;
       return {
         ...g,
@@ -254,6 +258,11 @@ export function PlanningPage() {
       }
 
       if (drag.kind === 'source') {
+        if (drag.item.fromKuehlraumId && drag.item.fromKuehlraumId === kuehlraumId) {
+          clearDrag();
+          setError('Ziel-Kühlraum muss ein anderer sein (Überführung zwischen Kühlräumen).');
+          return;
+        }
         const existing = drag.item.existingCardId
           ? cards.find((c) => c.id === drag.item.existingCardId)
           : null;
@@ -278,7 +287,7 @@ export function PlanningPage() {
       );
       clearDrag();
     },
-    [settings.eigeneKuehlraeume, drag, cards, clearDrag]
+    [settings.eigeneKuehlraeume, drag, cards, clearDrag, setError]
   );
 
   const handleDropOnDay = useCallback(
@@ -290,10 +299,14 @@ export function PlanningPage() {
       setFocusDayKey(dayKey);
 
       if (drag.kind === 'source') {
-        const krId =
-          drag.item.suggestedKuehlraumId ?? settings.eigeneKuehlraeume[0]?.id;
+        const krId = defaultTargetKuehlraumId(drag.item, settings);
         if (!krId) {
           clearDrag();
+          if (drag.item.fromKuehlraumId) {
+            setError(
+              'Für Kühlraum→Kühlraum braucht es mindestens zwei eigene Kühlräume.'
+            );
+          }
           return;
         }
         openSchedule(dayKey, krId);
@@ -394,7 +407,7 @@ export function PlanningPage() {
         },
       });
     },
-    [drag, saving, clearDrag, settings.eigeneKuehlraeume, openSchedule, cards, plan.assignments, savePlan]
+    [drag, saving, clearDrag, settings, openSchedule, cards, plan.assignments, savePlan, setError]
   );
 
   const handleDropOnCeremony = useCallback(
@@ -520,9 +533,28 @@ export function PlanningPage() {
         clearDrag();
         return;
       }
+      if (
+        drag.kind === 'source' &&
+        drag.item.fromKuehlraumId &&
+        drag.item.fromKuehlraumId === kuehlraumId
+      ) {
+        clearDrag();
+        setError('Ziel-Kühlraum muss ein anderer sein (Überführung zwischen Kühlräumen).');
+        return;
+      }
       openSchedule(focusDayKey || calendarDay, kuehlraumId);
     },
-    [drag, saving, clearDrag, openSchedule, focusDayKey, calendarDay]
+    [drag, saving, clearDrag, openSchedule, focusDayKey, calendarDay, setError]
+  );
+
+  const handleOccupantDragStart = useCallback(
+    (kr: KuehlraumRailState, occ: KuehlraumOccupant) => {
+      setDrag({
+        kind: 'source',
+        item: poolItemFromKuehlraumOccupant(kr, occ, cards),
+      });
+    },
+    [cards]
   );
 
   const confirmSchedule = useCallback(
@@ -858,11 +890,14 @@ export function PlanningPage() {
             <PlanningKuehlraumRail
               rails={krRails}
               dropTargetId={dropTarget?.startsWith('kr:') ? dropTarget.slice(3) : null}
+              draggingId={draggingId}
               onDragOver={(id) => setDropTarget(`kr:${id}`)}
               onDragLeave={(id) =>
                 setDropTarget((t) => (t === `kr:${id}` ? null : t))
               }
               onDrop={handleDropOnKuehlraum}
+              onOccupantDragStart={handleOccupantDragStart}
+              onOccupantDragEnd={clearDrag}
             />
           </div>
 

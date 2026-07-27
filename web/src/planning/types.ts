@@ -144,7 +144,9 @@ export type SterbeortPoolItem = {
   nextCeremony?: CeremonyInfo;
   endzielTyp?: string;
   endziel?: string;
-  /** Nur Anzeige (z. B. Kühlraum in linker Spalte) — nicht ziehbar. */
+  /** Quelle ist eigener Kühlraum → KR→KR-Überführung. */
+  fromKuehlraumId?: string | null;
+  /** Nur Anzeige — nicht ziehbar. */
   displayOnly?: boolean;
 };
 
