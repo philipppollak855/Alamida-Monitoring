@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { WallCalendarEntry } from '../board/wallCalendar';
+import { isPureTransferEntry } from '../board/wallCalendar';
 import {
   calendarBestattungsMarker,
   resolveBestattungsMarkerOverride,
@@ -298,6 +299,12 @@ export function PersonnelBookingDialog({
         {entry.attachedTransfer && (
           <p className="personnel-booking-rule">
             Überführung ist diesem Termin zugehörig — kein separates Personal für die Überführung.
+          </p>
+        )}
+
+        {!entry.attachedTransfer && isPureTransferEntry(entry) && (
+          <p className="personnel-booking-rule">
+            Überführung: Fahrer / Personal nach Bedarf einbuchen (Arrangeur optional).
           </p>
         )}
 

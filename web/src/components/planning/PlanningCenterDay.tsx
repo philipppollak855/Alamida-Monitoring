@@ -1,5 +1,6 @@
 import type { CeremonyInfo, KuehlraumDayCapacity, PlanningCard } from '../../planning/types';
 import type { PersonnelBooking } from '../../types/personnelBooking';
+import { isAttachableCeremonyKind } from '../../planning/transferPlanning';
 import { PlanningTransferCard } from './PlanningTransferCard';
 import { PlanningCapacityMeters } from './PlanningCapacityMeters';
 import { WallCalBestattungsBadge } from '../WallCalBestattungsBadge';
@@ -21,6 +22,7 @@ type Props = {
   ceremonies: DayCeremony[];
   capacities: KuehlraumDayCapacity[];
   isDropTarget: boolean;
+  ceremonyDropKey?: string | null;
   draggingId: string | null;
   onDragOver: () => void;
   onDragLeave: () => void;
@@ -29,6 +31,11 @@ type Props = {
   onCardDragEnd: () => void;
   onResetCard: (card: PlanningCard) => void;
   onCeremonyClick?: (ceremony: DayCeremony) => void;
+  onCeremonyDragOver?: (ceremony: DayCeremony) => void;
+  onCeremonyDragLeave?: () => void;
+  onDropOnCeremony?: (ceremony: DayCeremony) => void;
+  onOpenPersonnel?: (card: PlanningCard) => void;
+  personnelByCardId?: Record<string, string | null>;
 };
 
 function ceremonyKindLabel(kind: CeremonyInfo['kind']): string {
@@ -51,6 +58,10 @@ function ceremonyTimeSortKey(c: CeremonyInfo): number {
   return 25 * 60;
 }
 
+function ceremonyDropId(c: DayCeremony): string {
+  return `${c.docId}|${c.ceremony.kind}|${c.ceremony.dayKey ?? ''}|${c.ceremony.zeit ?? ''}`;
+}
+
 export function PlanningCenterDay({
   dayKey,
   title,
@@ -59,6 +70,7 @@ export function PlanningCenterDay({
   ceremonies,
   capacities,
   isDropTarget,
+  ceremonyDropKey,
   draggingId,
   onDragOver,
   onDragLeave,
@@ -67,6 +79,11 @@ export function PlanningCenterDay({
   onCardDragEnd,
   onResetCard,
   onCeremonyClick,
+  onCeremonyDragOver,
+  onCeremonyDragLeave,
+  onDropOnCeremony,
+  onOpenPersonnel,
+  personnelByCardId,
 }: Props) {
   const sortedCeremonies = [...ceremonies].sort(
     (a, b) => ceremonyTimeSortKey(a.ceremony) - ceremonyTimeSortKey(b.ceremony)
@@ -107,6 +124,10 @@ export function PlanningCenterDay({
                 ceremony.datum ||
                 null;
               const clickable = Boolean(onCeremonyClick);
+              const acceptDrop =
+                Boolean(onDropOnCeremony) && isAttachableCeremonyKind(ceremony.kind);
+              const dropKey = ceremonyDropId(c);
+              const isCeremonyDrop = acceptDrop && ceremonyDropKey === dropKey;
               const content = (
                 <>
                   <div className="plan-center-ceremony-top">
@@ -138,15 +159,48 @@ export function PlanningCenterDay({
                   ) : (
                     <span className="plan-center-ceremony-personnel is-open">Personal offen</span>
                   )}
+                  {acceptDrop && (
+                    <span className="plan-center-ceremony-drop-hint">
+                      Überführung hierher ziehen
+                    </span>
+                  )}
                 </>
               );
 
               return (
                 <li
-                  key={`${c.docId}-${ceremony.kind}-${ceremony.datum}-${ceremony.zeit ?? ''}`}
+                  key={dropKey}
                   className={`plan-center-ceremony is-${ceremony.kind}${
                     clickable ? ' is-clickable' : ''
+                  }${isCeremonyDrop ? ' is-drop-target' : ''}${
+                    acceptDrop ? ' is-droppable' : ''
                   }`}
+                  onDragOver={
+                    acceptDrop
+                      ? (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onCeremonyDragOver?.(c);
+                        }
+                      : undefined
+                  }
+                  onDragLeave={
+                    acceptDrop
+                      ? (e) => {
+                          e.stopPropagation();
+                          onCeremonyDragLeave?.();
+                        }
+                      : undefined
+                  }
+                  onDrop={
+                    acceptDrop
+                      ? (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onDropOnCeremony?.(c);
+                        }
+                      : undefined
+                  }
                 >
                   {clickable ? (
                     <button
@@ -174,9 +228,11 @@ export function PlanningCenterDay({
                 key={card.id}
                 card={card}
                 dragging={draggingId === card.id}
+                personnelLine={personnelByCardId?.[card.id]}
                 onDragStart={onCardDragStart}
                 onDragEnd={onCardDragEnd}
                 onReset={onResetCard}
+                onOpenPersonnel={onOpenPersonnel}
               />
             ))
           )}

@@ -1,4 +1,28 @@
+export type FreigabeState = 'offen' | 'geplant' | 'frei';
+
+export type CeremonyKind =
+  | 'kremation'
+  | 'beisetzung'
+  | 'trauerfeier'
+  | 'verabschiedung';
+
 /** Persistierte Zuordnung einer Überführung auf dem Planungs-Canvas. */
+export type PlanAssignmentSnapshot = {
+  plannedDayKey: string | null;
+  plannedKuehlraumId?: string | null;
+  plannedZeit?: string | null;
+  vonOrt?: string | null;
+  nachOrt?: string | null;
+  schrittTyp?: string | null;
+  order: number;
+  attachedCeremony?: AttachedCeremonyRef | null;
+};
+
+export type AttachedCeremonyRef = {
+  kind: CeremonyKind;
+  dayKey: string;
+};
+
 export type PlanAssignment = {
   /** `${docId}:${zeile}` oder `${docId}:canvas:${kuehlraumId}` */
   id: string;
@@ -18,6 +42,10 @@ export type PlanAssignment = {
   source?: 'alamida' | 'canvas';
   /** Manuelle Reihenfolge innerhalb des Tages. */
   order: number;
+  /** Vorheriger Zustand — Umplanung rückgängig machen. */
+  previous?: PlanAssignmentSnapshot | null;
+  /** Manuell an Feiertermin angehängt. */
+  attachedCeremony?: AttachedCeremonyRef | null;
   updatedAtMs?: number;
 };
 
@@ -30,8 +58,13 @@ export type DispositionPlanEvent = {
   vonOrt?: string;
   nachOrt?: string;
   kuehlraumId?: string;
+  assignmentId?: string;
   plannedDayKey?: string | null;
   plannedZeit?: string | null;
+  /** Zustand vor dem Event (für Undo). */
+  previousSnapshot?: PlanAssignmentSnapshot | null;
+  /** Zustand zum Event-Zeitpunkt (für Wiederherstellen nach Entfernen). */
+  snapshot?: (PlanAssignmentSnapshot & { zeile?: number; source?: 'alamida' | 'canvas' }) | null;
   createdAtMs: number;
 };
 
@@ -40,14 +73,6 @@ export type PlanDocument = {
   events?: DispositionPlanEvent[];
   updatedAtMs?: number;
 };
-
-export type FreigabeState = 'offen' | 'geplant' | 'frei';
-
-export type CeremonyKind =
-  | 'kremation'
-  | 'beisetzung'
-  | 'trauerfeier'
-  | 'verabschiedung';
 
 export type CeremonyInfo = {
   kind: CeremonyKind;
@@ -81,6 +106,10 @@ export type PlanningCard = {
   kuehlraumId: string | null;
   order: number;
   hasManualPlan: boolean;
+  /** Umplanung hat gespeicherten Vorzustand → ↺ stellt ihn wieder her. */
+  canUndoUmplanung?: boolean;
+  /** Manuell an Feiertermin gebunden. */
+  attachedCeremony?: AttachedCeremonyRef | null;
   source: 'alamida' | 'canvas';
   amSterbeort?: boolean;
   freigabeState?: FreigabeState;

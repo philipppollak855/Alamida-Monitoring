@@ -10,13 +10,60 @@ import {
 import { db } from '../firebase';
 import { omitUndefinedDeep } from './personnelBookings';
 import type {
+  AttachedCeremonyRef,
+  CeremonyKind,
   DispositionPlanEvent,
   PlanAssignment,
+  PlanAssignmentSnapshot,
   PlanDocument,
 } from '../planning/types';
 
 const PLAN_DOC = ['settings', 'ueberfuehrungsPlanung'] as const;
 const MAX_EVENTS = 40;
+
+const CEREMONY_KINDS: CeremonyKind[] = [
+  'kremation',
+  'beisetzung',
+  'trauerfeier',
+  'verabschiedung',
+];
+
+function normalizeAttachedCeremony(raw: unknown): AttachedCeremonyRef | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const v = raw as Partial<AttachedCeremonyRef>;
+  if (!v.dayKey || !v.kind || !CEREMONY_KINDS.includes(v.kind as CeremonyKind)) return null;
+  return { kind: v.kind as CeremonyKind, dayKey: String(v.dayKey) };
+}
+
+function normalizeSnapshot(raw: unknown): PlanAssignmentSnapshot | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const v = raw as Partial<PlanAssignmentSnapshot>;
+  if (v.plannedDayKey === undefined && typeof v.order !== 'number') return null;
+  return omitUndefinedDeep({
+    plannedDayKey: (v.plannedDayKey ?? null) as string | null,
+    plannedKuehlraumId: v.plannedKuehlraumId ?? null,
+    plannedZeit: v.plannedZeit ?? null,
+    vonOrt: v.vonOrt ?? null,
+    nachOrt: v.nachOrt ?? null,
+    schrittTyp: v.schrittTyp ?? null,
+    order: typeof v.order === 'number' ? v.order : 0,
+    attachedCeremony: normalizeAttachedCeremony(v.attachedCeremony),
+  }) as PlanAssignmentSnapshot;
+}
+
+function normalizeEventSnapshot(
+  raw: unknown
+): (PlanAssignmentSnapshot & { zeile?: number; source?: 'alamida' | 'canvas' }) | null {
+  const base = normalizeSnapshot(raw);
+  if (!base || !raw || typeof raw !== 'object') return null;
+  const v = raw as { zeile?: number; source?: string };
+  const out: PlanAssignmentSnapshot & { zeile?: number; source?: 'alamida' | 'canvas' } = {
+    ...base,
+  };
+  if (typeof v.zeile === 'number') out.zeile = v.zeile;
+  if (v.source === 'alamida' || v.source === 'canvas') out.source = v.source;
+  return out;
+}
 
 function normalizeAssignments(raw: unknown): Record<string, PlanAssignment> {
   if (!raw || typeof raw !== 'object') return {};
@@ -39,6 +86,11 @@ function normalizeAssignments(raw: unknown): Record<string, PlanAssignment> {
       order: typeof v.order === 'number' ? v.order : 0,
     };
     if (typeof v.updatedAtMs === 'number') assignment.updatedAtMs = v.updatedAtMs;
+    if (v.previous && typeof v.previous === 'object') {
+      assignment.previous = normalizeSnapshot(v.previous);
+    }
+    const attached = normalizeAttachedCeremony(v.attachedCeremony);
+    if (attached) assignment.attachedCeremony = attached;
     out[id] = omitUndefinedDeep(assignment);
   }
   return out;
@@ -51,21 +103,25 @@ function normalizeEvents(raw: unknown): DispositionPlanEvent[] {
     if (!item || typeof item !== 'object') continue;
     const v = item as Partial<DispositionPlanEvent>;
     if (!v.id || !v.type || !v.docId) continue;
-    out.push(
-      omitUndefinedDeep({
-        id: String(v.id),
-        type: v.type,
-        docId: String(v.docId),
-        sterbefallId: v.sterbefallId ? String(v.sterbefallId) : undefined,
-        name: v.name ? String(v.name) : undefined,
-        vonOrt: v.vonOrt ? String(v.vonOrt) : undefined,
-        nachOrt: v.nachOrt ? String(v.nachOrt) : undefined,
-        kuehlraumId: v.kuehlraumId ? String(v.kuehlraumId) : undefined,
-        plannedDayKey: v.plannedDayKey ?? null,
-        plannedZeit: v.plannedZeit ?? null,
-        createdAtMs: typeof v.createdAtMs === 'number' ? v.createdAtMs : Date.now(),
-      }) as DispositionPlanEvent
-    );
+    const event: DispositionPlanEvent = {
+      id: String(v.id),
+      type: v.type,
+      docId: String(v.docId),
+      plannedDayKey: v.plannedDayKey ?? null,
+      plannedZeit: v.plannedZeit ?? null,
+      createdAtMs: typeof v.createdAtMs === 'number' ? v.createdAtMs : Date.now(),
+    };
+    if (v.sterbefallId) event.sterbefallId = String(v.sterbefallId);
+    if (v.name) event.name = String(v.name);
+    if (v.vonOrt) event.vonOrt = String(v.vonOrt);
+    if (v.nachOrt) event.nachOrt = String(v.nachOrt);
+    if (v.kuehlraumId) event.kuehlraumId = String(v.kuehlraumId);
+    if (v.assignmentId) event.assignmentId = String(v.assignmentId);
+    const prev = normalizeSnapshot(v.previousSnapshot);
+    if (prev) event.previousSnapshot = prev;
+    const snap = normalizeEventSnapshot(v.snapshot);
+    if (snap) event.snapshot = snap;
+    out.push(omitUndefinedDeep(event) as DispositionPlanEvent);
   }
   return out;
 }
@@ -144,8 +200,11 @@ export async function publishDispositionPlanEvent(
     vonOrt: event.vonOrt || undefined,
     nachOrt: event.nachOrt || undefined,
     kuehlraumId: event.kuehlraumId || undefined,
+    assignmentId: event.assignmentId || undefined,
     plannedDayKey: event.plannedDayKey ?? null,
     plannedZeit: event.plannedZeit ?? null,
+    previousSnapshot: event.previousSnapshot ?? null,
+    snapshot: event.snapshot ?? null,
     createdAtMs: event.createdAtMs ?? Date.now(),
   }) as DispositionPlanEvent;
 

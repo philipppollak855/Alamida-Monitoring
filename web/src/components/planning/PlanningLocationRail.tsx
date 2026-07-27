@@ -8,19 +8,58 @@ import {
 type Props = {
   groups: LocationGroup[];
   draggingId: string | null;
+  isDropTarget?: boolean;
   onDragStart: (item: SterbeortPoolItem) => void;
   onDragEnd: () => void;
+  onDragOver?: () => void;
+  onDragLeave?: () => void;
+  onDrop?: () => void;
 };
 
-export function PlanningLocationRail({ groups, draggingId, onDragStart, onDragEnd }: Props) {
+export function PlanningLocationRail({
+  groups,
+  draggingId,
+  isDropTarget,
+  onDragStart,
+  onDragEnd,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+}: Props) {
   const total = groups.reduce((n, g) => n + g.items.length, 0);
+  const acceptDrop = Boolean(onDrop);
 
   return (
-    <aside className="plan-rail plan-rail--locations" aria-label="Aktuelle Orte">
+    <aside
+      className={`plan-rail plan-rail--locations${isDropTarget ? ' is-drop-target' : ''}`}
+      aria-label="Aktuelle Orte"
+      onDragOver={
+        acceptDrop
+          ? (e) => {
+              e.preventDefault();
+              onDragOver?.();
+            }
+          : undefined
+      }
+      onDragLeave={acceptDrop ? onDragLeave : undefined}
+      onDrop={
+        acceptDrop
+          ? (e) => {
+              e.preventDefault();
+              onDrop?.();
+            }
+          : undefined
+      }
+    >
       <header className="plan-rail-head">
         <h2>Aktuelle Orte</h2>
         <p>Sterbeort / derzeitiger Standort</p>
         <span className="plan-rail-count">{total}</span>
+        {acceptDrop && (
+          <p className="plan-rail-drop-hint">
+            {isDropTarget ? 'Hier ablegen → zurück zum Ort' : 'Überführung hierher = Abholort'}
+          </p>
+        )}
       </header>
 
       <div className="plan-rail-body">
