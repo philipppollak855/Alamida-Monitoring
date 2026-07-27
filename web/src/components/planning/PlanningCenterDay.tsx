@@ -3,9 +3,12 @@ import type { PersonnelBooking } from '../../types/personnelBooking';
 import {
   isAttachableCeremonyKind,
   isCardAttachedToAnyCeremony,
+  isKremationPlanningCard,
+  partitionKremationGroups,
   pickCeremonyHostForCard,
 } from '../../planning/transferPlanning';
 import { PlanningTransferCard } from './PlanningTransferCard';
+import { PlanningKremationGroupCard } from './PlanningKremationGroupCard';
 import { PlanningCapacityMeters } from './PlanningCapacityMeters';
 import { WallCalBestattungsBadge } from '../WallCalBestattungsBadge';
 
@@ -28,6 +31,7 @@ type Props = {
   capacities: KuehlraumDayCapacity[];
   isDropTarget: boolean;
   ceremonyDropKey?: string | null;
+  kremationDropKey?: string | null;
   draggingId: string | null;
   onDragOver: () => void;
   onDragLeave: () => void;
@@ -39,6 +43,9 @@ type Props = {
   onCeremonyDragOver?: (ceremony: DayCeremony) => void;
   onCeremonyDragLeave?: () => void;
   onDropOnCeremony?: (ceremony: DayCeremony) => void;
+  onKremationDragOver?: (card: PlanningCard) => void;
+  onKremationDragLeave?: () => void;
+  onDropOnKremation?: (card: PlanningCard) => void;
   onOpenPersonnel?: (card: PlanningCard) => void;
   personnelByCardId?: Record<string, string | null>;
 };
@@ -80,6 +87,7 @@ export function PlanningCenterDay({
   capacities,
   isDropTarget,
   ceremonyDropKey,
+  kremationDropKey,
   draggingId,
   onDragOver,
   onDragLeave,
@@ -91,6 +99,9 @@ export function PlanningCenterDay({
   onCeremonyDragOver,
   onCeremonyDragLeave,
   onDropOnCeremony,
+  onKremationDragOver,
+  onKremationDragLeave,
+  onDropOnKremation,
   onOpenPersonnel,
   personnelByCardId,
 }: Props) {
@@ -117,7 +128,9 @@ export function PlanningCenterDay({
     attachedByHost.set(key, list);
   }
 
-  const looseCount = looseTransfers.length;
+  const { groups: kremationGroups, singles: looseSingles } =
+    partitionKremationGroups(looseTransfers);
+  const looseCount = kremationGroups.reduce((n, g) => n + g.members.length, 0) + looseSingles.length;
 
   return (
     <section
@@ -313,23 +326,57 @@ export function PlanningCenterDay({
         )}
 
         <div className="plan-column-cards">
-          {looseTransfers.length === 0 ? (
+          {looseCount === 0 ? (
             sortedCeremonies.length === 0 ? (
               <p className="plan-column-empty">Überführung hierher ziehen (X → Y)</p>
             ) : null
           ) : (
-            looseTransfers.map((card) => (
-              <PlanningTransferCard
-                key={card.id}
-                card={card}
-                dragging={draggingId === card.id}
-                personnelLine={personnelByCardId?.[card.id]}
-                onDragStart={onCardDragStart}
-                onDragEnd={onCardDragEnd}
-                onReset={onResetCard}
-                onOpenPersonnel={onOpenPersonnel}
-              />
-            ))
+            <>
+              {kremationGroups.map((group) => (
+                <PlanningKremationGroupCard
+                  key={group.groupId}
+                  group={group}
+                  draggingId={draggingId}
+                  isDropTarget={kremationDropKey === group.host.id}
+                  onCardDragStart={onCardDragStart}
+                  onCardDragEnd={onCardDragEnd}
+                  onDragOverGroup={() => onKremationDragOver?.(group.host)}
+                  onDragLeaveGroup={onKremationDragLeave}
+                  onDropOnGroup={
+                    onDropOnKremation ? () => onDropOnKremation(group.host) : undefined
+                  }
+                  onResetCard={onResetCard}
+                />
+              ))}
+              {looseSingles.map((card) => (
+                <PlanningTransferCard
+                  key={card.id}
+                  card={card}
+                  dragging={draggingId === card.id}
+                  personnelLine={personnelByCardId?.[card.id]}
+                  isDropTarget={
+                    Boolean(onDropOnKremation) &&
+                    isKremationPlanningCard(card) &&
+                    kremationDropKey === card.id
+                  }
+                  onDragStart={onCardDragStart}
+                  onDragEnd={onCardDragEnd}
+                  onReset={onResetCard}
+                  onOpenPersonnel={onOpenPersonnel}
+                  onDragOverCard={
+                    onDropOnKremation && isKremationPlanningCard(card)
+                      ? () => onKremationDragOver?.(card)
+                      : undefined
+                  }
+                  onDragLeaveCard={onKremationDragLeave}
+                  onDropOnCard={
+                    onDropOnKremation && isKremationPlanningCard(card)
+                      ? () => onDropOnKremation(card)
+                      : undefined
+                  }
+                />
+              ))}
+            </>
           )}
         </div>
       </div>

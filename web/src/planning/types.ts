@@ -16,6 +16,8 @@ export type PlanAssignmentSnapshot = {
   schrittTyp?: string | null;
   order: number;
   attachedCeremony?: AttachedCeremonyRef | null;
+  /** Gemeinsame Kremationsfahrt (mehrere Fälle). */
+  kremationGroupId?: string | null;
 };
 
 export type AttachedCeremonyRef = {
@@ -48,6 +50,8 @@ export type PlanAssignment = {
   attachedCeremony?: AttachedCeremonyRef | null;
   /** Explizit von Feiertermin gelöst (kein Same-Day-Merge). */
   detachedFromCeremony?: boolean;
+  /** Gemeinsame Kremationsfahrt — mehrere Fälle unter einer Karte. */
+  kremationGroupId?: string | null;
   updatedAtMs?: number;
 };
 
@@ -114,6 +118,8 @@ export type PlanningCard = {
   attachedCeremony?: AttachedCeremonyRef | null;
   /** Explizit von Feiertermin gelöst. */
   detachedFromCeremony?: boolean;
+  /** Gemeinsame Kremationsfahrt. */
+  kremationGroupId?: string | null;
   source: 'alamida' | 'canvas';
   amSterbeort?: boolean;
   freigabeState?: FreigabeState;
@@ -138,12 +144,16 @@ export type SterbeortPoolItem = {
   nextCeremony?: CeremonyInfo;
   endzielTyp?: string;
   endziel?: string;
+  /** Nur Anzeige (z. B. Kühlraum in linker Spalte) — nicht ziehbar. */
+  displayOnly?: boolean;
 };
 
 export type LocationGroup = {
   key: string;
   label: string;
   items: SterbeortPoolItem[];
+  /** Kühlraum-Gruppe in der linken Spalte. */
+  kind?: 'ort' | 'kuehlraum';
 };
 
 export type SlotFreeEvent = {
@@ -182,6 +192,8 @@ export type KuehlraumRailState = {
   overbooked: boolean;
   /** Einstellung: Freigabe-Tage-Marker bei Belegung zeigen. */
   zeigeTageSeitFreigabe?: boolean;
+  /** Einstellung: auch in linker Planungs-Spalte. */
+  zeigeInLinkerPlanungsspalte?: boolean;
   occupants: KuehlraumOccupant[];
   slotFrees: SlotFreeEvent[];
 };

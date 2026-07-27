@@ -48,6 +48,10 @@ function normalizeSnapshot(raw: unknown): PlanAssignmentSnapshot | null {
     schrittTyp: v.schrittTyp ?? null,
     order: typeof v.order === 'number' ? v.order : 0,
     attachedCeremony: normalizeAttachedCeremony(v.attachedCeremony),
+    kremationGroupId:
+      typeof v.kremationGroupId === 'string' && v.kremationGroupId.trim()
+        ? v.kremationGroupId.trim()
+        : null,
   }) as PlanAssignmentSnapshot;
 }
 
@@ -92,6 +96,9 @@ function normalizeAssignments(raw: unknown): Record<string, PlanAssignment> {
     const attached = normalizeAttachedCeremony(v.attachedCeremony);
     if (attached) assignment.attachedCeremony = attached;
     if (v.detachedFromCeremony === true) assignment.detachedFromCeremony = true;
+    if (typeof v.kremationGroupId === 'string' && v.kremationGroupId.trim()) {
+      assignment.kremationGroupId = v.kremationGroupId.trim();
+    }
     out[id] = omitUndefinedDeep(assignment);
   }
   return out;

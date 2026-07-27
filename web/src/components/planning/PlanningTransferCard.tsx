@@ -1,5 +1,5 @@
 import type { PlanningCard } from '../../planning/types';
-import { freigabeLabel } from '../../planning/transferPlanning';
+import { freigabeLabel, isKremationPlanningCard } from '../../planning/transferPlanning';
 import { isKremationTransferCard } from '../../planning/planningPersonnel';
 import { EndzielChip, SchrittBadge, StatusChip } from '../../ui/SchrittBadge';
 import { RouteFlow } from '../../ui/RouteFlow';
@@ -8,20 +8,28 @@ type Props = {
   card: PlanningCard;
   dragging?: boolean;
   personnelLine?: string | null;
+  isDropTarget?: boolean;
   onDragStart: (card: PlanningCard) => void;
   onDragEnd: () => void;
   onReset?: (card: PlanningCard) => void;
   onOpenPersonnel?: (card: PlanningCard) => void;
+  onDragOverCard?: () => void;
+  onDragLeaveCard?: () => void;
+  onDropOnCard?: () => void;
 };
 
 export function PlanningTransferCard({
   card,
   dragging,
   personnelLine,
+  isDropTarget,
   onDragStart,
   onDragEnd,
   onReset,
   onOpenPersonnel,
+  onDragOverCard,
+  onDragLeaveCard,
+  onDropOnCard,
 }: Props) {
   const attachedToCeremony =
     !card.detachedFromCeremony &&
@@ -41,12 +49,14 @@ export function PlanningTransferCard({
     ? 'Umplanung rückgängig'
     : 'Zurück zum Abholort / Ort';
 
-  const kremationNoPersonnel = isKremationTransferCard(card);
+  const kremationCompact = isKremationTransferCard(card);
+  const acceptKremationDrop =
+    Boolean(onDropOnCard) && isKremationPlanningCard(card) && !attachedToCeremony;
   const canBookPersonnel =
     Boolean(onOpenPersonnel) &&
     Boolean(card.plannedDayKey) &&
     !attachedToCeremony &&
-    !kremationNoPersonnel;
+    !kremationCompact;
 
   return (
     <article
@@ -56,7 +66,9 @@ export function PlanningTransferCard({
         card.source === 'canvas' ? ' is-canvas' : ''
       }${card.targetsEigenerKr ? ' is-to-kr' : ''}${
         card.leavesEigenerKr && !card.targetsEigenerKr ? ' is-from-kr' : ''
-      }${attachedToCeremony ? ' is-attached' : ''} freigabe-${card.freigabeState ?? 'offen'}`}
+      }${attachedToCeremony ? ' is-attached' : ''}${
+        kremationCompact ? ' is-kremation-compact' : ''
+      }${isDropTarget ? ' is-drop-target' : ''} freigabe-${card.freigabeState ?? 'offen'}`}
       draggable={!card.erledigt}
       onDragStart={(e) => {
         e.dataTransfer.effectAllowed = 'move';
@@ -64,75 +76,114 @@ export function PlanningTransferCard({
         onDragStart(card);
       }}
       onDragEnd={onDragEnd}
+      onDragOver={
+        acceptKremationDrop
+          ? (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onDragOverCard?.();
+            }
+          : undefined
+      }
+      onDragLeave={
+        acceptKremationDrop
+          ? (e) => {
+              e.stopPropagation();
+              onDragLeaveCard?.();
+            }
+          : undefined
+      }
+      onDrop={
+        acceptKremationDrop
+          ? (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onDropOnCard?.();
+            }
+          : undefined
+      }
     >
       <div className="plan-card-top">
         <span className="plan-card-grip" aria-hidden title="Ziehen zum Verschieben">
           ⠿
         </span>
         <SchrittBadge typ={card.schrittTyp} />
-        <StatusChip
-          status={card.istAbholungVomSterbeort ? 'abholung_noetig' : card.status}
-          highlight={card.status === 'heute'}
-        />
+        {!kremationCompact && (
+          <StatusChip
+            status={card.istAbholungVomSterbeort ? 'abholung_noetig' : card.status}
+            highlight={card.status === 'heute'}
+          />
+        )}
+        {kremationCompact && card.plannedZeit && (
+          <span className="plan-card-tag plan-card-tag--time">{card.plannedZeit}</span>
+        )}
+        {kremationCompact && acceptKremationDrop && (
+          <span className="plan-krem-drop-hint">+ Fahrt</span>
+        )}
       </div>
 
       <div className="plan-card-person">
         <span className="plan-card-name">{card.name}</span>
-        <span className="plan-card-id">{card.sterbefallId}</span>
+        {!kremationCompact && <span className="plan-card-id">{card.sterbefallId}</span>}
       </div>
 
-      <div className="plan-card-route-wrap">
-        <RouteFlow von={card.vonOrt} nach={card.nachOrt} />
-      </div>
+      {!kremationCompact && (
+        <div className="plan-card-route-wrap">
+          <RouteFlow von={card.vonOrt} nach={card.nachOrt} />
+        </div>
+      )}
 
-      <div className="plan-card-meta">
-        {card.freigabeState && (
-          <span className={`plan-freigabe-chip is-${card.freigabeState}`}>
-            {freigabeLabel(card.freigabeState, card.freigabeDatum)}
-          </span>
-        )}
-        {(card.ceremonies ?? []).slice(0, 2).map((c) => (
-          <span key={`${c.kind}-${c.datum}`} className="plan-ceremony-chip" title={c.label}>
-            {c.kind === 'beisetzung'
-              ? 'Beisetzung'
-              : c.kind === 'trauerfeier'
-                ? 'TF'
-                : c.kind === 'kremation'
-                  ? 'Krem.'
-                  : 'Verab.'}
-            {c.zeit ? ` ${c.zeit}` : c.relativeLabel ? ` ${c.relativeLabel}` : c.datum ? ` ${c.datum}` : ''}
-            {c.ort ? ` · ${c.ort}` : ''}
-            {c.bestattungsMarker ? ` · ${c.bestattungsMarker}` : ''}
-          </span>
-        ))}
-        {attachedToCeremony ? (
-          <span className="plan-ceremony-chip" title="Personal über den zugehörigen Feiertermin">
-            zugehörig · kein Extra-Personal
-          </span>
-        ) : null}
-        {kremationNoPersonnel && !attachedToCeremony ? (
-          <span className="plan-ceremony-chip" title="Standard-Kremationsüberführung">
-            kein Personal
-          </span>
-        ) : null}
-        {!attachedToCeremony && !kremationNoPersonnel && personnelLine ? (
-          <span className="plan-ceremony-chip plan-personnel-chip" title={personnelLine}>
-            {personnelLine}
-          </span>
-        ) : null}
-        {!attachedToCeremony && !kremationNoPersonnel && !personnelLine && canBookPersonnel ? (
-          <span className="plan-ceremony-chip plan-personnel-chip is-open">Fahrer offen</span>
-        ) : null}
-        <EndzielChip typ={card.endzielTyp} ort={card.endziel} />
-      </div>
+      {!kremationCompact && (
+        <div className="plan-card-meta">
+          {card.freigabeState && (
+            <span className={`plan-freigabe-chip is-${card.freigabeState}`}>
+              {freigabeLabel(card.freigabeState, card.freigabeDatum)}
+            </span>
+          )}
+          {(card.ceremonies ?? []).slice(0, 2).map((c) => (
+            <span key={`${c.kind}-${c.datum}`} className="plan-ceremony-chip" title={c.label}>
+              {c.kind === 'beisetzung'
+                ? 'Beisetzung'
+                : c.kind === 'trauerfeier'
+                  ? 'TF'
+                  : c.kind === 'kremation'
+                    ? 'Krem.'
+                    : 'Verab.'}
+              {c.zeit
+                ? ` ${c.zeit}`
+                : c.relativeLabel
+                  ? ` ${c.relativeLabel}`
+                  : c.datum
+                    ? ` ${c.datum}`
+                    : ''}
+              {c.ort ? ` · ${c.ort}` : ''}
+              {c.bestattungsMarker ? ` · ${c.bestattungsMarker}` : ''}
+            </span>
+          ))}
+          {attachedToCeremony ? (
+            <span className="plan-ceremony-chip" title="Personal über den zugehörigen Feiertermin">
+              zugehörig · kein Extra-Personal
+            </span>
+          ) : null}
+          {!attachedToCeremony && personnelLine ? (
+            <span className="plan-ceremony-chip plan-personnel-chip" title={personnelLine}>
+              {personnelLine}
+            </span>
+          ) : null}
+          {!attachedToCeremony && !personnelLine && canBookPersonnel ? (
+            <span className="plan-ceremony-chip plan-personnel-chip is-open">Fahrer offen</span>
+          ) : null}
+          <EndzielChip typ={card.endzielTyp} ort={card.endziel} />
+        </div>
+      )}
 
       <div className="plan-card-foot">
-        <time className="plan-card-date">{card.terminAm}</time>
-        {card.plannedZeit && (
+        {!kremationCompact && <time className="plan-card-date">{card.terminAm}</time>}
+        {!kremationCompact && card.plannedZeit && (
           <span className="plan-card-tag plan-card-tag--time">{card.plannedZeit}</span>
         )}
         {card.targetsEigenerKr && <span className="plan-card-tag plan-card-tag--in">→ KR</span>}
-        {card.leavesEigenerKr && !card.targetsEigenerKr && (
+        {card.leavesEigenerKr && !card.targetsEigenerKr && !kremationCompact && (
           <span className="plan-card-tag plan-card-tag--out">KR frei</span>
         )}
         {canBookPersonnel && (

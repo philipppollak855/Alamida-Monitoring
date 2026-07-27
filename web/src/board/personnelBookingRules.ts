@@ -1,5 +1,5 @@
 import type { WallCalendarEntry } from '../board/wallCalendar';
-import { isFahrerTransferEntry, isPureTransferEntry } from '../board/wallCalendar';
+import { isPureTransferEntry } from '../board/wallCalendar';
 import type {
   PersonnelAbsence,
   PersonnelBooking,

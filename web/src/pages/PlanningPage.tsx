@@ -28,9 +28,11 @@ import {
 } from '../planning/planningPersonnel';
 import {
   assignmentSnapshotPayload,
+  attachKremationToGroup,
   attachTransferToCeremony,
   buildCeremoniesForFall,
   buildKuehlraumCapacities,
+  buildKuehlraumLocationGroups,
   buildKuehlraumRailStates,
   buildLocationGroups,
   buildPlanningCards,
@@ -40,10 +42,12 @@ import {
   canUndoPlanEvent,
   cardsForLane,
   clearCardToAbholort,
+  detachKremationFromGroup,
   detachTransferFromCeremony,
   dismissPlanEvent,
   formatTerminDisplay,
   isCardAttachedToAnyCeremony,
+  isKremationPlanningCard,
   moveCardAssignment,
   nextOrderInLane,
   snapshotFromAssignment,
@@ -148,7 +152,21 @@ export function PlanningPage() {
             p.sterbefallId.toLowerCase().includes(q) ||
             p.vonOrt.toLowerCase().includes(q)
         );
-    return buildLocationGroups(filtered);
+    const ortGroups = buildLocationGroups(filtered);
+    const krGroups = buildKuehlraumLocationGroups(sterbefaelle, settings, today).map((g) => {
+      if (!q) return g;
+      return {
+        ...g,
+        items: g.items.filter(
+          (p) =>
+            p.name.toLowerCase().includes(q) ||
+            p.sterbefallId.toLowerCase().includes(q) ||
+            p.vonOrt.toLowerCase().includes(q) ||
+            g.label.toLowerCase().includes(q)
+        ),
+      };
+    }).filter((g) => !q || g.items.length > 0 || g.label.toLowerCase().includes(q));
+    return [...ortGroups, ...krGroups];
   }, [sterbefaelle, cards, settings, today, search]);
 
   const krRails = useMemo(
@@ -315,6 +333,32 @@ export function PlanningPage() {
         return;
       }
 
+      // Aus Kremationsfahrt herausziehen → wieder eigene Karte
+      if (card.kremationGroupId && isKremationPlanningCard(card)) {
+        const order = nextOrderInLane(cards, dayKey);
+        const prev = plan.assignments[card.id];
+        const result = detachKremationFromGroup(plan.assignments, card, dayKey, order);
+        clearDrag();
+        setFlashId(result.assignment.id);
+        void savePlan({
+          assignments: result.assignments,
+          publish: {
+            type: prev ? 'ueberfuehrung_umgeplant' : 'ueberfuehrung_geplant',
+            docId: card.docId,
+            sterbefallId: card.sterbefallId,
+            name: card.name,
+            vonOrt: card.vonOrt,
+            nachOrt: card.nachOrt,
+            assignmentId: card.id,
+            plannedDayKey: dayKey,
+            plannedZeit: card.plannedZeit,
+            previousSnapshot: prev ? snapshotFromAssignment(prev) : null,
+            snapshot: assignmentSnapshotPayload(result.assignment),
+          },
+        });
+        return;
+      }
+
       if (card.targetsEigenerKr) {
         const krId = card.kuehlraumId ?? settings.eigeneKuehlraeume[0]?.id;
         if (krId) {
@@ -395,6 +439,66 @@ export function PlanningPage() {
           plannedZeit: result.assignment.plannedZeit,
           previousSnapshot: prev ? snapshotFromAssignment(prev) : null,
           snapshot: assignmentSnapshotPayload(result.assignment),
+        },
+      });
+    },
+    [
+      drag,
+      saving,
+      clearDrag,
+      cards,
+      plan.assignments,
+      savePlan,
+      handleDropOnDay,
+      focusDayKey,
+    ]
+  );
+
+  const handleDropOnKremation = useCallback(
+    (target: PlanningCard) => {
+      if (!drag || drag.kind !== 'card' || saving) {
+        clearDrag();
+        return;
+      }
+      const card = drag.card;
+      if (!isKremationPlanningCard(card) || !isKremationPlanningCard(target)) {
+        clearDrag();
+        return;
+      }
+      if (card.id === target.id) {
+        clearDrag();
+        return;
+      }
+      const dayKey = target.plannedDayKey ?? card.plannedDayKey ?? focusDayKey;
+      if (!dayKey) {
+        clearDrag();
+        return;
+      }
+      const order = nextOrderInLane(cards, dayKey);
+      const prev = plan.assignments[card.id];
+      const result = attachKremationToGroup(plan.assignments, card, target, order);
+      clearDrag();
+      if (!result) {
+        handleDropOnDay(dayKey);
+        return;
+      }
+      setFocusDayKey(dayKey);
+      setFlashId(card.id);
+      const assignment = result.assignments[card.id];
+      void savePlan({
+        assignments: result.assignments,
+        publish: {
+          type: prev ? 'ueberfuehrung_umgeplant' : 'ueberfuehrung_geplant',
+          docId: card.docId,
+          sterbefallId: card.sterbefallId,
+          name: card.name,
+          vonOrt: card.vonOrt,
+          nachOrt: card.nachOrt,
+          assignmentId: card.id,
+          plannedDayKey: dayKey,
+          plannedZeit: assignment?.plannedZeit ?? card.plannedZeit,
+          previousSnapshot: prev ? snapshotFromAssignment(prev) : null,
+          snapshot: assignment ? assignmentSnapshotPayload(assignment) : null,
         },
       });
     },
@@ -713,6 +817,11 @@ export function PlanningPage() {
                             ? dropTarget.slice('ceremony:'.length)
                             : null
                         }
+                        kremationDropKey={
+                          dropTarget?.startsWith('krem:')
+                            ? dropTarget.slice('krem:'.length)
+                            : null
+                        }
                         draggingId={draggingId}
                         onDragOver={() => setDropTarget(`day:${dayKey}`)}
                         onDragLeave={() =>
@@ -732,6 +841,11 @@ export function PlanningPage() {
                           setDropTarget((t) => (t?.startsWith('ceremony:') ? null : t))
                         }
                         onDropOnCeremony={(c) => handleDropOnCeremony(c)}
+                        onKremationDragOver={(card) => setDropTarget(`krem:${card.id}`)}
+                        onKremationDragLeave={() =>
+                          setDropTarget((t) => (t?.startsWith('krem:') ? null : t))
+                        }
+                        onDropOnKremation={(card) => handleDropOnKremation(card)}
                         onOpenPersonnel={openTransferPersonnel}
                         personnelByCardId={personnelByCardId}
                       />

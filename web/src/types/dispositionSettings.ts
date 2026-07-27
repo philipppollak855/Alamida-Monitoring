@@ -26,6 +26,8 @@ export interface EigenerKuehlraumConfig {
   plaetze: number;
   /** Planung: Tage seit Freigabe bei Belegung anzeigen (Freigabetag zählt mit). */
   zeigeTageSeitFreigabe?: boolean;
+  /** Planung: Belegung auch in der linken Spalte („Aktuelle Orte“) anzeigen. */
+  zeigeInLinkerPlanungsspalte?: boolean;
 }
 
 /** Anzeigedauer je Wandmonitor-Tab vor dem automatischen Wechsel (Sekunden). */

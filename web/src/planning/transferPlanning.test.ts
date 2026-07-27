@@ -4,6 +4,7 @@ import type { DispositionSettings } from '../types/dispositionSettings';
 import { DEFAULT_DISPOSITION_SETTINGS } from '../config/defaultDispositionSettings';
 import { setDispositionSettings } from '../settings/dispositionSettingsStore';
 import {
+  attachKremationToGroup,
   attachTransferToCeremony,
   buildKuehlraumCapacities,
   buildKuehlraumRailStates,
@@ -15,11 +16,13 @@ import {
   canUndoPlanEvent,
   canvasPlanningId,
   clearCardToAbholort,
+  detachKremationFromGroup,
   detachTransferFromCeremony,
   dismissPlanEvent,
   isCardAttachedToAnyCeremony,
   moveCardAssignment,
   nextOrderInLane,
+  partitionKremationGroups,
   pickCeremonyHostForCard,
   planningCardId,
   resolveFreigabeState,
@@ -471,5 +474,56 @@ describe('transferPlanning board', () => {
         detachedFromCeremony: true,
       })
     ).toBe(false);
+  });
+
+  it('attachKremationToGroup fasst Kremationen zusammen und detach trennt', () => {
+    const a = {
+      id: 'a:1',
+      docId: 'fallA',
+      zeile: 1,
+      sterbefallId: 'A',
+      name: 'Alpha',
+      schrittTyp: 'kremation',
+      vonOrt: 'KR',
+      nachOrt: 'Feba',
+      terminAm: '30.07.2026',
+      sourceDayKey: null,
+      plannedDayKey: '2026-07-30',
+      plannedZeit: '09:00',
+      status: 'geplant',
+      targetsEigenerKr: false,
+      leavesEigenerKr: true,
+      kuehlraumId: null,
+      order: 10,
+      hasManualPlan: true,
+      source: 'alamida' as const,
+    };
+    const b = {
+      ...a,
+      id: 'b:1',
+      docId: 'fallB',
+      sterbefallId: 'B',
+      name: 'Beta',
+      order: 20,
+      plannedZeit: null as string | null,
+    };
+    const attached = attachKremationToGroup({}, a, b, 30);
+    expect(attached).not.toBeNull();
+    const gid = attached!.groupId;
+    expect(attached!.assignments['a:1']!.kremationGroupId).toBe(gid);
+    expect(attached!.assignments['b:1']!.kremationGroupId).toBe(gid);
+    expect(attached!.assignments['a:1']!.plannedZeit).toBe('09:00');
+
+    const cards = [
+      { ...a, kremationGroupId: gid },
+      { ...b, kremationGroupId: gid, plannedZeit: '09:00' as string | null },
+    ];
+    const parts = partitionKremationGroups(cards);
+    expect(parts.groups).toHaveLength(1);
+    expect(parts.groups[0]!.members.map((m) => m.name)).toEqual(['Alpha', 'Beta']);
+    expect(parts.singles).toHaveLength(0);
+
+    const detached = detachKremationFromGroup(attached!.assignments, a, '2026-07-30', 40);
+    expect(detached.assignment.kremationGroupId).toBeNull();
   });
 });

@@ -54,6 +54,7 @@ export function snapshotFromAssignment(a: PlanAssignment): PlanAssignmentSnapsho
     schrittTyp: a.schrittTyp ?? null,
     order: a.order,
     attachedCeremony: a.attachedCeremony ?? null,
+    kremationGroupId: a.kremationGroupId ?? null,
   };
 }
 
@@ -215,6 +216,7 @@ function cardFromAssignment(
     canUndoUmplanung: Boolean(assignment.previous),
     attachedCeremony: assignment.attachedCeremony ?? null,
     detachedFromCeremony: assignment.detachedFromCeremony === true,
+    kremationGroupId: assignment.kremationGroupId ?? null,
     source: 'canvas',
     amSterbeort: isAmKrankenhausOderSterbeort(s),
     ...enrichCardMeta(s, now),
@@ -299,6 +301,7 @@ export function buildPlanningCards(
         canUndoUmplanung: Boolean(assignment?.previous),
         attachedCeremony: assignment?.attachedCeremony ?? null,
         detachedFromCeremony: assignment?.detachedFromCeremony === true,
+        kremationGroupId: assignment?.kremationGroupId ?? null,
         source: assignment?.source === 'canvas' ? 'canvas' : 'alamida',
         amSterbeort: isAmKrankenhausOderSterbeort(s),
         ...meta,
@@ -435,7 +438,7 @@ export function buildLocationGroups(pool: SterbeortPoolItem[]): LocationGroup[] 
     const key = label.toLowerCase();
     const existing = map.get(key);
     if (existing) existing.items.push(item);
-    else map.set(key, { key, label, items: [item] });
+    else map.set(key, { key, label, items: [item], kind: 'ort' });
   }
   return [...map.values()]
     .map((g) => ({
@@ -443,6 +446,56 @@ export function buildLocationGroups(pool: SterbeortPoolItem[]): LocationGroup[] 
       items: [...g.items].sort((a, b) => a.name.localeCompare(b.name, 'de')),
     }))
     .sort((a, b) => a.label.localeCompare(b.label, 'de'));
+}
+
+/**
+ * Kühlräume mit Flag „linke Spalte“ als Anzeige-Gruppen für die Location-Rail.
+ */
+export function buildKuehlraumLocationGroups(
+  sterbefaelle: Sterbefall[],
+  settings: DispositionSettings,
+  now = new Date()
+): LocationGroup[] {
+  const groups: LocationGroup[] = [];
+  for (const cfg of settings.eigeneKuehlraeume) {
+    if (cfg.zeigeInLinkerPlanungsspalte !== true) continue;
+    const slots = belegeKuehlraumSlots(sterbefaelle, cfg);
+    const items: SterbeortPoolItem[] = [];
+    slots.forEach((fall) => {
+      if (!fall) return;
+      const ceremonies = buildCeremoniesForFall(fall, now);
+      items.push({
+        docId: fall.id,
+        sterbefallId: fall.sterbefallId ?? fall.id,
+        name: fall.verstorbenerName ?? fall.sterbefallId ?? fall.id,
+        vonOrt: cfg.alamidaName || cfg.label,
+        suggestedKuehlraumId: cfg.id,
+        freigabeState: resolveFreigabeState(fall, now),
+        freigabeDatum: fall.freigabeDatum,
+        tageSeitFreigabe: tageSeitFreigabe(fall.freigabeFrei, fall.freigabeDatum, now),
+        nextCeremony: ceremonies[0],
+        endzielTyp: fall.endzielTyp,
+        endziel: fall.endziel,
+        displayOnly: true,
+      });
+    });
+    if (items.length === 0) {
+      groups.push({
+        key: `kr:${cfg.id}`,
+        label: cfg.label,
+        kind: 'kuehlraum',
+        items: [],
+      });
+      continue;
+    }
+    groups.push({
+      key: `kr:${cfg.id}`,
+      label: cfg.label,
+      kind: 'kuehlraum',
+      items: items.sort((a, b) => a.name.localeCompare(b.name, 'de')),
+    });
+  }
+  return groups;
 }
 
 export function buildKuehlraumRailStates(
@@ -505,6 +558,7 @@ export function buildKuehlraumRailStates(
       free: cfg.plaetze - projected,
       overbooked: projected > cfg.plaetze,
       zeigeTageSeitFreigabe: cfg.zeigeTageSeitFreigabe === true,
+      zeigeInLinkerPlanungsspalte: cfg.zeigeInLinkerPlanungsspalte === true,
       occupants,
       slotFrees: slotFrees.filter((e) => {
         const fall = sterbefaelle.find((s) => s.id === e.docId);
@@ -596,6 +650,10 @@ export function moveCardAssignment(
       : attachedCeremony
         ? false
         : Boolean(prev?.detachedFromCeremony ?? card.detachedFromCeremony);
+  const kremationGroupId =
+    extras && 'kremationGroupId' in extras
+      ? extras.kremationGroupId ?? null
+      : (prev?.kremationGroupId ?? card.kremationGroupId ?? null);
   next[card.id] = {
     id: card.id,
     docId: card.docId,
@@ -611,6 +669,7 @@ export function moveCardAssignment(
     previous: prev ? snapshotFromAssignment(prev) : null,
     attachedCeremony,
     detachedFromCeremony,
+    kremationGroupId,
     updatedAtMs: Date.now(),
   };
   return next;
@@ -649,6 +708,7 @@ export function scheduleToKuehlraum(
     // Tagesplanung löst Feier-Zugehörigkeit (erneut anhängen = auf Termin ziehen)
     attachedCeremony: null,
     detachedFromCeremony: true,
+    kremationGroupId: null,
     updatedAtMs: Date.now(),
   };
 
@@ -877,6 +937,152 @@ export function detachTransferFromCeremony(
     assignments: next,
     assignment: next[card.id]!,
   };
+}
+
+export function isKremationPlanningCard(
+  card: Pick<PlanningCard, 'schrittTyp'>
+): boolean {
+  return card.schrittTyp.trim().toLowerCase() === 'kremation';
+}
+
+export function newKremationGroupId(): string {
+  return typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `krem-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/** Kremationsüberführungen zu einer Fahrt zusammenfassen. */
+export function attachKremationToGroup(
+  assignments: Record<string, PlanAssignment>,
+  dragged: PlanningCard,
+  target: PlanningCard,
+  order: number
+): {
+  assignments: Record<string, PlanAssignment>;
+  groupId: string;
+} | null {
+  if (!isKremationPlanningCard(dragged) || !isKremationPlanningCard(target)) return null;
+  if (dragged.id === target.id) return null;
+  const dayKey = target.plannedDayKey ?? dragged.plannedDayKey;
+  if (!dayKey) return null;
+
+  const groupId =
+    target.kremationGroupId?.trim() ||
+    dragged.kremationGroupId?.trim() ||
+    newKremationGroupId();
+
+  let next = { ...assignments };
+  const syncZeit = target.plannedZeit ?? dragged.plannedZeit ?? null;
+
+  const ensureMember = (card: PlanningCard, memberOrder: number) => {
+    next = moveCardAssignment(next, card, dayKey, memberOrder, {
+      kremationGroupId: groupId,
+      plannedZeit: syncZeit ?? card.plannedZeit ?? null,
+      attachedCeremony: null,
+      detachedFromCeremony: true,
+    });
+  };
+
+  ensureMember(target, target.order);
+  ensureMember(dragged, order);
+
+  // Bereits in einer der Gruppen → auf gemeinsame ID ziehen
+  for (const cardId of Object.keys(next)) {
+    const a = next[cardId]!;
+    if (
+      a.kremationGroupId &&
+      (a.kremationGroupId === dragged.kremationGroupId ||
+        a.kremationGroupId === target.kremationGroupId) &&
+      a.kremationGroupId !== groupId
+    ) {
+      next[cardId] = { ...a, kremationGroupId: groupId, plannedZeit: syncZeit ?? a.plannedZeit };
+    }
+  }
+
+  return { assignments: next, groupId };
+}
+
+/** Eine Kremation aus der gemeinsamen Fahrt lösen. */
+export function detachKremationFromGroup(
+  assignments: Record<string, PlanAssignment>,
+  card: PlanningCard,
+  toDayKey: string | null,
+  order: number
+): {
+  assignments: Record<string, PlanAssignment>;
+  assignment: PlanAssignment;
+} {
+  const oldGroupId = card.kremationGroupId?.trim() || null;
+  let next = moveCardAssignment(assignments, card, toDayKey, order, {
+    kremationGroupId: null,
+  });
+
+  if (oldGroupId) {
+    const remaining = Object.values(next).filter(
+      (a) => a.kremationGroupId === oldGroupId
+    );
+    if (remaining.length === 1) {
+      const last = remaining[0]!;
+      next = {
+        ...next,
+        [last.id]: { ...last, kremationGroupId: null, updatedAtMs: Date.now() },
+      };
+    }
+  }
+
+  return {
+    assignments: next,
+    assignment: next[card.id]!,
+  };
+}
+
+export type KremationGroupView = {
+  groupId: string;
+  host: PlanningCard;
+  members: PlanningCard[];
+};
+
+/** Lose Karten → Kremationsgruppen + Einzelkarten. */
+export function partitionKremationGroups(cards: PlanningCard[]): {
+  groups: KremationGroupView[];
+  singles: PlanningCard[];
+} {
+  const byGroup = new Map<string, PlanningCard[]>();
+  const singles: PlanningCard[] = [];
+
+  for (const card of cards) {
+    const gid = card.kremationGroupId?.trim();
+    if (gid && isKremationPlanningCard(card)) {
+      const list = byGroup.get(gid) ?? [];
+      list.push(card);
+      byGroup.set(gid, list);
+    } else {
+      singles.push(card);
+    }
+  }
+
+  const groups: KremationGroupView[] = [];
+  for (const [groupId, members] of byGroup) {
+    if (members.length < 2) {
+      // Verwaiste Einzel-ID → als Single ohne Gruppe zeigen
+      for (const m of members) {
+        singles.push({ ...m, kremationGroupId: null });
+      }
+      continue;
+    }
+    const sorted = [...members].sort((a, b) => {
+      if (a.order !== b.order) return a.order - b.order;
+      return a.name.localeCompare(b.name, 'de');
+    });
+    groups.push({ groupId, host: sorted[0]!, members: sorted });
+  }
+
+  groups.sort((a, b) => {
+    if (a.host.order !== b.host.order) return a.host.order - b.host.order;
+    return (a.host.plannedZeit ?? '').localeCompare(b.host.plannedZeit ?? '');
+  });
+
+  return { groups, singles };
 }
 
 /** Weitergegebenes Event rückgängig machen und aus dem Feed entfernen. */

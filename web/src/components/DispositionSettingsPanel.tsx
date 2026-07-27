@@ -528,6 +528,22 @@ export function DispositionSettingsPanel({ defaultOpen = false }: { defaultOpen?
                     <p className="settings-hint settings-hint--inline">
                       Marker z. B. „3 T“ — Freigabetag zählt mit. Bei „Aktuelle Orte“ immer sichtbar.
                     </p>
+                    <label className="settings-kr-option">
+                      <input
+                        type="checkbox"
+                        checked={kr.zeigeInLinkerPlanungsspalte === true}
+                        onChange={(e) =>
+                          updateKuehlraum(index, {
+                            zeigeInLinkerPlanungsspalte: e.target.checked,
+                          })
+                        }
+                      />
+                      In Planung: Belegung in linker Spalte anzeigen
+                    </label>
+                    <p className="settings-hint settings-hint--inline">
+                      Zusätzlich zur rechten Kühlraum-Leiste — Belegung unter „Aktuelle Orte“ (nur
+                      Anzeige).
+                    </p>
                     <label>
                       Alamida-Name (optional)
                       <input

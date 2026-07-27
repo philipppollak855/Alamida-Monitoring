@@ -59,6 +59,7 @@ export function normalizeDispositionSettings(
             wandTab: normalizeKuehlraumWandTab(k.wandTab),
             plaetze: Math.max(1, Math.min(99, Number(k.plaetze) || 1)),
             zeigeTageSeitFreigabe: k.zeigeTageSeitFreigabe === true,
+            zeigeInLinkerPlanungsspalte: k.zeigeInLinkerPlanungsspalte === true,
           };
         })
       : [...DEFAULT_DISPOSITION_SETTINGS.eigeneKuehlraeume];

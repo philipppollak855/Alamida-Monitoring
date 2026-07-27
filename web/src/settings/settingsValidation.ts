@@ -109,6 +109,7 @@ function normalizeForCompare(s: DispositionSettings) {
       wandTab: k.wandTab ?? 'kuehlraum',
       plaetze: k.plaetze,
       zeigeTageSeitFreigabe: k.zeigeTageSeitFreigabe === true,
+      zeigeInLinkerPlanungsspalte: k.zeigeInLinkerPlanungsspalte === true,
     })),
     personnelPool: (s.personnelPool ?? [])
       .map((p) => ({
