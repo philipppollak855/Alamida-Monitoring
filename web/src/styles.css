@@ -6692,19 +6692,70 @@ code {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: 0.35rem;
   flex-shrink: 0;
 }
 
-.plan-center-ceremonies li {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 0.35rem;
-  align-items: center;
-  padding: 0.35rem 0.45rem;
+.plan-center-ceremony {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  padding: 0.4rem 0.5rem;
   border-radius: 8px;
   background: var(--violet-dim);
+  border: 1px solid transparent;
   font-size: 0.72rem;
+  min-width: 0;
+}
+
+.plan-center-ceremony.is-beisetzung {
+  border-color: rgba(106, 122, 154, 0.2);
+}
+
+.plan-center-ceremony.is-trauerfeier,
+.plan-center-ceremony.is-verabschiedung {
+  border-color: rgba(167, 139, 250, 0.18);
+}
+
+.plan-center-ceremony.is-kremation {
+  border-color: rgba(77, 159, 255, 0.2);
+}
+
+.plan-center-ceremony-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.plan-center-ceremony-when {
+  margin-left: auto;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.plan-center-ceremony-name {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.plan-center-ceremony-ort {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.3;
 }
 
 .plan-center-ceremonies li strong {
@@ -6719,6 +6770,14 @@ code {
   text-transform: uppercase;
   letter-spacing: 0.03em;
   font-size: 0.62rem;
+  color: var(--violet);
+}
+
+.plan-ceremony-kind.is-kremation {
+  color: var(--accent);
+}
+
+.plan-ceremony-kind.is-beisetzung {
   color: var(--violet);
 }
 

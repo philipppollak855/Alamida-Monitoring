@@ -1,6 +1,7 @@
 import type { CeremonyInfo, KuehlraumDayCapacity, PlanningCard } from '../../planning/types';
 import { PlanningTransferCard } from './PlanningTransferCard';
 import { PlanningCapacityMeters } from './PlanningCapacityMeters';
+import { WallCalBestattungsBadge } from '../WallCalBestattungsBadge';
 
 type DayCeremony = {
   docId: string;
@@ -25,6 +26,26 @@ type Props = {
   onResetCard: (card: PlanningCard) => void;
 };
 
+function ceremonyKindLabel(kind: CeremonyInfo['kind']): string {
+  switch (kind) {
+    case 'beisetzung':
+      return 'Beisetzung';
+    case 'trauerfeier':
+      return 'Trauerfeier';
+    case 'kremation':
+      return 'Kremation';
+    default:
+      return 'Verabschiedung';
+  }
+}
+
+function ceremonyTimeSortKey(c: CeremonyInfo): number {
+  const z = c.zeit?.match(/(\d{1,2}):(\d{2})/);
+  if (z) return +z[1] * 60 + +z[2];
+  if (c.zeit?.toLowerCase().includes('anschluss')) return 24 * 60;
+  return 25 * 60;
+}
+
 export function PlanningCenterDay({
   dayKey,
   title,
@@ -41,6 +62,10 @@ export function PlanningCenterDay({
   onCardDragEnd,
   onResetCard,
 }: Props) {
+  const sortedCeremonies = [...ceremonies].sort(
+    (a, b) => ceremonyTimeSortKey(a.ceremony) - ceremonyTimeSortKey(b.ceremony)
+  );
+
   return (
     <section
       className={`plan-center-day${isToday ? ' is-today' : ''}${isDropTarget ? ' is-drop-target' : ''}`}
@@ -66,23 +91,40 @@ export function PlanningCenterDay({
       {capacities.length > 0 && <PlanningCapacityMeters capacities={capacities} />}
 
       <div className="plan-center-day-body">
-        {ceremonies.length > 0 && (
-          <ul className="plan-center-ceremonies">
-            {ceremonies.map((c) => (
-              <li key={`${c.docId}-${c.ceremony.kind}-${c.ceremony.datum}`}>
-                <span className={`plan-ceremony-kind is-${c.ceremony.kind}`}>
-                  {c.ceremony.kind === 'beisetzung'
-                    ? 'Beisetzung'
-                    : c.ceremony.kind === 'trauerfeier'
-                      ? 'Trauerfeier'
-                      : c.ceremony.kind === 'kremation'
-                        ? 'Kremation'
-                        : 'Verabschiedung'}
-                </span>
-                <strong title={c.name}>{c.name}</strong>
-                <span>{c.ceremony.zeit || c.ceremony.datum}</span>
-              </li>
-            ))}
+        {sortedCeremonies.length > 0 && (
+          <ul className="plan-center-ceremonies" aria-label="Termine an diesem Tag">
+            {sortedCeremonies.map((c) => {
+              const { ceremony } = c;
+              const when =
+                ceremony.zeit ||
+                (!isToday && ceremony.relativeLabel ? ceremony.relativeLabel : null) ||
+                ceremony.datum ||
+                null;
+              return (
+                <li
+                  key={`${c.docId}-${ceremony.kind}-${ceremony.datum}-${ceremony.zeit ?? ''}`}
+                  className={`plan-center-ceremony is-${ceremony.kind}`}
+                >
+                  <div className="plan-center-ceremony-top">
+                    <span className={`plan-ceremony-kind is-${ceremony.kind}`}>
+                      {ceremonyKindLabel(ceremony.kind)}
+                    </span>
+                    {ceremony.bestattungsMarker && (
+                      <WallCalBestattungsBadge marker={ceremony.bestattungsMarker} />
+                    )}
+                    {when && <span className="plan-center-ceremony-when">{when}</span>}
+                  </div>
+                  <strong className="plan-center-ceremony-name" title={c.name}>
+                    {c.name}
+                  </strong>
+                  {ceremony.ort && (
+                    <span className="plan-center-ceremony-ort" title={ceremony.ort}>
+                      {ceremony.ort}
+                    </span>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
 

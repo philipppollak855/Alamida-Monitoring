@@ -62,7 +62,7 @@ export function PlanningTransferCard({
           </span>
         )}
         {(card.ceremonies ?? []).slice(0, 2).map((c) => (
-          <span key={`${c.kind}-${c.datum}`} className="plan-ceremony-chip">
+          <span key={`${c.kind}-${c.datum}`} className="plan-ceremony-chip" title={c.label}>
             {c.kind === 'beisetzung'
               ? 'Beisetzung'
               : c.kind === 'trauerfeier'
@@ -70,8 +70,8 @@ export function PlanningTransferCard({
                 : c.kind === 'kremation'
                   ? 'Krem.'
                   : 'Verab.'}
-            {' '}
-            {c.relativeLabel || c.datum}
+            {c.zeit ? ` ${c.zeit}` : c.relativeLabel ? ` ${c.relativeLabel}` : c.datum ? ` ${c.datum}` : ''}
+            {c.ort ? ` · ${c.ort}` : ''}
             {c.bestattungsMarker ? ` · ${c.bestattungsMarker}` : ''}
           </span>
         ))}
