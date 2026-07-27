@@ -18,6 +18,17 @@ export function PlanningTransferCard({
   onDragEnd,
   onReset,
 }: Props) {
+  const attachedToCeremony = Boolean(
+    card.plannedDayKey &&
+      (card.ceremonies ?? []).some(
+        (c) =>
+          c.dayKey === card.plannedDayKey &&
+          (c.kind === 'beisetzung' ||
+            c.kind === 'verabschiedung' ||
+            c.kind === 'trauerfeier')
+      )
+  );
+
   return (
     <article
       className={`plan-card transfer-${card.schrittTyp} status-${card.status}${
@@ -75,11 +86,11 @@ export function PlanningTransferCard({
             {c.bestattungsMarker ? ` · ${c.bestattungsMarker}` : ''}
           </span>
         ))}
-        {attachedToCeremony && (
+        {attachedToCeremony ? (
           <span className="plan-ceremony-chip" title="Personal über den zugehörigen Feiertermin">
             zugehörig · kein Extra-Personal
           </span>
-        )}
+        ) : null}
         <EndzielChip typ={card.endzielTyp} ort={card.endziel} />
       </div>
 
