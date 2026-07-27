@@ -1039,6 +1039,16 @@
   color: var(--violet);
 }
 
+[data-theme='alamida'] .zusatz-termin-scope {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: var(--border);
+}
+
+[data-theme='alamida'] .zusatz-termin-scope-btn.is-active {
+  background: rgba(61, 122, 140, 0.14);
+  color: var(--accent);
+}
+
 @media (max-width: 768px) {
   [data-theme='alamida'] .wall-topbar {
     border-radius: 0;

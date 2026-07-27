@@ -8,6 +8,7 @@ import {
   type ZusatzTerminArt,
 } from '../types/zusatzTermin';
 import { dayKeyFromDate } from '../board/dateUtils';
+import { filterAktiveSterbefaelle, istInHistory } from '../board/historieLogic';
 
 type FallOption = {
   docId: string;
@@ -59,7 +60,12 @@ export function ZusatzTerminDialog({
   onDelete,
 }: Props) {
   const titleId = useId();
-  const options = useMemo(() => toOptions(sterbefaelle), [sterbefaelle]);
+  const allOptions = useMemo(() => toOptions(sterbefaelle), [sterbefaelle]);
+  const activeOptions = useMemo(
+    () => toOptions(filterAktiveSterbefaelle(sterbefaelle)),
+    [sterbefaelle]
+  );
+  const [showAllFaelle, setShowAllFaelle] = useState(false);
   const [docId, setDocId] = useState('');
   const [art, setArt] = useState<ZusatzTerminArt>('graben');
   const [title, setTitle] = useState('Graben für Begräbnis');
@@ -68,6 +74,11 @@ export function ZusatzTerminDialog({
   const [ort, setOrt] = useState('');
   const [note, setNote] = useState('');
   const [fallQuery, setFallQuery] = useState('');
+
+  const options = useMemo(() => {
+    if (existing || showAllFaelle) return allOptions;
+    return activeOptions;
+  }, [existing, showAllFaelle, allOptions, activeOptions]);
 
   useEffect(() => {
     if (!open) return;
@@ -80,9 +91,11 @@ export function ZusatzTerminDialog({
       setOrt(existing.ort ?? '');
       setNote(existing.note ?? '');
       setFallQuery('');
+      const fall = sterbefaelle.find((s) => s.id === existing.docId);
+      setShowAllFaelle(fall ? istInHistory(fall) : true);
       return;
     }
-    setDocId(options[0]?.docId ?? '');
+    setShowAllFaelle(false);
     setArt('graben');
     setTitle('Graben für Begräbnis');
     setDayKey(initialDayKey || dayKeyFromDate(new Date()));
@@ -90,7 +103,19 @@ export function ZusatzTerminDialog({
     setOrt('');
     setNote('');
     setFallQuery('');
-  }, [open, existing, initialDayKey, options]);
+    setDocId(activeOptions[0]?.docId ?? '');
+  }, [open, existing, initialDayKey, sterbefaelle, activeOptions]);
+
+  useEffect(() => {
+    if (!open || existing) return;
+    if (!docId) {
+      setDocId(options[0]?.docId ?? '');
+      return;
+    }
+    if (!options.some((o) => o.docId === docId)) {
+      setDocId(options[0]?.docId ?? '');
+    }
+  }, [open, existing, options, docId]);
 
   useEffect(() => {
     if (!open) return;
@@ -163,19 +188,50 @@ export function ZusatzTerminDialog({
         </div>
 
         <div className="zusatz-termin-fields">
-          <label className="zusatz-termin-field">
-            <span>Fall suchen</span>
-            <input
-              type="search"
-              value={fallQuery}
-              onChange={(e) => setFallQuery(e.target.value)}
-              placeholder="Name oder Sterbefall-Nr."
-              disabled={pending || Boolean(existing)}
-            />
-          </label>
+          <div className="zusatz-termin-fall-filter">
+            <label className="zusatz-termin-field">
+              <span>Fall suchen</span>
+              <input
+                type="search"
+                value={fallQuery}
+                onChange={(e) => setFallQuery(e.target.value)}
+                placeholder="Name oder Sterbefall-Nr."
+                disabled={pending || Boolean(existing)}
+              />
+            </label>
+            {!existing && (
+              <div className="zusatz-termin-scope" role="group" aria-label="Fallauswahl">
+                <button
+                  type="button"
+                  className={`zusatz-termin-scope-btn${!showAllFaelle ? ' is-active' : ''}`}
+                  disabled={pending}
+                  aria-pressed={!showAllFaelle}
+                  onClick={() => setShowAllFaelle(false)}
+                >
+                  Aktive
+                </button>
+                <button
+                  type="button"
+                  className={`zusatz-termin-scope-btn${showAllFaelle ? ' is-active' : ''}`}
+                  disabled={pending}
+                  aria-pressed={showAllFaelle}
+                  onClick={() => setShowAllFaelle(true)}
+                >
+                  Alle
+                </button>
+              </div>
+            )}
+          </div>
 
           <label className="zusatz-termin-field">
-            <span>Fall *</span>
+            <span>
+              Fall *
+              <em className="zusatz-termin-fall-count">
+                {showAllFaelle || existing
+                  ? `${allOptions.length} gesamt`
+                  : `${activeOptions.length} aktiv`}
+              </em>
+            </span>
             <select
               value={docId}
               onChange={(e) => setDocId(e.target.value)}

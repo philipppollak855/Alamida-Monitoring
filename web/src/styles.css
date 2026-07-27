@@ -4916,6 +4916,64 @@ code {
   margin-top: 0.9rem;
 }
 
+.zusatz-termin-fall-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.55rem 0.75rem;
+}
+
+.zusatz-termin-fall-filter .zusatz-termin-field {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.zusatz-termin-scope {
+  display: inline-flex;
+  flex-shrink: 0;
+  padding: 0.15rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  gap: 0.15rem;
+  margin-bottom: 0.05rem;
+}
+
+.zusatz-termin-scope-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.zusatz-termin-scope-btn:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.zusatz-termin-scope-btn.is-active {
+  background: var(--accent-dim, rgba(77, 159, 255, 0.16));
+  color: var(--accent, #4d9fff);
+}
+
+.zusatz-termin-scope-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.zusatz-termin-fall-count {
+  margin-left: 0.45rem;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 0.78em;
+  color: var(--muted);
+}
+
 .zusatz-termin-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
