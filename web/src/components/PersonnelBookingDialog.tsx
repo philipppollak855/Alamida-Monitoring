@@ -11,7 +11,6 @@ import {
   type BestattungsMarker,
 } from '../board/feierterminLogic';
 import {
-  arrangeurIdsBookedOnDay,
   availableTraegerPool,
   defaultRequiredTraegerCount,
   isBegraebnisEntry,
@@ -24,6 +23,11 @@ import type { PersonnelAbsence, PersonnelBooking } from '../types/personnelBooki
 import type { Sterbefall } from '../types';
 import { BestattungsMarkerSwitch } from './BestattungsMarkerSwitch';
 import { WallCalBestattungsBadge } from './WallCalBestattungsBadge';
+
+type ArrangeurOption = DispositionPerson & {
+  unavailable: ReturnType<typeof personUnavailableReason>;
+  isArrangeurRole: boolean;
+};
 
 type Props = {
   entry: WallCalendarEntry | null;
@@ -111,9 +115,10 @@ export function PersonnelBookingDialog({
     return () => window.removeEventListener('keydown', onKey);
   }, [entry, onClose, pending, markerPending]);
 
-  const arrangeure = useMemo(() => {
-    return personnelPool
-      .filter((p) => p.active !== false && p.roles.includes('arrangeur'))
+  const arrangeure = useMemo((): ArrangeurOption[] => {
+    // Alle aktiven Personen wählbar; Arrangeure oben und hervorgehoben.
+    const list = personnelPool
+      .filter((p) => p.active !== false)
       .map((p) => {
         const reason =
           entry &&
@@ -122,15 +127,28 @@ export function PersonnelBookingDialog({
             bookings: allBookings,
             excludeBookingId: entry.id,
             asRole: 'arrangeur',
+            timeLabel: entry.timeLabel,
           });
-        return { ...p, unavailable: reason };
+        return {
+          ...p,
+          unavailable: reason,
+          isArrangeurRole: p.roles.includes('arrangeur'),
+        };
       });
+    return list.sort((a, b) => {
+      if (a.isArrangeurRole !== b.isArrangeurRole) return a.isArrangeurRole ? -1 : 1;
+      return a.name.localeCompare(b.name, 'de');
+    });
   }, [personnelPool, entry, absences, allBookings]);
 
-  const bookedArrangeurIds = useMemo(() => {
-    if (!entry) return new Set<string>();
-    return arrangeurIdsBookedOnDay(allBookings, entry.dayKey, entry.id);
-  }, [allBookings, entry]);
+  const arrangeureMitRolle = useMemo(
+    () => arrangeure.filter((p) => p.isArrangeurRole),
+    [arrangeure]
+  );
+  const arrangeureOhneRolle = useMemo(
+    () => arrangeure.filter((p) => !p.isArrangeurRole),
+    [arrangeure]
+  );
 
   const isKremationTransfer = Boolean(entry && isKremationTransferEntry(entry));
   const isFahrerMode = Boolean(entry && isFahrerTransferEntry(entry) && !entry.attachedTransfer);
@@ -152,6 +170,7 @@ export function PersonnelBookingDialog({
           bookings: allBookings,
           excludeBookingId: entry.id,
           asRole: 'traeger',
+          timeLabel: entry.timeLabel,
         });
       const blockedAsArrangeur = Boolean(arrangeurId && p.id === arrangeurId);
       return {
@@ -172,6 +191,7 @@ export function PersonnelBookingDialog({
             bookings: allBookings,
             excludeBookingId: entry.id,
             asRole: 'traeger',
+            timeLabel: entry.timeLabel,
           });
         return { ...p, unavailable: reason };
       });
@@ -229,13 +249,24 @@ export function PersonnelBookingDialog({
         isBegraebnis: false,
       };
     }
-    return validatePersonnelBooking(entryForValidation, {
-      arrangeurId: arrangeurId || null,
-      traegerIds,
-      traegerVonFamilie,
-      requiredTraegerCount,
-    });
-  }, [entryForValidation, arrangeurId, traegerIds, traegerVonFamilie, requiredTraegerCount]);
+    return validatePersonnelBooking(
+      entryForValidation,
+      {
+        arrangeurId: arrangeurId || null,
+        traegerIds,
+        traegerVonFamilie,
+        requiredTraegerCount,
+      },
+      { personnelPool }
+    );
+  }, [
+    entryForValidation,
+    arrangeurId,
+    traegerIds,
+    traegerVonFamilie,
+    requiredTraegerCount,
+    personnelPool,
+  ]);
 
   if (!entry || !entryForValidation) return null;
 
@@ -255,7 +286,7 @@ export function PersonnelBookingDialog({
   function toggleTraeger(id: string) {
     const person = traeger.find((p) => p.id === id);
     if (person?.unavailable) return;
-    if (id === arrangeurId || bookedArrangeurIds.has(id)) return;
+    if (id === arrangeurId) return;
     setTraegerIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
@@ -338,8 +369,9 @@ export function PersonnelBookingDialog({
 
         {begraebnis && !isFahrerMode && !isKremationTransfer && (
           <p className="personnel-booking-rule">
-            Begräbnis: 1 Arrangeur erforderlich. Eingebuchter Arrangeur ist nicht als Träger
-            wählbar.
+            Begräbnis: 1 Arrangeur erforderlich (auch Träger/Fahrer wählbar — mit Warnung).
+            Eingebuchter Arrangeur ist nicht als Träger wählbar. Personal darf am selben Tag
+            woanders stehen, außer im Zeitfenster ±30 Min.
             {effectiveMarker === 'S' && !traegerVonFamilie
               ? ' Sarg ohne Träger von Familie → mind. 4 Träger.'
               : null}
@@ -443,15 +475,37 @@ export function PersonnelBookingDialog({
               value={arrangeurId}
               onChange={(e) => selectArrangeur(e.target.value)}
               disabled={pending}
+              className="personnel-booking-arrangeur-select"
             >
               <option value="">— wählen —</option>
-              {arrangeure.map((p) => (
-                <option key={p.id} value={p.id} disabled={Boolean(p.unavailable)}>
-                  {p.name}
-                  {p.extern ? ' (extern)' : ''}
-                  {p.unavailable ? ` (${unavailableReasonLabel(p.unavailable)})` : ''}
-                </option>
-              ))}
+              {arrangeureMitRolle.length > 0 && (
+                <optgroup label="Arrangeure">
+                  {arrangeureMitRolle.map((p) => (
+                    <option
+                      key={p.id}
+                      value={p.id}
+                      disabled={Boolean(p.unavailable)}
+                      className="is-arrangeur-option"
+                    >
+                      {p.name}
+                      {p.extern ? ' (extern)' : ''}
+                      {p.unavailable ? ` (${unavailableReasonLabel(p.unavailable)})` : ''}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {arrangeureOhneRolle.length > 0 && (
+                <optgroup label="Weitere (kein Arrangeur)">
+                  {arrangeureOhneRolle.map((p) => (
+                    <option key={p.id} value={p.id} disabled={Boolean(p.unavailable)}>
+                      {p.name}
+                      {p.roles.length ? ` · ${p.roles.join(', ')}` : ''}
+                      {p.extern ? ' (extern)' : ''}
+                      {p.unavailable ? ` (${unavailableReasonLabel(p.unavailable)})` : ''}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
             </select>
           </label>
 

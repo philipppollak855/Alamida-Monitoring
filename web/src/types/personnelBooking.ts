@@ -46,4 +46,9 @@ export type PersonnelBookingValidation = {
   isBegraebnis: boolean;
 };
 
-export type PersonUnavailableReason = 'absent' | 'booked-arrangeur' | 'booked-traeger';
+export type PersonUnavailableReason =
+  | 'absent'
+  | 'booked-arrangeur'
+  | 'booked-traeger'
+  | 'booked-overlap';
+

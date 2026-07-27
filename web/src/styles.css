@@ -4840,6 +4840,27 @@ code {
   font: inherit;
 }
 
+.personnel-booking-arrangeur-select optgroup[label='Arrangeure'] {
+  font-weight: 800;
+  color: var(--text);
+}
+
+.personnel-booking-arrangeur-select option.is-arrangeur-option,
+.personnel-booking-arrangeur-select optgroup[label='Arrangeure'] option {
+  font-weight: 700;
+}
+
+.personnel-booking-arrangeur-select optgroup[label='Weitere (kein Arrangeur)'] {
+  font-weight: 500;
+  font-style: italic;
+  color: var(--muted);
+}
+
+.personnel-booking-arrangeur-select optgroup[label='Weitere (kein Arrangeur)'] option {
+  font-weight: 400;
+  font-style: normal;
+}
+
 .personnel-booking-field select:focus,
 .personnel-booking-field input:focus {
   outline: 2px solid var(--accent-dim);

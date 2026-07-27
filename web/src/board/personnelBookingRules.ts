@@ -6,11 +6,38 @@ import type {
   PersonnelBookingValidation,
   PersonUnavailableReason,
 } from '../types/personnelBooking';
+import type { DispositionPerson } from '../types/dispositionSettings';
+
+/** Konfliktfenster: gleiche Person darf andernorts gebucht werden, außer ±30 Min. */
+export const PERSONNEL_TIME_CONFLICT_MINUTES = 30;
 
 function isTransferPersonnelBooking(
   booking: Pick<PersonnelBooking, 'entryArts'>
 ): boolean {
   return isPureTransferEntry({ arts: booking.entryArts });
+}
+
+/** Minuten seit Mitternacht aus „14:00“, „14:00 Uhr“ o. ä. — sonst null. */
+export function parseTimeLabelMinutes(timeLabel: string | null | undefined): number | null {
+  if (!timeLabel) return null;
+  const m = String(timeLabel).match(/(\d{1,2})\s*[:.]\s*(\d{2})/);
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  if (!Number.isFinite(h) || !Number.isFinite(min) || h > 23 || min > 59) return null;
+  return h * 60 + min;
+}
+
+/** true wenn beide Zeiten parsebar und |Δ| ≤ windowMin. */
+export function timesConflictWithinMinutes(
+  a: string | null | undefined,
+  b: string | null | undefined,
+  windowMin = PERSONNEL_TIME_CONFLICT_MINUTES
+): boolean {
+  const ma = parseTimeLabelMinutes(a);
+  const mb = parseTimeLabelMinutes(b);
+  if (ma == null || mb == null) return false;
+  return Math.abs(ma - mb) <= windowMin;
 }
 
 export function isBegraebnisEntry(entry: Pick<WallCalendarEntry, 'arts' | 'title'>): boolean {
@@ -41,7 +68,11 @@ export function defaultRequiredTraegerCount(
 
 export function validatePersonnelBooking(
   entry: Pick<WallCalendarEntry, 'arts' | 'title' | 'bestattungsMarker'>,
-  draft: Pick<PersonnelBooking, 'arrangeurId' | 'traegerIds' | 'traegerVonFamilie' | 'requiredTraegerCount'>
+  draft: Pick<
+    PersonnelBooking,
+    'arrangeurId' | 'traegerIds' | 'traegerVonFamilie' | 'requiredTraegerCount'
+  >,
+  opts?: { personnelPool?: DispositionPerson[] }
 ): PersonnelBookingValidation {
   const isBegraebnis = isBegraebnisEntry(entry);
   const requiresArrangeur = isBegraebnis;
@@ -70,6 +101,15 @@ export function validatePersonnelBooking(
 
   if (draft.arrangeurId && draft.traegerIds.includes(draft.arrangeurId)) {
     errors.push('Eingebuchter Arrangeur steht nicht als Träger zur Verfügung.');
+  }
+
+  if (draft.arrangeurId && opts?.personnelPool) {
+    const person = opts.personnelPool.find((p) => p.id === draft.arrangeurId);
+    if (person && !person.roles.includes('arrangeur')) {
+      warnings.push(
+        `${person.name} ist kein Arrangeur (nur ${person.roles.join('/') || 'ohne Rolle'}) — bitte prüfen.`
+      );
+    }
   }
 
   return {
@@ -124,30 +164,51 @@ export function isPersonAbsentOnDay(
   return false;
 }
 
-/** Warum eine Person am Tag nicht verfügbar ist (Abwesenheit oder Einbuchung). */
+type BookingTimeSlice = Pick<
+  PersonnelBooking,
+  'dayKey' | 'arrangeurId' | 'traegerIds' | 'timeLabel'
+>;
+
+/** Ob Person in einer Buchung vorkommt (Arrangeur oder Träger). */
+function personInBooking(personId: string, booking: BookingTimeSlice): boolean {
+  if (booking.arrangeurId === personId) return true;
+  return (booking.traegerIds ?? []).includes(personId);
+}
+
+/**
+ * Warum eine Person am Termin nicht verfügbar ist:
+ * Abwesenheit, oder Einbuchung am selben Tag innerhalb ±30 Min.
+ * Anderes Begräbnis am selben Tag außerhalb des Fensters ist erlaubt.
+ */
 export function personUnavailableReason(
   personId: string,
   dayKey: string,
   opts: {
     absences?: Record<string, Pick<PersonnelAbsence, 'personId' | 'fromDayKey' | 'toDayKey'>>;
-    bookings?: Record<
-      string,
-      Pick<PersonnelBooking, 'dayKey' | 'arrangeurId' | 'traegerIds'>
-    >;
+    bookings?: Record<string, BookingTimeSlice>;
     excludeBookingId?: string;
-    /** Rolle, für die geprüft wird — Arrangeur-Buchung blockiert Träger. */
+    /** Rolle, für die geprüft wird — nur für Hinweistext. */
     asRole?: 'arrangeur' | 'traeger';
+    /** Uhrzeit des aktuellen Termins. */
+    timeLabel?: string;
+    conflictWindowMinutes?: number;
   }
 ): PersonUnavailableReason | null {
   if (opts.absences && isPersonAbsentOnDay(opts.absences, personId, dayKey)) {
     return 'absent';
   }
   const bookings = opts.bookings ?? {};
-  const arrangeurs = arrangeurIdsBookedOnDay(bookings, dayKey, opts.excludeBookingId);
-  if (arrangeurs.has(personId)) return 'booked-arrangeur';
-  if (opts.asRole === 'traeger') {
-    const traeger = traegerIdsBookedOnDay(bookings, dayKey, opts.excludeBookingId);
-    if (traeger.has(personId)) return 'booked-traeger';
+  const windowMin = opts.conflictWindowMinutes ?? PERSONNEL_TIME_CONFLICT_MINUTES;
+  const currentTime = opts.timeLabel ?? '';
+
+  for (const [id, booking] of Object.entries(bookings)) {
+    if (opts.excludeBookingId && id === opts.excludeBookingId) continue;
+    if (booking.dayKey !== dayKey) continue;
+    if (!personInBooking(personId, booking)) continue;
+    if (!timesConflictWithinMinutes(currentTime, booking.timeLabel, windowMin)) continue;
+    if (booking.arrangeurId === personId) return 'booked-arrangeur';
+    if ((booking.traegerIds ?? []).includes(personId)) return 'booked-traeger';
+    return 'booked-overlap';
   }
   return null;
 }
@@ -157,9 +218,11 @@ export function unavailableReasonLabel(reason: PersonUnavailableReason): string 
     case 'absent':
       return 'Abwesend';
     case 'booked-arrangeur':
-      return 'Als Arrangeur eingebucht';
+      return 'Als Arrangeur eingebucht (±30 Min)';
     case 'booked-traeger':
-      return 'Als Träger eingebucht';
+      return 'Als Träger eingebucht (±30 Min)';
+    case 'booked-overlap':
+      return 'Bereits eingebucht (±30 Min)';
   }
 }
 

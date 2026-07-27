@@ -6,10 +6,12 @@ import {
   isBegraebnisEntry,
   isPersonAbsentOnDay,
   minTraegerForEntry,
+  parseTimeLabelMinutes,
   personnelBookingDisplayLine,
   personnelBookingSummary,
   personnelBookingTraegerLine,
   personUnavailableReason,
+  timesConflictWithinMinutes,
   unavailableReasonLabel,
   validatePersonnelBooking,
 } from './personnelBookingRules';
@@ -295,25 +297,85 @@ describe('Abwesenheiten / Nicht verfügbar', () => {
           dayKey: '2026-07-27',
           arrangeurId: 'p1',
           traegerIds: [],
+          timeLabel: '14:00',
         },
       },
+      timeLabel: '14:00',
     });
     expect(reason).toBe('absent');
     expect(unavailableReasonLabel('absent')).toBe('Abwesend');
   });
 
-  it('blockiert bereits eingebuchten Arrangeur', () => {
+  it('blockiert nur bei Zeitkonflikt ±30 Min, nicht den ganzen Tag', () => {
+    const bookings = {
+      b1: {
+        dayKey: '2026-07-27',
+        arrangeurId: 'arr-1',
+        traegerIds: ['t1'],
+        timeLabel: '14:00',
+      },
+    };
     expect(
       personUnavailableReason('arr-1', '2026-07-27', {
-        bookings: {
-          b1: {
-            dayKey: '2026-07-27',
-            arrangeurId: 'arr-1',
-            traegerIds: ['t1'],
-          },
-        },
-        asRole: 'traeger',
+        bookings,
+        asRole: 'arrangeur',
+        timeLabel: '14:20',
       })
     ).toBe('booked-arrangeur');
+    expect(
+      personUnavailableReason('arr-1', '2026-07-27', {
+        bookings,
+        asRole: 'arrangeur',
+        timeLabel: '15:00',
+      })
+    ).toBeNull();
+    expect(
+      personUnavailableReason('t1', '2026-07-27', {
+        bookings,
+        asRole: 'traeger',
+        timeLabel: '13:45',
+      })
+    ).toBe('booked-traeger');
+    expect(
+      personUnavailableReason('t1', '2026-07-27', {
+        bookings,
+        asRole: 'traeger',
+        timeLabel: '16:00',
+      })
+    ).toBeNull();
+  });
+});
+
+describe('parseTimeLabelMinutes / timesConflictWithinMinutes', () => {
+  it('parst Uhrzeiten und erkennt ±30-Min-Fenster', () => {
+    expect(parseTimeLabelMinutes('14:00')).toBe(14 * 60);
+    expect(parseTimeLabelMinutes('9.30 Uhr')).toBe(9 * 60 + 30);
+    expect(timesConflictWithinMinutes('14:00', '14:30')).toBe(true);
+    expect(timesConflictWithinMinutes('14:00', '14:31')).toBe(false);
+  });
+});
+
+describe('validatePersonnelBooking Warnung ohne Arrangeur-Rolle', () => {
+  it('warnt wenn gewählte Person kein Arrangeur ist', () => {
+    const v = validatePersonnelBooking(
+      sargBegraebnis,
+      {
+        arrangeurId: 't-only',
+        traegerIds: ['t1', 't2', 't3', 't4'],
+        traegerVonFamilie: false,
+        requiredTraegerCount: 4,
+      },
+      {
+        personnelPool: [
+          { id: 't-only', name: 'Tom', roles: ['traeger'] },
+          { id: 't1', name: 'A', roles: ['traeger'] },
+          { id: 't2', name: 'B', roles: ['traeger'] },
+          { id: 't3', name: 'C', roles: ['traeger'] },
+          { id: 't4', name: 'D', roles: ['traeger'] },
+        ],
+      }
+    );
+    expect(v.ok).toBe(true);
+    expect(v.warnings.some((w) => w.includes('kein Arrangeur'))).toBe(true);
   });
 });
