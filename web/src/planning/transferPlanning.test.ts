@@ -4,6 +4,7 @@ import type { DispositionSettings } from '../types/dispositionSettings';
 import { DEFAULT_DISPOSITION_SETTINGS } from '../config/defaultDispositionSettings';
 import { setDispositionSettings } from '../settings/dispositionSettingsStore';
 import {
+  attachTransferToCeremony,
   buildKuehlraumCapacities,
   buildKuehlraumRailStates,
   buildLocationGroups,
@@ -11,14 +12,17 @@ import {
   buildScheduleDraftFromSterbeort,
   buildSlotFreeEvents,
   buildSterbeortPool,
+  canUndoPlanEvent,
   canvasPlanningId,
   moveCardAssignment,
   nextOrderInLane,
   planningCardId,
   resolveFreigabeState,
   scheduleToKuehlraum,
+  undoOrRemoveAssignment,
+  undoPlanEvent,
 } from './transferPlanning';
-import type { PlanAssignment } from './types';
+import type { DispositionPlanEvent, PlanAssignment } from './types';
 
 const settings: DispositionSettings = {
   ...DEFAULT_DISPOSITION_SETTINGS,
@@ -189,5 +193,94 @@ describe('transferPlanning board', () => {
     )[0];
     const next = moveCardAssignment({}, card, '2026-07-29', nextOrderInLane([], '2026-07-29'));
     expect(next[card.id].plannedDayKey).toBe('2026-07-29');
+  });
+
+  it('macht Umplanung rückgängig und stellt entfernte Events wieder her', () => {
+    const sterbefaelle = [
+      fall({
+        id: 'u1',
+        ausstehend: [
+          {
+            zeile: 1,
+            schrittTyp: 'ueberfuehrung',
+            vonOrt: 'A',
+            nachOrt: 'B',
+            terminAm: '28.07.2026',
+          },
+        ],
+      }),
+    ];
+    const card = buildPlanningCards(sterbefaelle, {}, settings)[0]!;
+    const first = moveCardAssignment({}, card, '2026-07-28', 10);
+    const second = moveCardAssignment(first, { ...card, hasManualPlan: true }, '2026-07-29', 20);
+    expect(second[card.id]!.previous?.plannedDayKey).toBe('2026-07-28');
+
+    const restored = undoOrRemoveAssignment(second, card.id);
+    expect(restored.mode).toBe('restored');
+    expect(restored.restored?.plannedDayKey).toBe('2026-07-28');
+    expect(restored.restored?.previous).toBeNull();
+
+    const removed = undoOrRemoveAssignment(restored.assignments, card.id);
+    expect(removed.mode).toBe('removed');
+    expect(removed.assignments[card.id]).toBeUndefined();
+
+    const events: DispositionPlanEvent[] = [
+      {
+        id: 'ev1',
+        type: 'ueberfuehrung_entfernt',
+        docId: 'u1',
+        assignmentId: card.id,
+        plannedDayKey: '2026-07-28',
+        snapshot: {
+          plannedDayKey: '2026-07-28',
+          order: 10,
+          zeile: 1,
+          source: 'alamida',
+        },
+        createdAtMs: 1,
+      },
+    ];
+    expect(canUndoPlanEvent(events[0]!, removed.assignments)).toBe(true);
+    const undone = undoPlanEvent(removed.assignments, events, 'ev1');
+    expect(undone.mode).toBe('restored');
+    expect(undone.assignments[card.id]?.plannedDayKey).toBe('2026-07-28');
+    expect(undone.events).toHaveLength(0);
+  });
+
+  it('hängt Überführung manuell an Feiertermin', () => {
+    const sterbefaelle = [
+      fall({
+        id: 'a1',
+        verstorbenerName: 'Meier',
+        beisetzungsdatum: '30.07.2026 14:00',
+        ausstehend: [
+          {
+            zeile: 1,
+            schrittTyp: 'ueberfuehrung',
+            vonOrt: 'KR',
+            nachOrt: 'Friedhof',
+            terminAm: '28.07.2026',
+          },
+        ],
+      }),
+    ];
+    const card = buildPlanningCards(sterbefaelle, {}, settings)[0]!;
+    const result = attachTransferToCeremony(
+      {},
+      card,
+      { kind: 'beisetzung', dayKey: '2026-07-30', zeit: '14:00' },
+      10
+    );
+    expect(result).not.toBeNull();
+    expect(result!.assignment.plannedDayKey).toBe('2026-07-30');
+    expect(result!.assignment.attachedCeremony).toEqual({
+      kind: 'beisetzung',
+      dayKey: '2026-07-30',
+    });
+    expect(result!.assignment.plannedZeit).toBe('14:00');
+
+    const cards = buildPlanningCards(sterbefaelle, result!.assignments, settings);
+    expect(cards[0]!.attachedCeremony?.kind).toBe('beisetzung');
+    expect(cards[0]!.canUndoUmplanung).toBe(false);
   });
 });

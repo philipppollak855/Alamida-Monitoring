@@ -18,16 +18,22 @@ export function PlanningTransferCard({
   onDragEnd,
   onReset,
 }: Props) {
-  const attachedToCeremony = Boolean(
-    card.plannedDayKey &&
-      (card.ceremonies ?? []).some(
-        (c) =>
-          c.dayKey === card.plannedDayKey &&
-          (c.kind === 'beisetzung' ||
-            c.kind === 'verabschiedung' ||
-            c.kind === 'trauerfeier')
-      )
-  );
+  const attachedToCeremony =
+    Boolean(card.attachedCeremony) ||
+    Boolean(
+      card.plannedDayKey &&
+        (card.ceremonies ?? []).some(
+          (c) =>
+            c.dayKey === card.plannedDayKey &&
+            (c.kind === 'beisetzung' ||
+              c.kind === 'verabschiedung' ||
+              c.kind === 'trauerfeier')
+        )
+    );
+
+  const undoTitle = card.canUndoUmplanung
+    ? 'Umplanung rückgängig'
+    : 'Planung zurücksetzen';
 
   return (
     <article
@@ -37,7 +43,7 @@ export function PlanningTransferCard({
         card.source === 'canvas' ? ' is-canvas' : ''
       }${card.targetsEigenerKr ? ' is-to-kr' : ''}${
         card.leavesEigenerKr && !card.targetsEigenerKr ? ' is-from-kr' : ''
-      } freigabe-${card.freigabeState ?? 'offen'}`}
+      }${attachedToCeremony ? ' is-attached' : ''} freigabe-${card.freigabeState ?? 'offen'}`}
       draggable={!card.erledigt}
       onDragStart={(e) => {
         e.dataTransfer.effectAllowed = 'move';
@@ -106,8 +112,8 @@ export function PlanningTransferCard({
         {card.hasManualPlan && onReset && (
           <button
             type="button"
-            className="plan-reset-btn"
-            title="Planung zurücksetzen"
+            className={`plan-reset-btn${card.canUndoUmplanung ? ' is-undo' : ''}`}
+            title={undoTitle}
             onClick={(e) => {
               e.stopPropagation();
               onReset(card);

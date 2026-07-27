@@ -6688,6 +6688,11 @@ code {
   background: var(--accent-dim);
 }
 
+.plan-reset-btn.is-undo {
+  color: var(--accent);
+  font-weight: 700;
+}
+
 @keyframes plan-card-enter {
   from {
     opacity: 0;
@@ -7023,7 +7028,7 @@ code {
 
 .plan-event {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto 1fr auto auto;
   gap: 0.25rem 0.75rem;
   align-items: baseline;
   padding: 0.55rem 0.65rem;
@@ -7032,6 +7037,31 @@ code {
   border: 1px solid var(--border);
   font-size: 0.82rem;
   animation: plan-card-enter 0.3s ease both;
+}
+
+.plan-event-undo {
+  grid-column: 4;
+  grid-row: 1 / 3;
+  align-self: center;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.35rem 0.55rem;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.plan-event-undo:hover:not(:disabled) {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+}
+
+.plan-event-undo:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .plan-event-type {
@@ -7099,6 +7129,12 @@ code {
   .plan-event time {
     grid-column: 2;
     grid-row: auto;
+  }
+
+  .plan-event-undo {
+    grid-column: 1 / -1;
+    grid-row: auto;
+    justify-self: start;
   }
 }
 
@@ -7490,6 +7526,27 @@ code {
   color: var(--muted);
   font-size: 0.68rem;
   line-height: 1.3;
+}
+
+.plan-center-ceremony.is-droppable {
+  outline: 1px dashed transparent;
+  transition: outline-color 0.15s ease, background 0.15s ease;
+}
+
+.plan-center-ceremony.is-droppable.is-drop-target {
+  outline-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.plan-center-ceremony-drop-hint {
+  display: none;
+  font-size: 0.68rem;
+  color: var(--accent);
+  margin-top: 0.15rem;
+}
+
+.plan-center-ceremony.is-droppable.is-drop-target .plan-center-ceremony-drop-hint {
+  display: block;
 }
 
 .plan-center-ceremony.is-clickable {

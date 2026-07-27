@@ -19,13 +19,17 @@ import { isUeberfuehrungZeileErledigt } from '../board/ueberfuehrungErledigt';
 import { matchEigenerKuehlraum } from '../settings/ortMatchers';
 import { parseUeberfuehrungRoute } from '../board/routeParse';
 import type {
+  AttachedCeremonyRef,
   CeremonyInfo,
+  CeremonyKind,
+  DispositionPlanEvent,
   FreigabeState,
   KuehlraumDayCapacity,
   KuehlraumOccupant,
   KuehlraumRailState,
   LocationGroup,
   PlanAssignment,
+  PlanAssignmentSnapshot,
   PlanningCard,
   ScheduleDraft,
   SlotFreeEvent,
@@ -38,6 +42,46 @@ export function planningCardId(docId: string, zeile: number): string {
 
 export function canvasPlanningId(docId: string, kuehlraumId: string): string {
   return `${docId}:canvas:${kuehlraumId}`;
+}
+
+export function snapshotFromAssignment(a: PlanAssignment): PlanAssignmentSnapshot {
+  return {
+    plannedDayKey: a.plannedDayKey,
+    plannedKuehlraumId: a.plannedKuehlraumId ?? null,
+    plannedZeit: a.plannedZeit ?? null,
+    vonOrt: a.vonOrt ?? null,
+    nachOrt: a.nachOrt ?? null,
+    schrittTyp: a.schrittTyp ?? null,
+    order: a.order,
+    attachedCeremony: a.attachedCeremony ?? null,
+  };
+}
+
+export function assignmentSnapshotPayload(
+  a: PlanAssignment
+): PlanAssignmentSnapshot & { zeile: number; source?: 'alamida' | 'canvas' } {
+  return {
+    ...snapshotFromAssignment(a),
+    zeile: a.zeile,
+    source: a.source,
+  };
+}
+
+/** Ob ein weitergegebenes Event rückgängig gemacht werden kann. */
+export function canUndoPlanEvent(
+  event: DispositionPlanEvent,
+  assignments: Record<string, PlanAssignment>
+): boolean {
+  if (event.type === 'ueberfuehrung_entfernt') {
+    return Boolean(event.snapshot && event.assignmentId);
+  }
+  if (event.type === 'ueberfuehrung_umgeplant') {
+    if (event.previousSnapshot && event.assignmentId) return true;
+    const id = event.assignmentId;
+    return Boolean(id && assignments[id]?.previous);
+  }
+  // geplant → Zuordnung entfernen
+  return Boolean(event.assignmentId && assignments[event.assignmentId]);
 }
 
 function nachOrtAusSchritt(vonOrt?: string, nachOrt?: string): string | undefined {
@@ -166,6 +210,8 @@ function cardFromAssignment(
     kuehlraumId,
     order: assignment.order,
     hasManualPlan: true,
+    canUndoUmplanung: Boolean(assignment.previous),
+    attachedCeremony: assignment.attachedCeremony ?? null,
     source: 'canvas',
     amSterbeort: isAmKrankenhausOderSterbeort(s),
     ...enrichCardMeta(s, now),
@@ -247,6 +293,8 @@ export function buildPlanningCards(
         kuehlraumId,
         order: assignment?.order ?? zeile,
         hasManualPlan: assignment != null,
+        canUndoUmplanung: Boolean(assignment?.previous),
+        attachedCeremony: assignment?.attachedCeremony ?? null,
         source: assignment?.source === 'canvas' ? 'canvas' : 'alamida',
         amSterbeort: isAmKrankenhausOderSterbeort(s),
         ...meta,
@@ -533,6 +581,11 @@ export function moveCardAssignment(
   extras?: Partial<PlanAssignment>
 ): Record<string, PlanAssignment> {
   const next = { ...assignments };
+  const prev = next[card.id];
+  const attachedCeremony =
+    extras && 'attachedCeremony' in extras
+      ? extras.attachedCeremony ?? null
+      : (prev?.attachedCeremony ?? card.attachedCeremony ?? null);
   next[card.id] = {
     id: card.id,
     docId: card.docId,
@@ -545,6 +598,8 @@ export function moveCardAssignment(
     schrittTyp: extras?.schrittTyp ?? card.schrittTyp,
     source: extras?.source ?? card.source,
     order,
+    previous: prev ? snapshotFromAssignment(prev) : null,
+    attachedCeremony,
     updatedAtMs: Date.now(),
   };
   return next;
@@ -579,6 +634,8 @@ export function scheduleToKuehlraum(
     schrittTyp: draft.schrittTyp,
     source: existingCard?.source === 'alamida' ? 'alamida' : 'canvas',
     order,
+    previous: prev ? snapshotFromAssignment(prev) : null,
+    attachedCeremony: prev?.attachedCeremony ?? existingCard?.attachedCeremony ?? null,
     updatedAtMs: Date.now(),
   };
 
@@ -596,6 +653,154 @@ export function removeAssignment(
   const next = { ...assignments };
   delete next[id];
   return next;
+}
+
+/** Stellt die letzte Umplanung wieder her; ohne previous → Zuordnung löschen. */
+export function undoOrRemoveAssignment(
+  assignments: Record<string, PlanAssignment>,
+  id: string
+): {
+  assignments: Record<string, PlanAssignment>;
+  mode: 'restored' | 'removed';
+  restored?: PlanAssignment;
+  removed?: PlanAssignment;
+} {
+  const current = assignments[id];
+  if (!current) {
+    return { assignments, mode: 'removed' };
+  }
+  if (current.previous) {
+    const restored: PlanAssignment = {
+      id: current.id,
+      docId: current.docId,
+      zeile: current.zeile,
+      source: current.source,
+      ...current.previous,
+      previous: null,
+      updatedAtMs: Date.now(),
+    };
+    return {
+      assignments: { ...assignments, [id]: restored },
+      mode: 'restored',
+      restored,
+      removed: current,
+    };
+  }
+  return {
+    assignments: removeAssignment(assignments, id),
+    mode: 'removed',
+    removed: current,
+  };
+}
+
+const ATTACHABLE_CEREMONY_KINDS: CeremonyKind[] = [
+  'beisetzung',
+  'verabschiedung',
+  'trauerfeier',
+];
+
+export function isAttachableCeremonyKind(kind: CeremonyKind): boolean {
+  return ATTACHABLE_CEREMONY_KINDS.includes(kind);
+}
+
+/** Überführung manuell an Feiertermin binden (gleicher Fall). */
+export function attachTransferToCeremony(
+  assignments: Record<string, PlanAssignment>,
+  card: PlanningCard,
+  ceremony: Pick<CeremonyInfo, 'kind' | 'dayKey' | 'zeit'>,
+  order: number
+): {
+  assignments: Record<string, PlanAssignment>;
+  assignment: PlanAssignment;
+  eventType: 'ueberfuehrung_geplant' | 'ueberfuehrung_umgeplant';
+} | null {
+  if (!ceremony.dayKey || !isAttachableCeremonyKind(ceremony.kind)) return null;
+  const attached: AttachedCeremonyRef = {
+    kind: ceremony.kind,
+    dayKey: ceremony.dayKey,
+  };
+  const next = moveCardAssignment(assignments, card, ceremony.dayKey, order, {
+    plannedZeit: ceremony.zeit?.trim() || card.plannedZeit || null,
+    attachedCeremony: attached,
+  });
+  const assignment = next[card.id]!;
+  return {
+    assignments: next,
+    assignment,
+    eventType: assignments[card.id] ? 'ueberfuehrung_umgeplant' : 'ueberfuehrung_geplant',
+  };
+}
+
+/** Weitergegebenes Event rückgängig machen und aus dem Feed entfernen. */
+export function undoPlanEvent(
+  assignments: Record<string, PlanAssignment>,
+  events: DispositionPlanEvent[],
+  eventId: string
+): {
+  assignments: Record<string, PlanAssignment>;
+  events: DispositionPlanEvent[];
+  mode: 'restored' | 'removed' | 'noop';
+} {
+  const event = events.find((e) => e.id === eventId);
+  if (!event || !canUndoPlanEvent(event, assignments)) {
+    return { assignments, events, mode: 'noop' };
+  }
+
+  const withoutEvent = events.filter((e) => e.id !== eventId);
+  const id = event.assignmentId!;
+
+  if (event.type === 'ueberfuehrung_entfernt') {
+    const snap = event.snapshot!;
+    const restored: PlanAssignment = {
+      id,
+      docId: event.docId,
+      zeile: typeof snap.zeile === 'number' ? snap.zeile : -1,
+      plannedDayKey: snap.plannedDayKey,
+      plannedKuehlraumId: snap.plannedKuehlraumId ?? null,
+      plannedZeit: snap.plannedZeit ?? null,
+      vonOrt: snap.vonOrt ?? null,
+      nachOrt: snap.nachOrt ?? null,
+      schrittTyp: snap.schrittTyp ?? null,
+      source: snap.source === 'alamida' ? 'alamida' : 'canvas',
+      order: snap.order,
+      attachedCeremony: snap.attachedCeremony ?? null,
+      previous: null,
+      updatedAtMs: Date.now(),
+    };
+    return {
+      assignments: { ...assignments, [id]: restored },
+      events: withoutEvent,
+      mode: 'restored',
+    };
+  }
+
+  if (event.type === 'ueberfuehrung_umgeplant') {
+    const prevSnap = event.previousSnapshot ?? assignments[id]?.previous;
+    if (prevSnap && assignments[id]) {
+      const current = assignments[id]!;
+      const restored: PlanAssignment = {
+        id: current.id,
+        docId: current.docId,
+        zeile: current.zeile,
+        source: current.source,
+        ...prevSnap,
+        previous: null,
+        updatedAtMs: Date.now(),
+      };
+      return {
+        assignments: { ...assignments, [id]: restored },
+        events: withoutEvent,
+        mode: 'restored',
+      };
+    }
+  }
+
+  // geplant (oder Umplanung ohne Vorzustand): Zuordnung entfernen
+  return {
+    assignments: removeAssignment(assignments, id),
+    events: withoutEvent,
+    mode: 'removed',
+  };
 }
 
 export function nextOrderInLane(cards: PlanningCard[], dayKey: string | null): number {
