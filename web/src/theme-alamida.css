@@ -1039,9 +1039,23 @@
   color: var(--violet);
 }
 
-[data-theme='alamida'] .zusatz-termin-scope {
-  background: rgba(255, 255, 255, 0.85);
+[data-theme='alamida'] .fall-dup-dialog {
+  background: rgba(255, 255, 255, 0.97);
   border-color: var(--border);
+  box-shadow: 0 16px 48px rgba(42, 72, 78, 0.14);
+}
+
+[data-theme='alamida'] .fall-dup-group {
+  background: rgba(255, 255, 255, 0.72);
+  border-color: var(--border);
+}
+
+[data-theme='alamida'] .fall-dup-item.is-keep {
+  background: rgba(61, 138, 98, 0.1);
+}
+
+[data-theme='alamida'] .fall-dup-item.is-remove {
+  background: rgba(184, 90, 104, 0.1);
 }
 
 [data-theme='alamida'] .zusatz-termin-scope-btn.is-active {

@@ -278,6 +278,8 @@ public sealed class FirestoreSyncService : IAsyncDisposable
             inHistory,
             fullWriteCompleted: true);
 
+        await TryArchiveNeuOrphansAsync(sterbefallId, snapshot, now, ct);
+
         return new SyncResult
         {
             Kind = SyncResultKind.Updated,
@@ -855,6 +857,70 @@ public sealed class FirestoreSyncService : IAsyncDisposable
             },
             SetOptions.MergeAll,
             ct);
+    }
+
+    /// <summary>
+    /// Wenn ein Fall mit echter Sterbefall-ID geschrieben wird, NEU-Platzhalter
+    /// desselben Namens aus der aktiven Disposition nehmen (verhindert Doppelkarten).
+    /// </summary>
+    private async Task TryArchiveNeuOrphansAsync(
+        string keepSterbefallId,
+        DetailSnapshot snapshot,
+        Timestamp now,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(keepSterbefallId)) return;
+        if (keepSterbefallId.StartsWith("NEU-", StringComparison.OrdinalIgnoreCase)) return;
+
+        var name = snapshot.VerstorbenerName?.Trim();
+        if (string.IsNullOrWhiteSpace(name)) return;
+
+        try
+        {
+            var querySnap = await _db.Collection("sterbefaelle")
+                .WhereEqualTo("verstorbenerName", name)
+                .Limit(25)
+                .GetSnapshotAsync(ct);
+
+            foreach (var doc in querySnap.Documents)
+            {
+                if (doc.Id.Equals(keepSterbefallId, StringComparison.Ordinal)) continue;
+                if (!doc.Id.StartsWith("NEU-", StringComparison.OrdinalIgnoreCase)) continue;
+                if (doc.ContainsField("inHistory") && doc.GetValue<bool>("inHistory")) continue;
+
+                await doc.Reference.SetAsync(
+                    new Dictionary<string, object>
+                    {
+                        ["inHistory"] = true,
+                        ["aktivInDisposition"] = false,
+                        ["aktivInAlamida"] = false,
+                        ["historieGrund"] = "duplikat_ersetzt",
+                        ["ersetztDurch"] = keepSterbefallId,
+                        ["archiviertAm"] = now,
+                        ["updatedAt"] = now,
+                        ["workstationId"] = _workstationId,
+                    },
+                    SetOptions.MergeAll,
+                    ct);
+
+                await _db.Collection("sterbefaelle_history").Document(doc.Id).SetAsync(
+                    new Dictionary<string, object>
+                    {
+                        ["sterbefallId"] = doc.Id,
+                        ["verstorbenerName"] = name,
+                        ["inHistory"] = true,
+                        ["archiviertAm"] = now,
+                        ["historieGrund"] = "duplikat_ersetzt",
+                        ["ersetztDurch"] = keepSterbefallId,
+                    },
+                    SetOptions.MergeAll,
+                    ct);
+            }
+        }
+        catch
+        {
+            // Query-/Index-Fehler dürfen den Hauptsync nicht blockieren.
+        }
     }
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;

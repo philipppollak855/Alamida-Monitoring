@@ -4,7 +4,8 @@ import { db } from '../firebase';
 /** Fall in Disposition/Wandmonitor ausblenden (z. B. Testfälle). Daten bleiben in Firestore. */
 export async function removeSterbefallFromDisposition(
   docId: string,
-  sterbefallId?: string
+  sterbefallId?: string,
+  historieGrund: string = 'manuell_entfernt'
 ): Promise<void> {
   if (!db) throw new Error('Firebase nicht konfiguriert');
 
@@ -12,9 +13,19 @@ export async function removeSterbefallFromDisposition(
   await updateDoc(ref, {
     inHistory: true,
     aktivInDisposition: false,
-    historieGrund: 'manuell_entfernt',
+    historieGrund,
     archiviertAm: serverTimestamp(),
     updatedAt: serverTimestamp(),
     ...(sterbefallId ? { sterbefallId } : {}),
   });
+}
+
+/** Mehrere Fälle aus Disposition entfernen (z. B. Duplikatbereinigung). */
+export async function removeSterbefaelleFromDisposition(
+  items: Array<{ docId: string; sterbefallId?: string }>,
+  historieGrund: string = 'duplikat_bereinigt'
+): Promise<void> {
+  for (const item of items) {
+    await removeSterbefallFromDisposition(item.docId, item.sterbefallId, historieGrund);
+  }
 }

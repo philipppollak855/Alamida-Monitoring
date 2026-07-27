@@ -45,6 +45,7 @@ export function fallAbschlussGrundLabel(grund?: string): string {
   const hit = FALL_ABSCHLUSS_GRUENDE.find((g) => g.id === grund);
   if (hit) return hit.label;
   if (grund === 'manuell_entfernt') return 'Manuell entfernt';
+  if (grund === 'duplikat_ersetzt' || grund === 'duplikat_bereinigt') return 'Duplikat entfernt';
   return grund;
 }
 
@@ -52,5 +53,6 @@ export function fallAbschlussGrundLabel(grund?: string): string {
 export function istManuellAusgeschlossen(grund?: string): boolean {
   if (!grund?.trim()) return false;
   if (grund === 'manuell_entfernt') return true;
+  if (grund === 'duplikat_ersetzt' || grund === 'duplikat_bereinigt') return true;
   return isFallAbschlussGrund(grund);
 }

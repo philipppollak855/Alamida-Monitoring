@@ -2219,6 +2219,174 @@ code {
   font-size: 0.9rem;
 }
 
+.fall-dup-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 140;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(4, 8, 14, 0.72);
+  backdrop-filter: blur(8px);
+}
+
+.fall-dup-dialog {
+  width: min(720px, 100%);
+  max-height: min(92vh, 860px);
+  overflow: auto;
+  padding: 1.1rem 1.2rem 1.15rem;
+  border-radius: var(--radius);
+  background: var(--surface-solid, var(--surface));
+  border: 1px solid var(--border);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+}
+
+.fall-dup-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.fall-dup-kicker {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.fall-dup-head h2 {
+  margin: 0.15rem 0 0;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+}
+
+.fall-dup-sub {
+  margin: 0.35rem 0 0;
+  font-size: 0.88rem;
+  color: var(--muted);
+  line-height: 1.4;
+  max-width: 36rem;
+}
+
+.fall-dup-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 0.85rem 0 0.55rem;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.fall-dup-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.fall-dup-group {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.fall-dup-group-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.55rem 0.7rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.88rem;
+}
+
+.fall-dup-group-head span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.fall-dup-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.fall-dup-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.55rem 0.7rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.fall-dup-item:last-child {
+  border-bottom: none;
+}
+
+.fall-dup-item.is-keep {
+  background: rgba(52, 211, 153, 0.08);
+}
+
+.fall-dup-item.is-remove {
+  background: rgba(251, 113, 133, 0.08);
+}
+
+.fall-dup-item label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  min-width: 0;
+  flex: 1;
+  cursor: pointer;
+}
+
+.fall-dup-item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.fall-dup-item-main strong {
+  font-size: 0.9rem;
+}
+
+.fall-dup-item-meta {
+  font-size: 0.75rem;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.fall-dup-badge {
+  flex-shrink: 0;
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.fall-dup-badge.keep {
+  background: rgba(52, 211, 153, 0.16);
+  color: var(--success, #34d399);
+}
+
+.fall-dup-badge.remove {
+  background: rgba(251, 113, 133, 0.16);
+  color: var(--danger, #fb7185);
+}
+
+.fall-dup-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
 .case-abschluss-btn {
   align-self: stretch;
   margin: 0.5rem 0.65rem 0.5rem 0;

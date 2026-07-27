@@ -29,9 +29,14 @@ import { KuehlraumPlatzGrid } from '../components/KuehlraumPlatzGrid';
 import { BoardGlobalSearchResults } from '../components/board/BoardGlobalSearchResults';
 import { buildBoardSearchHits, type BoardSearchHit } from '../board/boardGlobalSearch';
 import { FallAbschlussDialog } from '../components/FallAbschlussDialog';
+import { FallDuplikateDialog } from '../components/FallDuplikateDialog';
 import { useFallAbschluss } from '../hooks/useFallAbschluss';
 import { getErledigteZeilen } from '../board/ueberfuehrungErledigt';
-import { removeSterbefallFromDisposition } from '../services/dispositionFall';
+import {
+  removeSterbefaelleFromDisposition,
+  removeSterbefallFromDisposition,
+} from '../services/dispositionFall';
+import { countEmpfohleneDuplikatEntfernungen, findFallDuplikatGruppen } from '../board/fallDuplikate';
 import { toggleUeberfuehrungErledigt } from '../services/ueberfuehrungErledigt';
 import { clearSterbefallUrnenRetour, markSterbefallUrnenRetour } from '../services/urnenRetour';
 import { DispositionSettingsPanel } from '../components/DispositionSettingsPanel';
@@ -42,7 +47,7 @@ import { matchEigenerKuehlraum } from '../settings/ortMatchers';
 import type { Sterbefall, MonitoringEvent } from '../types';
 
 type TransferFilter = 'alle' | 'heute' | 'abholung';
-type FaelleFilter = 'alle' | 'kuehlraum' | 'neu' | 'heute';
+type FaelleFilter = 'alle' | 'kuehlraum' | 'neu' | 'heute' | 'vergangen';
 
 function sectionBadge(
   section: BoardSection,
@@ -94,6 +99,9 @@ export function BoardPage() {
   const [urnenError, setUrnenError] = useState<string | null>(null);
   const [removePending, setRemovePending] = useState<string | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
+  const [duplikateOpen, setDuplikateOpen] = useState(false);
+  const [duplikatePending, setDuplikatePending] = useState(false);
+  const [duplikateError, setDuplikateError] = useState<string | null>(null);
   const [erledigtPending, setErledigtPending] = useState<string | null>(null);
   const [erledigtError, setErledigtError] = useState<string | null>(null);
   const [expandedKrKey, setExpandedKrKey] = useState<string | null>(null);
@@ -144,9 +152,11 @@ export function BoardPage() {
   const faelleSearchActive = section === 'faelle' && normalizeBoardSearch(searchQuery).length > 0;
 
   const faelleFiltered = useMemo(() => {
-    let list = faelleSearchActive ? sterbefaelleRaw : sterbefaelle;
+    let list =
+      faelleSearchActive || faelleFilter === 'vergangen' ? sterbefaelleRaw : sterbefaelle;
     if (faelleFilter === 'kuehlraum') list = list.filter((s) => isImEigenenKuehlraum(s));
     if (faelleFilter === 'neu') list = list.filter((s) => s.istNeuerFall);
+    if (faelleFilter === 'vergangen') list = list.filter((s) => istInHistory(s));
     if (faelleFilter === 'heute') {
       list = list.filter((s) =>
         offene.some((o) => o.docId === s.id && o.status === 'heute')
@@ -163,6 +173,13 @@ export function BoardPage() {
           'de'
         );
       });
+    } else if (faelleFilter === 'vergangen') {
+      list = [...list].sort((a, b) =>
+        (a.verstorbenerName || a.sterbefallId || '').localeCompare(
+          b.verstorbenerName || b.sterbefallId || '',
+          'de'
+        )
+      );
     }
     return list;
   }, [sterbefaelle, sterbefaelleRaw, faelleFilter, faelleSearchActive, searchQuery, offene]);
@@ -175,8 +192,18 @@ export function BoardPage() {
       heute: sterbefaelle.filter((s) =>
         offene.some((o) => o.docId === s.id && o.status === 'heute')
       ).length,
+      vergangen: sterbefaelleRaw.filter((s) => istInHistory(s)).length,
     }),
-    [sterbefaelle, offene]
+    [sterbefaelle, sterbefaelleRaw, offene]
+  );
+
+  const duplikatGruppen = useMemo(
+    () => findFallDuplikatGruppen(sterbefaelleRaw),
+    [sterbefaelleRaw]
+  );
+  const duplikatCount = useMemo(
+    () => countEmpfohleneDuplikatEntfernungen(duplikatGruppen),
+    [duplikatGruppen]
   );
 
   const lagerSearchActive = normalizeBoardSearch(searchQuery).length > 0;
@@ -269,6 +296,33 @@ export function BoardPage() {
       setRemoveError(e instanceof Error ? e.message : 'Entfernen fehlgeschlagen');
     } finally {
       setRemovePending(null);
+    }
+  }
+
+  async function handleRemoveDuplikate(docIds: string[]) {
+    if (docIds.length === 0) return;
+    const ok = window.confirm(
+      `${docIds.length} Duplikat${docIds.length === 1 ? '' : 'e'} aus Disposition entfernen?\n\n` +
+        'Die Einträge erscheinen nicht mehr in aktiven Listen (auch Wandmonitor).'
+    );
+    if (!ok) return;
+
+    setDuplikateError(null);
+    setDuplikatePending(true);
+    try {
+      const byId = new Map(sterbefaelleRaw.map((s) => [s.id, s]));
+      await removeSterbefaelleFromDisposition(
+        docIds.map((docId) => ({
+          docId,
+          sterbefallId: byId.get(docId)?.sterbefallId,
+        })),
+        'duplikat_bereinigt'
+      );
+      setDuplikateOpen(false);
+    } catch (e) {
+      setDuplikateError(e instanceof Error ? e.message : 'Duplikate entfernen fehlgeschlagen');
+    } finally {
+      setDuplikatePending(false);
     }
   }
 
@@ -391,6 +445,7 @@ export function BoardPage() {
                     { id: 'kuehlraum', label: 'Kühlraum', count: faelleChipCounts.kuehlraum },
                     { id: 'heute', label: 'Termin heute', count: faelleChipCounts.heute },
                     { id: 'neu', label: 'Neu', count: faelleChipCounts.neu },
+                    { id: 'vergangen', label: 'Vergangen', count: faelleChipCounts.vergangen },
                   ]
                 : undefined
             }
@@ -767,6 +822,17 @@ export function BoardPage() {
                   <p>Verlauf und Endziel — Erde: Beisetzung · Urne: Krematorium</p>
                 )}
               </div>
+              <button
+                type="button"
+                className="btn-ghost"
+                onClick={() => {
+                  setDuplikateError(null);
+                  setDuplikateOpen(true);
+                }}
+              >
+                Duplikatsprüfung
+                {duplikatCount > 0 ? ` (${duplikatCount})` : ''}
+              </button>
             </div>
             {removeError && (
               <p className="board-remove-error" role="alert">
@@ -895,6 +961,17 @@ export function BoardPage() {
         error={abschluss.error}
         onClose={abschluss.close}
         onConfirm={(grund, bemerkung) => void abschluss.confirm(grund, bemerkung)}
+      />
+
+      <FallDuplikateDialog
+        open={duplikateOpen}
+        sterbefaelle={sterbefaelleRaw}
+        pending={duplikatePending}
+        error={duplikateError}
+        onClose={() => {
+          if (!duplikatePending) setDuplikateOpen(false);
+        }}
+        onRemove={(ids) => void handleRemoveDuplikate(ids)}
       />
     </div>
   );
