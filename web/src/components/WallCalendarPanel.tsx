@@ -905,6 +905,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
         <PersonnelBookingDialog
           entry={bookingEntry}
           personnelPool={settings.personnelPool ?? []}
+          allBookings={bookings}
           existing={bookings[bookingEntry.id] ?? null}
           pending={bookingSaving}
           error={bookingError}

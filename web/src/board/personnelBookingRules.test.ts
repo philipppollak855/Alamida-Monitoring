@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  arrangeurIdsBookedOnDay,
+  availableTraegerPool,
   defaultRequiredTraegerCount,
   isBegraebnisEntry,
   minTraegerForEntry,
@@ -98,9 +100,46 @@ describe('validatePersonnelBooking', () => {
     expect(v.ok).toBe(true);
   });
 
+  it('Arrangeur darf nicht zugleich Träger sein', () => {
+    const v = validatePersonnelBooking(sargBegraebnis, {
+      arrangeurId: 'arr-1',
+      traegerIds: ['arr-1', 't2', 't3', 't4'],
+      traegerVonFamilie: false,
+      requiredTraegerCount: 4,
+    });
+    expect(v.ok).toBe(false);
+    expect(v.errors.some((e) => e.includes('nicht als Träger'))).toBe(true);
+  });
+
   it('defaultRequiredTraegerCount folgt Min-Regel', () => {
     expect(defaultRequiredTraegerCount(sargBegraebnis, false)).toBe(4);
     expect(defaultRequiredTraegerCount(sargBegraebnis, true)).toBe(0);
+  });
+});
+
+describe('availableTraegerPool / arrangeurIdsBookedOnDay', () => {
+  it('schließt gewählten Arrangeur aus dem Trägerpool aus', () => {
+    const pool = [
+      { id: 'a1', name: 'Alex' },
+      { id: 't1', name: 'Tom' },
+      { id: 't2', name: 'Tina' },
+    ];
+    expect(
+      availableTraegerPool(pool, { selectedArrangeurId: 'a1' }).map((p) => p.id)
+    ).toEqual(['t1', 't2']);
+  });
+
+  it('schließt Arrangeure anderer Buchungen am selben Tag aus', () => {
+    const booked = arrangeurIdsBookedOnDay(
+      {
+        'entry-1': { dayKey: '2026-07-27', arrangeurId: 'a1' },
+        'entry-2': { dayKey: '2026-07-27', arrangeurId: 'a2' },
+        'entry-3': { dayKey: '2026-07-28', arrangeurId: 'a3' },
+      },
+      '2026-07-27',
+      'entry-1'
+    );
+    expect([...booked].sort()).toEqual(['a2']);
   });
 });
 

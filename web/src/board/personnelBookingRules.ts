@@ -56,11 +56,8 @@ export function validatePersonnelBooking(
     warnings.push('Träger von Familie aktiv — Firmenträger sind optional.');
   }
 
-  if (
-    draft.arrangeurId &&
-    draft.traegerIds.includes(draft.arrangeurId)
-  ) {
-    warnings.push('Dieselbe Person ist Arrangeur und Träger.');
+  if (draft.arrangeurId && draft.traegerIds.includes(draft.arrangeurId)) {
+    errors.push('Eingebuchter Arrangeur steht nicht als Träger zur Verfügung.');
   }
 
   return {
@@ -71,6 +68,35 @@ export function validatePersonnelBooking(
     requiresArrangeur,
     isBegraebnis,
   };
+}
+
+/** Arrangeur-IDs an einem Tag (optional ohne eine Buchung). */
+export function arrangeurIdsBookedOnDay(
+  bookings: Record<string, Pick<PersonnelBooking, 'dayKey' | 'arrangeurId'>>,
+  dayKey: string,
+  excludeBookingId?: string
+): Set<string> {
+  const ids = new Set<string>();
+  for (const [id, booking] of Object.entries(bookings)) {
+    if (excludeBookingId && id === excludeBookingId) continue;
+    if (booking.dayKey !== dayKey) continue;
+    if (booking.arrangeurId) ids.add(booking.arrangeurId);
+  }
+  return ids;
+}
+
+/** Träger-Pool ohne Personen, die als Arrangeur eingebucht / gewählt sind. */
+export function availableTraegerPool<T extends { id: string }>(
+  traegerPool: T[],
+  opts: {
+    selectedArrangeurId?: string | null;
+    bookedArrangeurIds?: Iterable<string>;
+  }
+): T[] {
+  const blocked = new Set<string>(opts.bookedArrangeurIds ?? []);
+  if (opts.selectedArrangeurId) blocked.add(opts.selectedArrangeurId);
+  if (blocked.size === 0) return traegerPool;
+  return traegerPool.filter((p) => !blocked.has(p.id));
 }
 
 export function personnelBookingSummary(booking: PersonnelBooking | null | undefined): string | null {

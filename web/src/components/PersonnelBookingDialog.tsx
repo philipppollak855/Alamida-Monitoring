@@ -2,6 +2,8 @@ import { useEffect, useId, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { WallCalendarEntry } from '../board/wallCalendar';
 import {
+  arrangeurIdsBookedOnDay,
+  availableTraegerPool,
   defaultRequiredTraegerCount,
   isBegraebnisEntry,
   validatePersonnelBooking,
@@ -13,6 +15,8 @@ import { WallCalBestattungsBadge } from './WallCalBestattungsBadge';
 type Props = {
   entry: WallCalendarEntry | null;
   personnelPool: DispositionPerson[];
+  /** Alle Personalbuchungen — Arrangeure am gleichen Tag sind als Träger gesperrt. */
+  allBookings?: Record<string, PersonnelBooking>;
   existing: PersonnelBooking | null;
   pending?: boolean;
   error?: string | null;
@@ -24,6 +28,7 @@ type Props = {
 export function PersonnelBookingDialog({
   entry,
   personnelPool,
+  allBookings = {},
   existing,
   pending,
   error,
@@ -41,8 +46,10 @@ export function PersonnelBookingDialog({
   useEffect(() => {
     if (!entry) return;
     const family = existing?.traegerVonFamilie === true;
-    setArrangeurId(existing?.arrangeurId ?? '');
-    setTraegerIds(existing?.traegerIds ?? []);
+    const nextArrangeur = existing?.arrangeurId ?? '';
+    const nextTraeger = (existing?.traegerIds ?? []).filter((id) => id !== nextArrangeur);
+    setArrangeurId(nextArrangeur);
+    setTraegerIds(nextTraeger);
     setTraegerVonFamilie(family);
     setRequiredTraegerCount(
       existing?.requiredTraegerCount ?? defaultRequiredTraegerCount(entry, family)
@@ -64,10 +71,21 @@ export function PersonnelBookingDialog({
       personnelPool.filter((p) => p.active !== false && p.roles.includes('arrangeur')),
     [personnelPool]
   );
-  const traeger = useMemo(
-    () => personnelPool.filter((p) => p.active !== false && p.roles.includes('traeger')),
-    [personnelPool]
-  );
+
+  const bookedArrangeurIds = useMemo(() => {
+    if (!entry) return new Set<string>();
+    return arrangeurIdsBookedOnDay(allBookings, entry.dayKey, entry.id);
+  }, [allBookings, entry]);
+
+  const traeger = useMemo(() => {
+    const pool = personnelPool.filter(
+      (p) => p.active !== false && p.roles.includes('traeger')
+    );
+    return availableTraegerPool(pool, {
+      selectedArrangeurId: arrangeurId || null,
+      bookedArrangeurIds,
+    });
+  }, [personnelPool, arrangeurId, bookedArrangeurIds]);
 
   const validation = useMemo(() => {
     if (!entry) {
@@ -92,7 +110,15 @@ export function PersonnelBookingDialog({
 
   const begraebnis = isBegraebnisEntry(entry);
 
+  function selectArrangeur(nextId: string) {
+    setArrangeurId(nextId);
+    if (nextId) {
+      setTraegerIds((prev) => prev.filter((id) => id !== nextId));
+    }
+  }
+
   function toggleTraeger(id: string) {
+    if (id === arrangeurId || bookedArrangeurIds.has(id)) return;
     setTraegerIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
@@ -138,7 +164,8 @@ export function PersonnelBookingDialog({
 
         {begraebnis && (
           <p className="personnel-booking-rule">
-            Begräbnis: 1 Arrangeur erforderlich.
+            Begräbnis: 1 Arrangeur erforderlich. Eingebuchter Arrangeur ist nicht als Träger
+            wählbar.
             {entry.bestattungsMarker === 'S' && !traegerVonFamilie
               ? ' Sarg ohne Träger von Familie → mind. 4 Träger.'
               : null}
@@ -150,7 +177,7 @@ export function PersonnelBookingDialog({
             <span>Arrangeur{validation.requiresArrangeur ? ' *' : ''}</span>
             <select
               value={arrangeurId}
-              onChange={(e) => setArrangeurId(e.target.value)}
+              onChange={(e) => selectArrangeur(e.target.value)}
               disabled={pending}
             >
               <option value="">— wählen —</option>
@@ -195,7 +222,11 @@ export function PersonnelBookingDialog({
                 <legend>Träger aus Poolliste ({traegerIds.length} gewählt)</legend>
                 {traeger.length === 0 ? (
                   <p className="personnel-booking-empty">
-                    Keine Träger im Pool — unter Disposition → Einstellungen anlegen.
+                    {personnelPool.some(
+                      (p) => p.active !== false && p.roles.includes('traeger')
+                    )
+                      ? 'Keine verfügbaren Träger — Arrangeure sind hier ausgeschlossen.'
+                      : 'Keine Träger im Pool — unter Disposition → Einstellungen anlegen.'}
                   </p>
                 ) : (
                   <div className="personnel-booking-pool-list">
@@ -262,7 +293,8 @@ export function PersonnelBookingDialog({
             type="button"
             className="btn-primary"
             disabled={pending || !validation.ok}
-            onClick={() =>
+            onClick={() => {
+              const cleanTraeger = traegerIds.filter((id) => id !== arrangeurId);
               onSave({
                 id: entry.id,
                 docId: entry.docId,
@@ -274,13 +306,13 @@ export function PersonnelBookingDialog({
                 name: entry.name,
                 bestattungsMarker: entry.bestattungsMarker,
                 arrangeurId: arrangeurId || null,
-                traegerIds,
+                traegerIds: cleanTraeger,
                 traegerVonFamilie,
                 requiredTraegerCount,
                 note: note.trim() || undefined,
                 updatedAtMs: Date.now(),
-              })
-            }
+              });
+            }}
           >
             {pending ? 'Speichert…' : 'Einbuchen'}
           </button>
