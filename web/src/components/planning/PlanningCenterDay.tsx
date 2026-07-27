@@ -62,6 +62,8 @@ type Props = {
   onAddZusatz?: () => void;
   onZusatzPersonnel?: (termin: ZusatzTermin) => void;
   onZusatzEdit?: (termin: ZusatzTermin) => void;
+  /** Mobile: Tippen statt Drag. */
+  tapSelect?: boolean;
 };
 
 function ceremonyKindLabel(kind: CeremonyInfo['kind']): string {
@@ -123,6 +125,7 @@ export function PlanningCenterDay({
   onAddZusatz,
   onZusatzPersonnel,
   onZusatzEdit,
+  tapSelect,
 }: Props) {
   const sortedCeremonies = [...ceremonies].sort(
     (a, b) => ceremonyTimeSortKey(a.ceremony) - ceremonyTimeSortKey(b.ceremony)
@@ -506,6 +509,7 @@ export function PlanningCenterDay({
                   card={card}
                   dragging={draggingId === card.id}
                   personnelLine={personnelByCardId?.[card.id]}
+                  tapSelect={tapSelect}
                   isDropTarget={
                     Boolean(onDropOnKremation) &&
                     isKremationPlanningCard(card) &&

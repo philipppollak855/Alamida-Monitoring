@@ -9,6 +9,8 @@ type Props = {
   dragging?: boolean;
   personnelLine?: string | null;
   isDropTarget?: boolean;
+  /** Tippen statt Drag (Mobile). */
+  tapSelect?: boolean;
   onDragStart: (card: PlanningCard) => void;
   onDragEnd: () => void;
   onReset?: (card: PlanningCard) => void;
@@ -23,6 +25,7 @@ export function PlanningTransferCard({
   dragging,
   personnelLine,
   isDropTarget,
+  tapSelect,
   onDragStart,
   onDragEnd,
   onReset,
@@ -68,14 +71,25 @@ export function PlanningTransferCard({
         card.leavesEigenerKr && !card.targetsEigenerKr ? ' is-from-kr' : ''
       }${attachedToCeremony ? ' is-attached' : ''}${
         kremationCompact ? ' is-kremation-compact' : ''
-      }${isDropTarget ? ' is-drop-target' : ''} freigabe-${card.freigabeState ?? 'offen'}`}
-      draggable={!card.erledigt}
-      onDragStart={(e) => {
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', card.id);
-        onDragStart(card);
-      }}
-      onDragEnd={onDragEnd}
+      }${isDropTarget ? ' is-drop-target' : ''}${
+        tapSelect && !card.erledigt ? ' is-tap-select' : ''
+      } freigabe-${card.freigabeState ?? 'offen'}`}
+      draggable={!card.erledigt && !tapSelect}
+      onClick={
+        tapSelect && !card.erledigt
+          ? () => onDragStart(card)
+          : undefined
+      }
+      onDragStart={
+        !card.erledigt && !tapSelect
+          ? (e) => {
+              e.dataTransfer.effectAllowed = 'move';
+              e.dataTransfer.setData('text/plain', card.id);
+              onDragStart(card);
+            }
+          : undefined
+      }
+      onDragEnd={!tapSelect ? onDragEnd : undefined}
       onDragOver={
         acceptKremationDrop
           ? (e) => {
@@ -104,8 +118,12 @@ export function PlanningTransferCard({
       }
     >
       <div className="plan-card-top">
-        <span className="plan-card-grip" aria-hidden title="Ziehen zum Verschieben">
-          ⠿
+        <span
+          className="plan-card-grip"
+          aria-hidden
+          title={tapSelect ? 'Tippen zum Auswählen' : 'Ziehen zum Verschieben'}
+        >
+          {tapSelect ? '◎' : '⠿'}
         </span>
         <SchrittBadge typ={card.schrittTyp} />
         {!kremationCompact && (

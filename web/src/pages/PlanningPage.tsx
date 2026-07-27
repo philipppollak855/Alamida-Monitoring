@@ -6,6 +6,7 @@ import { PersonnelBookingDialog } from '../components/PersonnelBookingDialog';
 import { PlanningCenterDay } from '../components/planning/PlanningCenterDay';
 import { PlanningKuehlraumRail } from '../components/planning/PlanningKuehlraumRail';
 import { PlanningLocationRail } from '../components/planning/PlanningLocationRail';
+import { PlanningMobileView } from '../components/planning/PlanningMobileView';
 import { PlanningScheduleDialog } from '../components/planning/PlanningScheduleDialog';
 import { ZusatzTerminDialog } from '../components/ZusatzTerminDialog';
 import {
@@ -22,6 +23,7 @@ import {
 import { zusatzTerminToEntry } from '../board/wallCalendar';
 import { filterAktiveSterbefaelle } from '../board/historieLogic';
 import { useCalendarDay } from '../hooks/useCalendarDay';
+import { useNarrowViewport } from '../hooks/useNarrowViewport';
 import { usePersonnelBookings } from '../hooks/usePersonnelBookings';
 import { useSterbefaelle } from '../hooks/useSterbefaelle';
 import { useTransferPlan } from '../hooks/useTransferPlan';
@@ -89,6 +91,7 @@ type DragState =
 
 export function PlanningPage() {
   const calendarDay = useCalendarDay();
+  const isNarrow = useNarrowViewport();
   const today = useMemo(() => {
     const [y, m, d] = calendarDay.split('-').map(Number);
     return new Date(y, m - 1, d);
@@ -808,11 +811,33 @@ export function PlanningPage() {
   const draggingId =
     drag?.kind === 'card' ? drag.card.id : drag?.kind === 'source' ? drag.item.docId : null;
 
+  const selectionLabel = useMemo(() => {
+    if (!drag) return null;
+    if (drag.kind === 'source') return drag.item.name;
+    return drag.card.name;
+  }, [drag]);
+
+  const countsByDay = useMemo(() => {
+    const out: Record<string, number> = {};
+    for (const key of dayKeys) {
+      const transfers = cardsForLane(filteredCards, key).length;
+      const ceremonies = (ceremoniesByDay.get(key) ?? []).length;
+      const zusatz = (zusatzByDay.get(key) ?? []).length;
+      out[key] = transfers + ceremonies + zusatz;
+    }
+    return out;
+  }, [dayKeys, filteredCards, ceremoniesByDay, zusatzByDay]);
+
   return (
-    <div className="plan-page plan-page--board plan-page--compact">
+    <div
+      className={`plan-page plan-page--board plan-page--compact${
+        isNarrow ? ' plan-page--narrow' : ''
+      }`}
+    >
       <header className="plan-hero plan-hero--compact">
         <div>
           <h1>Planung</h1>
+          {isNarrow && <p className="plan-hero-sub">Tippen statt ziehen</p>}
         </div>
         <div className="plan-hero-actions">
           <button
@@ -820,7 +845,7 @@ export function PlanningPage() {
             className="btn btn-ghost"
             onClick={() => setAbsenceOpen(true)}
           >
-            Abwesenheiten
+            {isNarrow ? 'Abw.' : 'Abwesenheiten'}
           </button>
           <button
             type="button"
@@ -830,9 +855,11 @@ export function PlanningPage() {
           >
             + Termin
           </button>
-          <Link to="/disposition?tab=ueberfuehrungen" className="btn btn-ghost">
-            Listen
-          </Link>
+          {!isNarrow && (
+            <Link to="/disposition?tab=ueberfuehrungen" className="btn btn-ghost">
+              Listen
+            </Link>
+          )}
           <LiveDataBar />
         </div>
       </header>
@@ -872,14 +899,16 @@ export function PlanningPage() {
               setFocusDayKey(calendarDay);
             }}
           >
-            Diese Woche
+            {isNarrow ? 'Heute' : 'Diese Woche'}
           </button>
           <button type="button" className="btn btn-ghost" onClick={() => setRangeStart((d) => addDays(d, 7))}>
             →
           </button>
-          <span className="plan-toolbar-range">
-            {formatDayLabelDe(dayKeys[0])} – {formatDayLabelDe(dayKeys[dayKeys.length - 1])}
-          </span>
+          {!isNarrow && (
+            <span className="plan-toolbar-range">
+              {formatDayLabelDe(dayKeys[0])} – {formatDayLabelDe(dayKeys[dayKeys.length - 1])}
+            </span>
+          )}
           {(saving || bookingSaving) && <span className="plan-toolbar-saving">Speichert…</span>}
         </div>
         <label className="plan-toolbar-search">
@@ -888,13 +917,59 @@ export function PlanningPage() {
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Name, ID, Ort…"
+            placeholder={isNarrow ? 'Suche…' : 'Name, ID, Ort…'}
           />
         </label>
       </div>
 
       {loading ? (
         <p className="plan-loading">Lade Planung…</p>
+      ) : isNarrow ? (
+        <PlanningMobileView
+          dayKeys={dayKeys}
+          focusDayKey={focusDayKey}
+          todayKey={calendarDay}
+          calendarDay={calendarDay}
+          locationGroups={locationGroups}
+          krRails={krRails}
+          dayCards={cardsForLane(filteredCards, focusDayKey)}
+          dayCeremonies={ceremoniesByDay.get(focusDayKey) ?? []}
+          dayZusatz={zusatzByDay.get(focusDayKey) ?? []}
+          dayCaps={capacities.filter((c) => c.dayKey === focusDayKey)}
+          countsByDay={countsByDay}
+          draggingId={draggingId}
+          selectionLabel={selectionLabel}
+          dropTarget={dropTarget}
+          personnelByCardId={personnelByCardId}
+          onFocusDay={setFocusDayKey}
+          onSelectSource={(item) =>
+            setDrag((prev) =>
+              prev?.kind === 'source' && prev.item.docId === item.docId
+                ? null
+                : { kind: 'source', item }
+            )
+          }
+          onSelectCard={(card) =>
+            setDrag((prev) =>
+              prev?.kind === 'card' && prev.card.id === card.id
+                ? null
+                : { kind: 'card', card }
+            )
+          }
+          onClearSelection={clearDrag}
+          onDropOnDay={handleDropOnDay}
+          onDropOnAbholort={handleDropOnAbholort}
+          onDropOnKuehlraum={handleDropOnKuehlraum}
+          onDropOnCeremony={(c) => handleDropOnCeremony(c)}
+          onDropOnKremation={(card) => handleDropOnKremation(card)}
+          onResetCard={(card) => void resetCard(card)}
+          onCeremonyClick={(c) => openCeremonyBooking(c)}
+          onOpenPersonnel={openTransferPersonnel}
+          onAddZusatz={() => openZusatzDialog(focusDayKey)}
+          onZusatzPersonnel={openZusatzPersonnel}
+          onZusatzEdit={(termin) => openZusatzDialog(termin.dayKey, termin)}
+          onOccupantSelect={handleOccupantDragStart}
+        />
       ) : (
         <>
           <div className="plan-board" role="region" aria-label="Planungs-Canvas">

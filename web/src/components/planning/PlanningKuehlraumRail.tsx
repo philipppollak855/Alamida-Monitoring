@@ -11,6 +11,10 @@ type Props = {
   rails: KuehlraumRailState[];
   dropTargetId: string | null;
   draggingId?: string | null;
+  /** Tippen statt Drag (Mobile). */
+  tapSelect?: boolean;
+  /** Alle Panels aufgeklappt (Mobile). */
+  expandAll?: boolean;
   onDragOver: (kuehlraumId: string) => void;
   onDragLeave: (kuehlraumId: string) => void;
   onDrop: (kuehlraumId: string) => void;
@@ -22,6 +26,8 @@ export function PlanningKuehlraumRail({
   rails,
   dropTargetId,
   draggingId,
+  tapSelect,
+  expandAll,
   onDragOver,
   onDragLeave,
   onDrop,
@@ -56,14 +62,17 @@ export function PlanningKuehlraumRail({
             );
             const pct = kr.plaetze > 0 ? Math.min(100, (projected / kr.plaetze) * 100) : 0;
             const active = dropTargetId === kr.id;
-            const expanded = expandedId === kr.id;
+            const expanded = expandAll || expandedId === kr.id;
+            const hasSelection = Boolean(draggingId);
 
             return (
               <section
                 key={kr.id}
                 className={`plan-kr-panel${active ? ' is-drop-target' : ''}${
                   kr.overbooked ? ' is-overbooked' : ''
-                }${expanded ? ' is-expanded' : ' is-collapsed'}`}
+                }${expanded ? ' is-expanded' : ' is-collapsed'}${
+                  tapSelect && hasSelection ? ' is-tap-target' : ''
+                }`}
                 onDragOver={(e) => {
                   e.preventDefault();
                   onDragOver(kr.id);
@@ -73,12 +82,25 @@ export function PlanningKuehlraumRail({
                   e.preventDefault();
                   onDrop(kr.id);
                 }}
+                onClick={
+                  tapSelect && hasSelection
+                    ? (e) => {
+                        // Panel als Drop-Ziel, nicht Toggle
+                        if ((e.target as HTMLElement).closest('.plan-kr-occupant')) return;
+                        if ((e.target as HTMLElement).closest('.plan-kr-panel-toggle')) return;
+                        onDrop(kr.id);
+                      }
+                    : undefined
+                }
               >
                 <button
                   type="button"
                   className="plan-kr-panel-toggle"
                   aria-expanded={expanded}
-                  onClick={() => setExpandedId((id) => (id === kr.id ? null : kr.id))}
+                  onClick={() => {
+                    if (expandAll) return;
+                    setExpandedId((id) => (id === kr.id ? null : kr.id));
+                  }}
                 >
                   <header className="plan-kr-panel-head">
                     <div>
@@ -121,7 +143,11 @@ export function PlanningKuehlraumRail({
                 {expanded && (
                   <div className="plan-kr-panel-body">
                     <p className="plan-kr-drop-hint">
-                      Fall hierher ziehen → Termin planen · Belegung ziehen → anderer KR
+                      {tapSelect
+                        ? hasSelection
+                          ? 'Hier tippen → Termin planen'
+                          : 'Belegung tippen → anderen KR / Tag wählen'
+                        : 'Fall hierher ziehen → Termin planen · Belegung ziehen → anderer KR'}
                     </p>
 
                     {kr.occupants.length > 0 && (
@@ -133,10 +159,20 @@ export function PlanningKuehlraumRail({
                               key={occ.docId}
                               className={`plan-kr-occupant freigabe-${occ.freigabeState}${
                                 canDrag ? ' is-draggable' : ''
-                              }${draggingId === occ.docId ? ' is-dragging' : ''}`}
-                              draggable={canDrag}
+                              }${draggingId === occ.docId ? ' is-dragging' : ''}${
+                                tapSelect && canDrag ? ' is-tap-select' : ''
+                              }`}
+                              draggable={canDrag && !tapSelect}
+                              onClick={
+                                tapSelect && canDrag
+                                  ? (e) => {
+                                      e.stopPropagation();
+                                      onOccupantDragStart?.(kr, occ);
+                                    }
+                                  : undefined
+                              }
                               onDragStart={
-                                canDrag
+                                canDrag && !tapSelect
                                   ? (e) => {
                                       e.stopPropagation();
                                       e.dataTransfer.effectAllowed = 'move';
@@ -145,7 +181,7 @@ export function PlanningKuehlraumRail({
                                     }
                                   : undefined
                               }
-                              onDragEnd={canDrag ? onOccupantDragEnd : undefined}
+                              onDragEnd={canDrag && !tapSelect ? onOccupantDragEnd : undefined}
                             >
                               <div className="plan-kr-occupant-main">
                                 {canDrag && (

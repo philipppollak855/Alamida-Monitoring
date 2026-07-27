@@ -9,6 +9,8 @@ type Props = {
   groups: LocationGroup[];
   draggingId: string | null;
   isDropTarget?: boolean;
+  /** Tippen statt Drag (Mobile). */
+  tapSelect?: boolean;
   onDragStart: (item: SterbeortPoolItem) => void;
   onDragEnd: () => void;
   onDragOver?: () => void;
@@ -20,6 +22,7 @@ export function PlanningLocationRail({
   groups,
   draggingId,
   isDropTarget,
+  tapSelect,
   onDragStart,
   onDragEnd,
   onDragOver,
@@ -93,10 +96,17 @@ export function PlanningLocationRail({
                         key={item.docId}
                         className={`plan-source-card freigabe-${item.freigabeState}${
                           draggingId === item.docId ? ' is-dragging' : ''
-                        }${item.displayOnly ? ' is-display-only' : ''}`}
-                        draggable={canDrag}
+                        }${item.displayOnly ? ' is-display-only' : ''}${
+                          tapSelect && canDrag ? ' is-tap-select' : ''
+                        }`}
+                        draggable={canDrag && !tapSelect}
+                        onClick={
+                          tapSelect && canDrag
+                            ? () => onDragStart(item)
+                            : undefined
+                        }
                         onDragStart={
-                          canDrag
+                          canDrag && !tapSelect
                             ? (e) => {
                                 e.dataTransfer.effectAllowed = 'move';
                                 e.dataTransfer.setData('text/plain', item.docId);
@@ -104,12 +114,12 @@ export function PlanningLocationRail({
                               }
                             : undefined
                         }
-                        onDragEnd={canDrag ? onDragEnd : undefined}
+                        onDragEnd={canDrag && !tapSelect ? onDragEnd : undefined}
                       >
                         <div className="plan-source-top">
                           {canDrag && (
                             <span className="plan-card-grip" aria-hidden>
-                              ⠿
+                              {tapSelect ? '◎' : '⠿'}
                             </span>
                           )}
                           <span className={`plan-freigabe-chip is-${item.freigabeState}`}>
