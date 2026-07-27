@@ -30,15 +30,18 @@ export type CalendarTerminArt =
   | 'beisetzung'
   | 'ueberfuehrung'
   | 'ueberfuehrung_kremation'
-  | 'trauerblock';
+  | 'trauerblock'
+  | 'graben'
+  | 'sonstiges';
 
 /** Farbgruppen im Kalender (Filter bleiben bei den sichtbaren Terminarten). */
-export type CalendarColorGroup = 'fahrt' | 'kremation' | 'feier' | 'aufnahme';
+export type CalendarColorGroup = 'fahrt' | 'kremation' | 'feier' | 'aufnahme' | 'zusatz';
 
 export function calendarColorGroupFromArts(arts: readonly CalendarTerminArt[]): CalendarColorGroup {
   if (arts.some((a) => a === 'aufnahme')) return 'aufnahme';
   if (arts.some((a) => a === 'ueberfuehrung_kremation')) return 'kremation';
   if (arts.some((a) => a === 'ueberfuehrung')) return 'fahrt';
+  if (arts.some((a) => a === 'graben' || a === 'sonstiges')) return 'zusatz';
   return 'feier';
 }
 
@@ -63,6 +66,8 @@ export const ALL_CALENDAR_TERMIN_ARTEN: CalendarTerminArt[] = [
   'beisetzung',
   'ueberfuehrung',
   'trauerblock',
+  'graben',
+  'sonstiges',
 ];
 
 export const CALENDAR_TERMIN_ART_LABELS: Record<CalendarTerminArt, string> = {
@@ -75,6 +80,8 @@ export const CALENDAR_TERMIN_ART_LABELS: Record<CalendarTerminArt, string> = {
   ueberfuehrung: 'Überführung',
   ueberfuehrung_kremation: 'Ins Krematorium',
   trauerblock: 'Trauerblock',
+  graben: 'Graben',
+  sonstiges: 'Sonstiges',
 };
 
 export function isCalendarFilterComplete(activeArts: ReadonlySet<CalendarTerminArt>): boolean {
@@ -123,6 +130,8 @@ export interface WallCalendarEntry {
   searchText: string;
   /** S = ohne Kremation, U = mit Kremation im Ablauf */
   bestattungsMarker?: BestattungsMarker;
+  /** Manuell angelegter Zusatztermin (settings/zusatzTermine) */
+  zusatzTerminId?: string;
 }
 
 export interface WallCalendarDay {
@@ -547,6 +556,82 @@ export function buildWallCalendarEntries(sterbefaelle: Sterbefall[]): WallCalend
   }
 
   return entries.sort((a, b) => a.sortMs - b.sortMs || a.name.localeCompare(b.name, 'de'));
+}
+
+function dayKeyToDeDatum(dayKey: string): string | null {
+  const m = dayKey.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  return `${m[3]}.${m[2]}.${m[1]}`;
+}
+
+/** Manuellen Zusatztermin als Kalender-Eintrag (z. B. Graben für Begräbnis). */
+export function zusatzTerminToEntry(t: {
+  id: string;
+  docId: string;
+  sterbefallId: string;
+  name: string;
+  art: 'graben' | 'sonstiges';
+  title: string;
+  dayKey: string;
+  zeit?: string;
+  ort?: string;
+  note?: string;
+}): WallCalendarEntry | null {
+  const deDatum = dayKeyToDeDatum(t.dayKey);
+  if (!deDatum) return null;
+  const zeit = formatZeitDe(t.zeit) || undefined;
+  const sortMs = parseDatumZeitDe(deDatum, zeit) ?? parseDatumZeitDe(deDatum, undefined, true);
+  if (sortMs == null) return null;
+  const calArt: CalendarTerminArt = t.art === 'graben' ? 'graben' : 'sonstiges';
+  const artLabel = t.art === 'graben' ? 'Graben' : 'Sonstiges';
+  const name = t.name.trim() || t.sterbefallId || t.docId;
+  const subtitle = [t.ort, t.note].filter(Boolean).join(' · ');
+  return {
+    id: `zusatz:${t.id}`,
+    docId: t.docId,
+    sterbefallId: t.sterbefallId || t.docId,
+    dayKey: t.dayKey,
+    dayLabel: formatDayLabelDe(t.dayKey),
+    timeLabel: zeit || '—',
+    sortMs,
+    name,
+    title: t.title,
+    subtitle,
+    badges: [artLabel],
+    grouped: false,
+    arts: [calArt],
+    searchText: [name, t.title, artLabel, t.ort, t.note, t.sterbefallId]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase(),
+    zusatzTerminId: t.id,
+  };
+}
+
+export function mergeZusatzTermineIntoEntries(
+  entries: WallCalendarEntry[],
+  zusatz: Iterable<{
+    id: string;
+    docId: string;
+    sterbefallId: string;
+    name: string;
+    art: 'graben' | 'sonstiges';
+    title: string;
+    dayKey: string;
+    zeit?: string;
+    ort?: string;
+    note?: string;
+  }>
+): WallCalendarEntry[] {
+  const extra: WallCalendarEntry[] = [];
+  for (const t of zusatz) {
+    const e = zusatzTerminToEntry(t);
+    if (e) extra.push(e);
+  }
+  if (extra.length === 0) return entries;
+  return [...entries, ...extra].sort(
+    (a, b) => a.sortMs - b.sortMs || a.name.localeCompare(b.name, 'de')
+  );
 }
 
 function monthStartKey(anchor: Date): string {

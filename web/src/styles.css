@@ -3322,6 +3322,25 @@ code {
   border: 1px solid var(--border);
 }
 
+.wall-cal-add-termin {
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0.35rem 0.7rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(180, 83, 9, 0.45);
+  background: rgba(251, 191, 36, 0.14);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.wall-cal-add-termin:hover {
+  background: rgba(251, 191, 36, 0.24);
+}
+
+.wall-cal-day-dialog-actions {
+  padding: 0 1rem 0.35rem;
+}
+
 .wall-cal-toolbar-right {
   display: flex;
   flex-wrap: wrap;
@@ -3980,6 +3999,25 @@ code {
   color: #1e3a8a;
 }
 
+/* Zusatztermine (Graben, Sonstiges) — Bernstein */
+.wall-cal-card--color-zusatz {
+  border-color: rgba(180, 83, 9, 0.65);
+  border-left: 4px solid #b45309;
+  background: rgba(251, 191, 36, 0.2);
+}
+
+.wall-cal-card--color-zusatz .wall-cal-time {
+  color: #92400e;
+  font-weight: 800;
+}
+
+.wall-cal-art-chip--graben.active,
+.wall-cal-art-chip--sonstiges.active {
+  border-color: #b45309;
+  background: rgba(251, 191, 36, 0.28);
+  color: #78350f;
+}
+
 .wall-cal-card-top {
   display: flex;
   flex-direction: column;
@@ -4561,6 +4599,125 @@ code {
 }
 
 .personnel-booking-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.zusatz-termin-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 135;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(4, 8, 14, 0.72);
+  backdrop-filter: blur(8px);
+}
+
+.zusatz-termin-dialog {
+  width: min(500px, 100%);
+  max-height: min(92vh, 760px);
+  overflow: auto;
+  padding: 1.1rem 1.15rem 1rem;
+  border-radius: var(--radius);
+  background: var(--surface-solid);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow);
+}
+
+.zusatz-termin-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.zusatz-termin-kicker {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.zusatz-termin-head h2 {
+  margin: 0.2rem 0 0;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+}
+
+.zusatz-termin-sub {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.zusatz-termin-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.85rem;
+}
+
+.zusatz-termin-preset {
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.zusatz-termin-preset.is-active,
+.zusatz-termin-preset:hover {
+  border-color: rgba(180, 83, 9, 0.55);
+  background: rgba(251, 191, 36, 0.16);
+  color: var(--text);
+}
+
+.zusatz-termin-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin-top: 0.9rem;
+}
+
+.zusatz-termin-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.7rem;
+}
+
+.zusatz-termin-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.zusatz-termin-field input,
+.zusatz-termin-field select {
+  padding: 0.55rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font: inherit;
+}
+
+.zusatz-termin-field input:focus,
+.zusatz-termin-field select:focus {
+  outline: 2px solid var(--accent-dim);
+  border-color: var(--accent);
+}
+
+.zusatz-termin-actions {
   display: flex;
   justify-content: flex-end;
   flex-wrap: wrap;

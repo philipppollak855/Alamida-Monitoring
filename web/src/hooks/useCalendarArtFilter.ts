@@ -6,7 +6,7 @@ import {
   isCalendarTerminArt,
 } from '../board/wallCalendar';
 
-const STORAGE_KEY = 'alamida-wall-cal-art-filter-v3';
+const STORAGE_KEY = 'alamida-wall-cal-art-filter-v4';
 
 function loadFromStorage(): Set<CalendarTerminArt> {
   try {
