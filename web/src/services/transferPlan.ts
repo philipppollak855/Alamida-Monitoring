@@ -91,6 +91,7 @@ function normalizeAssignments(raw: unknown): Record<string, PlanAssignment> {
     }
     const attached = normalizeAttachedCeremony(v.attachedCeremony);
     if (attached) assignment.attachedCeremony = attached;
+    if (v.detachedFromCeremony === true) assignment.detachedFromCeremony = true;
     out[id] = omitUndefinedDeep(assignment);
   }
   return out;

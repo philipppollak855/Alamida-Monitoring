@@ -40,8 +40,10 @@ import {
   canUndoPlanEvent,
   cardsForLane,
   clearCardToAbholort,
+  detachTransferFromCeremony,
   dismissPlanEvent,
   formatTerminDisplay,
+  isCardAttachedToAnyCeremony,
   moveCardAssignment,
   nextOrderInLane,
   snapshotFromAssignment,
@@ -278,10 +280,41 @@ export function PlanningPage() {
         return;
       }
 
-      if (drag.card.targetsEigenerKr) {
-        const krId =
-          drag.card.kuehlraumId ??
-          settings.eigeneKuehlraeume[0]?.id;
+      const card = drag.card;
+
+      // Aus verschmolzenem Feiertermin herausziehen → wieder eigener Termin
+      if (isCardAttachedToAnyCeremony(card)) {
+        const order = nextOrderInLane(cards, dayKey);
+        const prev = plan.assignments[card.id];
+        const result = detachTransferFromCeremony(
+          plan.assignments,
+          card,
+          dayKey,
+          order
+        );
+        clearDrag();
+        setFlashId(result.assignment.id);
+        void savePlan({
+          assignments: result.assignments,
+          publish: {
+            type: prev ? 'ueberfuehrung_umgeplant' : 'ueberfuehrung_geplant',
+            docId: card.docId,
+            sterbefallId: card.sterbefallId,
+            name: card.name,
+            vonOrt: card.vonOrt,
+            nachOrt: card.nachOrt,
+            assignmentId: card.id,
+            plannedDayKey: dayKey,
+            plannedZeit: card.plannedZeit,
+            previousSnapshot: prev ? snapshotFromAssignment(prev) : null,
+            snapshot: assignmentSnapshotPayload(result.assignment),
+          },
+        });
+        return;
+      }
+
+      if (card.targetsEigenerKr) {
+        const krId = card.kuehlraumId ?? settings.eigeneKuehlraeume[0]?.id;
         if (krId) {
           openSchedule(dayKey, krId);
           return;
@@ -289,11 +322,11 @@ export function PlanningPage() {
       }
 
       // Nicht-KR-Überführung: nur Tag verschieben
-      const card = drag.card;
       const order = nextOrderInLane(cards, dayKey);
       const prev = plan.assignments[card.id];
       const nextAssignments = moveCardAssignment(plan.assignments, card, dayKey, order, {
         attachedCeremony: null,
+        detachedFromCeremony: true,
       });
       const assignment = nextAssignments[card.id];
       clearDrag();

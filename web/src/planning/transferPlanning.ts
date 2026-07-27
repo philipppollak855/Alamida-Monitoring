@@ -214,6 +214,7 @@ function cardFromAssignment(
     hasManualPlan: true,
     canUndoUmplanung: Boolean(assignment.previous),
     attachedCeremony: assignment.attachedCeremony ?? null,
+    detachedFromCeremony: assignment.detachedFromCeremony === true,
     source: 'canvas',
     amSterbeort: isAmKrankenhausOderSterbeort(s),
     ...enrichCardMeta(s, now),
@@ -297,6 +298,7 @@ export function buildPlanningCards(
         hasManualPlan: assignment != null,
         canUndoUmplanung: Boolean(assignment?.previous),
         attachedCeremony: assignment?.attachedCeremony ?? null,
+        detachedFromCeremony: assignment?.detachedFromCeremony === true,
         source: assignment?.source === 'canvas' ? 'canvas' : 'alamida',
         amSterbeort: isAmKrankenhausOderSterbeort(s),
         ...meta,
@@ -588,6 +590,12 @@ export function moveCardAssignment(
     extras && 'attachedCeremony' in extras
       ? extras.attachedCeremony ?? null
       : (prev?.attachedCeremony ?? card.attachedCeremony ?? null);
+  const detachedFromCeremony =
+    extras && 'detachedFromCeremony' in extras
+      ? extras.detachedFromCeremony === true
+      : attachedCeremony
+        ? false
+        : Boolean(prev?.detachedFromCeremony ?? card.detachedFromCeremony);
   next[card.id] = {
     id: card.id,
     docId: card.docId,
@@ -602,6 +610,7 @@ export function moveCardAssignment(
     order,
     previous: prev ? snapshotFromAssignment(prev) : null,
     attachedCeremony,
+    detachedFromCeremony,
     updatedAtMs: Date.now(),
   };
   return next;
@@ -637,7 +646,9 @@ export function scheduleToKuehlraum(
     source: existingCard?.source === 'alamida' ? 'alamida' : 'canvas',
     order,
     previous: prev ? snapshotFromAssignment(prev) : null,
-    attachedCeremony: prev?.attachedCeremony ?? existingCard?.attachedCeremony ?? null,
+    // Tagesplanung löst Feier-Zugehörigkeit (erneut anhängen = auf Termin ziehen)
+    attachedCeremony: null,
+    detachedFromCeremony: true,
     updatedAtMs: Date.now(),
   };
 
@@ -700,6 +711,7 @@ export function clearCardToAbholort(
     order: card.order,
     previous: previousSnap,
     attachedCeremony: null,
+    detachedFromCeremony: true,
     updatedAtMs: Date.now(),
   };
 
@@ -758,13 +770,14 @@ export function isAttachableCeremonyKind(kind: CeremonyKind): boolean {
   return ATTACHABLE_CEREMONY_KINDS.includes(kind);
 }
 
-/** Ob die Karte an diesen Feiertermin gebunden ist (explizit oder gleiches Tag/Fall). */
+/** Ob die Karte an diesen Feiertermin gebunden ist. */
 export function isCardAttachedToCeremony(
   card: PlanningCard,
   ceremony: Pick<CeremonyInfo, 'kind' | 'dayKey'>,
   docId: string
 ): boolean {
   if (card.docId !== docId) return false;
+  if (card.detachedFromCeremony) return false;
   if (!ceremony.dayKey || card.plannedDayKey !== ceremony.dayKey) return false;
   if (!isAttachableCeremonyKind(ceremony.kind)) return false;
   if (card.attachedCeremony) {
@@ -773,16 +786,17 @@ export function isCardAttachedToCeremony(
       card.attachedCeremony.dayKey === ceremony.dayKey
     );
   }
+  // Same-Day-Heuristik nur wenn nicht explizit gelöst
   return true;
 }
 
-/** Ob die Karte an irgendeinen Feiertermin am geplanten Tag hängt. */
+/** Ob die Karte an einen Feiertermin gebunden / verschmolzen dargestellt wird. */
 export function isCardAttachedToAnyCeremony(card: PlanningCard): boolean {
+  if (card.detachedFromCeremony) return false;
   if (card.attachedCeremony) return true;
   if (!card.plannedDayKey) return false;
   return (card.ceremonies ?? []).some(
-    (c) =>
-      c.dayKey === card.plannedDayKey && isAttachableCeremonyKind(c.kind)
+    (c) => c.dayKey === card.plannedDayKey && isAttachableCeremonyKind(c.kind)
   );
 }
 
@@ -791,10 +805,20 @@ export function pickCeremonyHostForCard(
   card: PlanningCard,
   ceremonies: Array<{ docId: string; ceremony: CeremonyInfo }>
 ): { docId: string; ceremony: CeremonyInfo } | null {
+  if (card.detachedFromCeremony) return null;
   const candidates = ceremonies.filter((c) =>
     isCardAttachedToCeremony(card, c.ceremony, c.docId)
   );
   if (candidates.length === 0) return null;
+  if (card.attachedCeremony) {
+    return (
+      candidates.find(
+        (c) =>
+          c.ceremony.kind === card.attachedCeremony!.kind &&
+          c.ceremony.dayKey === card.attachedCeremony!.dayKey
+      ) ?? candidates[0]!
+    );
+  }
   const rank = (kind: CeremonyKind): number => {
     if (kind === 'beisetzung') return 3;
     if (kind === 'verabschiedung') return 2;
@@ -825,12 +849,33 @@ export function attachTransferToCeremony(
   const next = moveCardAssignment(assignments, card, ceremony.dayKey, order, {
     plannedZeit: ceremony.zeit?.trim() || card.plannedZeit || null,
     attachedCeremony: attached,
+    detachedFromCeremony: false,
   });
   const assignment = next[card.id]!;
   return {
     assignments: next,
     assignment,
     eventType: assignments[card.id] ? 'ueberfuehrung_umgeplant' : 'ueberfuehrung_geplant',
+  };
+}
+
+/** Überführung aus Feiertermin herauslösen → wieder eigener Termin. */
+export function detachTransferFromCeremony(
+  assignments: Record<string, PlanAssignment>,
+  card: PlanningCard,
+  toDayKey: string | null,
+  order: number
+): {
+  assignments: Record<string, PlanAssignment>;
+  assignment: PlanAssignment;
+} {
+  const next = moveCardAssignment(assignments, card, toDayKey, order, {
+    attachedCeremony: null,
+    detachedFromCeremony: true,
+  });
+  return {
+    assignments: next,
+    assignment: next[card.id]!,
   };
 }
 

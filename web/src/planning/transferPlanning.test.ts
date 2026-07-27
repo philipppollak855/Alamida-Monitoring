@@ -15,7 +15,9 @@ import {
   canUndoPlanEvent,
   canvasPlanningId,
   clearCardToAbholort,
+  detachTransferFromCeremony,
   dismissPlanEvent,
+  isCardAttachedToAnyCeremony,
   moveCardAssignment,
   nextOrderInLane,
   pickCeremonyHostForCard,
@@ -426,5 +428,48 @@ describe('transferPlanning board', () => {
       },
     ]);
     expect(host?.ceremony.kind).toBe('beisetzung');
+  });
+
+  it('detachTransferFromCeremony trennt Überführung vom Feiertermin', () => {
+    const card = {
+      id: 'c:1',
+      docId: 'fall1',
+      zeile: 1,
+      sterbefallId: 'SF',
+      name: 'Test',
+      schrittTyp: 'ueberfuehrung',
+      vonOrt: 'A',
+      nachOrt: 'B',
+      terminAm: '30.07.2026',
+      sourceDayKey: null,
+      plannedDayKey: '2026-07-30',
+      status: 'geplant',
+      targetsEigenerKr: false,
+      leavesEigenerKr: true,
+      kuehlraumId: null,
+      order: 10,
+      hasManualPlan: true,
+      source: 'alamida' as const,
+      attachedCeremony: { kind: 'trauerfeier' as const, dayKey: '2026-07-30' },
+      ceremonies: [
+        {
+          kind: 'trauerfeier' as const,
+          datum: '30.07.2026',
+          dayKey: '2026-07-30',
+          label: 'TF',
+        },
+      ],
+    };
+    expect(isCardAttachedToAnyCeremony(card)).toBe(true);
+    const detached = detachTransferFromCeremony({}, card, '2026-07-30', 10);
+    expect(detached.assignment.attachedCeremony).toBeNull();
+    expect(detached.assignment.detachedFromCeremony).toBe(true);
+    expect(
+      isCardAttachedToAnyCeremony({
+        ...card,
+        attachedCeremony: null,
+        detachedFromCeremony: true,
+      })
+    ).toBe(false);
   });
 });

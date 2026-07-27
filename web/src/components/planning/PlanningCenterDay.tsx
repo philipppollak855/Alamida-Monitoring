@@ -267,7 +267,7 @@ export function PlanningCenterDay({
                       }}
                       onDragEnd={onCardDragEnd}
                     >
-                      <span className="plan-card-grip" aria-hidden title="Ziehen zum Lösen">
+                      <span className="plan-card-grip" aria-hidden title="Herausziehen trennt vom Termin">
                         ⠿
                       </span>
                       <span className="plan-center-ceremony-leg-label">Überf.</span>

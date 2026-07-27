@@ -23,17 +23,18 @@ export function PlanningTransferCard({
   onOpenPersonnel,
 }: Props) {
   const attachedToCeremony =
-    Boolean(card.attachedCeremony) ||
-    Boolean(
-      card.plannedDayKey &&
-        (card.ceremonies ?? []).some(
-          (c) =>
-            c.dayKey === card.plannedDayKey &&
-            (c.kind === 'beisetzung' ||
-              c.kind === 'verabschiedung' ||
-              c.kind === 'trauerfeier')
-        )
-    );
+    !card.detachedFromCeremony &&
+    (Boolean(card.attachedCeremony) ||
+      Boolean(
+        card.plannedDayKey &&
+          (card.ceremonies ?? []).some(
+            (c) =>
+              c.dayKey === card.plannedDayKey &&
+              (c.kind === 'beisetzung' ||
+                c.kind === 'verabschiedung' ||
+                c.kind === 'trauerfeier')
+          )
+      ));
 
   const undoTitle = card.canUndoUmplanung
     ? 'Umplanung rückgängig'

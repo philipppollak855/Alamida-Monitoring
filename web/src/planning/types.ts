@@ -46,6 +46,8 @@ export type PlanAssignment = {
   previous?: PlanAssignmentSnapshot | null;
   /** Manuell an Feiertermin angehängt. */
   attachedCeremony?: AttachedCeremonyRef | null;
+  /** Explizit von Feiertermin gelöst (kein Same-Day-Merge). */
+  detachedFromCeremony?: boolean;
   updatedAtMs?: number;
 };
 
@@ -110,6 +112,8 @@ export type PlanningCard = {
   canUndoUmplanung?: boolean;
   /** Manuell an Feiertermin gebunden. */
   attachedCeremony?: AttachedCeremonyRef | null;
+  /** Explizit von Feiertermin gelöst. */
+  detachedFromCeremony?: boolean;
   source: 'alamida' | 'canvas';
   amSterbeort?: boolean;
   freigabeState?: FreigabeState;
