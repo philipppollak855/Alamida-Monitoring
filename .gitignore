@@ -32,3 +32,4 @@ Thumbs.db
 docs/inspector-dump.txt
 docs/*-last-run.txt
 docs/sync-test.txt
+web/.netlify/
