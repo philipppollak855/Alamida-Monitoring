@@ -5973,3 +5973,419 @@ code {
     animation: none;
   }
 }
+
+/* ─── Planungsboard 3-Spalten (1/5 | 3/5 | 1/5) ─── */
+.plan-page--board {
+  min-height: calc(100vh - 4.5rem);
+}
+
+.plan-board {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(0, 3fr) minmax(180px, 1fr);
+  gap: 0.75rem;
+  align-items: stretch;
+  min-height: 32rem;
+  flex: 1;
+}
+
+.plan-rail {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 28rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, rgba(18, 24, 36, 0.95), rgba(10, 14, 20, 0.92));
+  overflow: hidden;
+}
+
+.plan-rail--locations {
+  border-color: rgba(251, 113, 133, 0.2);
+}
+
+.plan-rail--kuehlraum {
+  border-color: rgba(52, 211, 153, 0.2);
+}
+
+.plan-rail-head {
+  position: relative;
+  padding: 0.85rem 0.9rem 0.7rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.plan-rail-head h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1rem;
+}
+
+.plan-rail-head p {
+  margin: 0.2rem 0 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.plan-rail-count {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.plan-rail-body {
+  flex: 1;
+  overflow: auto;
+  padding: 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.plan-location-group-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: var(--muted);
+}
+
+.plan-location-group-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.plan-location-group-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.plan-source-card {
+  padding: 0.65rem 0.7rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface-solid);
+  border: 1px solid rgba(251, 113, 133, 0.25);
+  cursor: grab;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+  animation: plan-card-enter 0.3s ease both;
+}
+
+.plan-source-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.plan-source-card.is-dragging {
+  opacity: 0.4;
+  transform: scale(0.97);
+}
+
+.plan-source-top {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.plan-source-name {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.9rem;
+}
+
+.plan-source-id {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.plan-freigabe-chip,
+.plan-ceremony-chip,
+.plan-endziel-chip,
+.plan-free-chip {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 0.3rem;
+  margin-right: 0.3rem;
+  padding: 0.12rem 0.4rem;
+  border-radius: 6px;
+  font-size: 0.65rem;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.plan-freigabe-chip.is-offen {
+  background: rgba(251, 113, 133, 0.14);
+  color: var(--danger);
+}
+
+.plan-freigabe-chip.is-geplant {
+  background: var(--warn-dim);
+  color: var(--warn);
+}
+
+.plan-freigabe-chip.is-frei {
+  background: var(--success-dim);
+  color: var(--success);
+}
+
+.plan-ceremony-chip {
+  background: var(--violet-dim);
+  color: var(--violet);
+}
+
+.plan-endziel-chip,
+.plan-free-chip {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+}
+
+.plan-center {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background:
+    radial-gradient(ellipse at top, rgba(77, 159, 255, 0.08), transparent 55%),
+    linear-gradient(180deg, rgba(14, 18, 28, 0.96), rgba(8, 10, 16, 0.94));
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.plan-center-scroll {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(200px, 1fr);
+  gap: 0.65rem;
+  padding: 0.75rem;
+  overflow-x: auto;
+  flex: 1;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+}
+
+.plan-center-day-wrap {
+  scroll-snap-align: start;
+  min-width: 200px;
+  transition: transform 0.25s ease;
+}
+
+.plan-center-day-wrap.is-focus .plan-center-day {
+  border-color: rgba(77, 159, 255, 0.4);
+}
+
+.plan-center-day-wrap.has-flash {
+  animation: plan-column-flash 0.65s ease;
+}
+
+.plan-center-day {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-height: 26rem;
+  height: 100%;
+  padding: 0.7rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.plan-center-day.is-today {
+  box-shadow: inset 0 0 0 1px rgba(77, 159, 255, 0.2);
+}
+
+.plan-center-day.is-drop-target {
+  border-color: var(--accent);
+  background: rgba(77, 159, 255, 0.1);
+  transform: translateY(-2px);
+}
+
+.plan-center-day-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.4rem;
+}
+
+.plan-center-day-head h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+}
+
+.plan-center-day-head p {
+  margin: 0.15rem 0 0;
+  font-size: 0.72rem;
+  color: var(--accent);
+}
+
+.plan-center-ceremonies {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.plan-center-ceremonies li {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.35rem;
+  align-items: center;
+  padding: 0.35rem 0.45rem;
+  border-radius: 8px;
+  background: var(--violet-dim);
+  font-size: 0.72rem;
+}
+
+.plan-ceremony-kind {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-size: 0.62rem;
+  color: var(--violet);
+}
+
+.plan-kr-panel {
+  padding: 0.7rem;
+  border-radius: var(--radius-sm);
+  border: 1px dashed rgba(52, 211, 153, 0.35);
+  background: rgba(52, 211, 153, 0.04);
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.plan-kr-panel.is-drop-target {
+  border-style: solid;
+  border-color: var(--success);
+  background: rgba(52, 211, 153, 0.12);
+  transform: translateY(-1px);
+}
+
+.plan-kr-panel.is-overbooked {
+  border-color: rgba(251, 113, 133, 0.45);
+}
+
+.plan-kr-panel-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.4rem;
+  align-items: flex-start;
+  margin-bottom: 0.4rem;
+}
+
+.plan-kr-panel-head h3 {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.plan-kr-panel-head p {
+  margin: 0.15rem 0 0;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.plan-kr-panel-cap {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.plan-kr-panel-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+.plan-kr-drop-hint {
+  margin: 0.45rem 0 0;
+  font-size: 0.68rem;
+  color: var(--success);
+}
+
+.plan-kr-occupants,
+.plan-kr-frees ul {
+  list-style: none;
+  margin: 0.55rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.plan-kr-occupant {
+  padding: 0.45rem 0.5rem;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border);
+}
+
+.plan-kr-occupant-main {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+}
+
+.plan-kr-occupant-platz {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.plan-kr-frees h4 {
+  margin: 0.65rem 0 0.35rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.plan-kr-frees li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.35rem 0.45rem;
+  border-radius: 8px;
+  background: var(--warn-dim);
+  font-size: 0.72rem;
+}
+
+.plan-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.4rem;
+}
+
+.plan-card.is-from-kr {
+  border-color: rgba(251, 191, 36, 0.35);
+}
+
+@media (max-width: 1100px) {
+  .plan-board {
+    grid-template-columns: 1fr;
+  }
+
+  .plan-rail {
+    min-height: 12rem;
+  }
+
+  .plan-center-scroll {
+    grid-auto-columns: minmax(210px, 78vw);
+  }
+}

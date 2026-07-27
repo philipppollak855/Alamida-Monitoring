@@ -1,9 +1,10 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { LiveDataBar } from '../components/LiveDataBar';
-import { PlanningDayColumn } from '../components/planning/PlanningDayColumn';
+import { PlanningCenterDay } from '../components/planning/PlanningCenterDay';
+import { PlanningKuehlraumRail } from '../components/planning/PlanningKuehlraumRail';
+import { PlanningLocationRail } from '../components/planning/PlanningLocationRail';
 import { PlanningScheduleDialog } from '../components/planning/PlanningScheduleDialog';
-import { PlanningSterbeortCard } from '../components/planning/PlanningSterbeortCard';
 import {
   addDays,
   dayKeyFromDate,
@@ -16,7 +17,10 @@ import { useSterbefaelle } from '../hooks/useSterbefaelle';
 import { useTransferPlan } from '../hooks/useTransferPlan';
 import { useDispositionSettings } from '../settings/SettingsProvider';
 import {
+  buildCeremoniesForFall,
   buildKuehlraumCapacities,
+  buildKuehlraumRailStates,
+  buildLocationGroups,
   buildPlanningCards,
   buildScheduleDraftFromCard,
   buildScheduleDraftFromSterbeort,
@@ -39,7 +43,7 @@ const HORIZON_DAYS = 7;
 
 type DragState =
   | { kind: 'card'; card: PlanningCard }
-  | { kind: 'sterbeort'; item: SterbeortPoolItem }
+  | { kind: 'source'; item: SterbeortPoolItem }
   | null;
 
 export function PlanningPage() {
@@ -50,13 +54,14 @@ export function PlanningPage() {
   }, [calendarDay]);
 
   const [rangeStart, setRangeStart] = useState(() => startOfWeekMonday(new Date()));
+  const [focusDayKey, setFocusDayKey] = useState<string>(() => calendarDay);
   const { settings } = useDispositionSettings();
   const { items: sterbefaelleRaw, loading: casesLoading, error: casesError } = useSterbefaelle();
   const { plan, loading: planLoading, saving, error: planError, savePlan, setError } =
     useTransferPlan();
 
   const [drag, setDrag] = useState<DragState>(null);
-  const [dropLane, setDropLane] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [flashId, setFlashId] = useState<string | null>(null);
   const [scheduleDraft, setScheduleDraft] = useState<ScheduleDraft | null>(null);
@@ -72,8 +77,8 @@ export function PlanningPage() {
   );
 
   const cards = useMemo(
-    () => buildPlanningCards(sterbefaelle, plan.assignments, settings),
-    [sterbefaelle, plan.assignments, settings]
+    () => buildPlanningCards(sterbefaelle, plan.assignments, settings, today),
+    [sterbefaelle, plan.assignments, settings, today]
   );
 
   const filteredCards = useMemo(() => {
@@ -89,46 +94,51 @@ export function PlanningPage() {
   }, [cards, search]);
 
   const capacities = useMemo(
-    () => buildKuehlraumCapacities(sterbefaelle, cards, settings, dayKeys),
-    [sterbefaelle, cards, settings, dayKeys]
+    () => buildKuehlraumCapacities(sterbefaelle, cards, settings, dayKeys, today),
+    [sterbefaelle, cards, settings, dayKeys, today]
   );
 
-  const dayKeySet = useMemo(() => new Set(dayKeys), [dayKeys]);
-
-  const backlog = useMemo(() => {
-    return filteredCards.filter(
-      (c) => c.plannedDayKey == null || !dayKeySet.has(c.plannedDayKey)
-    );
-  }, [filteredCards, dayKeySet]);
-
-  const sterbeortPool = useMemo(() => {
-    const pool = buildSterbeortPool(sterbefaelle, cards, settings);
+  const locationGroups = useMemo(() => {
+    const pool = buildSterbeortPool(sterbefaelle, cards, settings, today);
     const q = search.trim().toLowerCase();
-    if (!q) return pool;
-    return pool.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        p.sterbefallId.toLowerCase().includes(q) ||
-        p.vonOrt.toLowerCase().includes(q)
-    );
-  }, [sterbefaelle, cards, settings, search]);
+    const filtered = !q
+      ? pool
+      : pool.filter(
+          (p) =>
+            p.name.toLowerCase().includes(q) ||
+            p.sterbefallId.toLowerCase().includes(q) ||
+            p.vonOrt.toLowerCase().includes(q)
+        );
+    return buildLocationGroups(filtered);
+  }, [sterbefaelle, cards, settings, today, search]);
 
-  const recentEvents = useMemo(() => (plan.events ?? []).slice(0, 8), [plan.events]);
+  const krRails = useMemo(
+    () => buildKuehlraumRailStates(sterbefaelle, cards, settings, focusDayKey, today),
+    [sterbefaelle, cards, settings, focusDayKey, today]
+  );
 
-  const goToday = useCallback(() => {
-    setRangeStart(startOfWeekMonday(today));
-  }, [today]);
+  const ceremoniesByDay = useMemo(() => {
+    const map = new Map<string, Array<{ docId: string; name: string; ceremony: ReturnType<typeof buildCeremoniesForFall>[number] }>>();
+    for (const s of sterbefaelle) {
+      const name = s.verstorbenerName ?? s.sterbefallId ?? s.id;
+      for (const ceremony of buildCeremoniesForFall(s, today)) {
+        if (!ceremony.dayKey || !dayKeys.includes(ceremony.dayKey)) continue;
+        const list = map.get(ceremony.dayKey) ?? [];
+        list.push({ docId: s.id, name, ceremony });
+        map.set(ceremony.dayKey, list);
+      }
+    }
+    return map;
+  }, [sterbefaelle, today, dayKeys]);
 
-  const shiftRange = useCallback((deltaDays: number) => {
-    setRangeStart((prev) => addDays(prev, deltaDays));
-  }, []);
+  const recentEvents = useMemo(() => (plan.events ?? []).slice(0, 6), [plan.events]);
 
   const clearDrag = useCallback(() => {
     setDrag(null);
-    setDropLane(null);
+    setDropTarget(null);
   }, []);
 
-  const openScheduleForDrop = useCallback(
+  const openSchedule = useCallback(
     (dayKey: string, kuehlraumId: string) => {
       const kr = settings.eigeneKuehlraeume.find((k) => k.id === kuehlraumId);
       if (!kr || !drag) {
@@ -136,7 +146,7 @@ export function PlanningPage() {
         return;
       }
 
-      if (drag.kind === 'sterbeort') {
+      if (drag.kind === 'source') {
         const existing = drag.item.existingCardId
           ? cards.find((c) => c.id === drag.item.existingCardId)
           : null;
@@ -164,103 +174,67 @@ export function PlanningPage() {
     [settings.eigeneKuehlraeume, drag, cards, clearDrag]
   );
 
-  const handleDropLane = useCallback(
-    async (laneKey: string, kuehlraumId?: string) => {
+  const handleDropOnDay = useCallback(
+    (dayKey: string) => {
       if (!drag || saving) {
         clearDrag();
         return;
       }
+      setFocusDayKey(dayKey);
 
-      if (laneKey === 'backlog') {
-        if (drag.kind !== 'card') {
-          clearDrag();
-          return;
-        }
-        if (drag.card.plannedDayKey == null) {
-          clearDrag();
-          return;
-        }
-        const card = drag.card;
-        const order = nextOrderInLane(cards, null);
-        const nextAssignments = moveCardAssignment(plan.assignments, card, null, order);
-        clearDrag();
-        setFlashId(card.id);
-        window.setTimeout(() => setFlashId((id) => (id === card.id ? null : id)), 700);
-        try {
-          await savePlan({
-            assignments: nextAssignments,
-            publish: {
-              type: 'ueberfuehrung_umgeplant',
-              docId: card.docId,
-              sterbefallId: card.sterbefallId,
-              name: card.name,
-              vonOrt: card.vonOrt,
-              nachOrt: card.nachOrt,
-              kuehlraumId: card.kuehlraumId ?? undefined,
-              plannedDayKey: null,
-              plannedZeit: null,
-            },
-          });
-        } catch {
-          /* hook */
-        }
-        return;
-      }
-
-      if (kuehlraumId) {
-        openScheduleForDrop(laneKey, kuehlraumId);
-        return;
-      }
-
-      // Tages-Drop ohne KR: bestehende Karte nur umplanen (Tag), Sterbeort → Dialog mit Primär-KR
-      if (drag.kind === 'sterbeort') {
+      if (drag.kind === 'source') {
         const krId =
           drag.item.suggestedKuehlraumId ?? settings.eigeneKuehlraeume[0]?.id;
         if (!krId) {
           clearDrag();
           return;
         }
-        openScheduleForDrop(laneKey, krId);
+        openSchedule(dayKey, krId);
         return;
       }
 
-      if (drag.card.targetsEigenerKr && drag.card.kuehlraumId) {
-        openScheduleForDrop(laneKey, drag.card.kuehlraumId);
-        return;
+      if (drag.card.targetsEigenerKr) {
+        const krId =
+          drag.card.kuehlraumId ??
+          settings.eigeneKuehlraeume[0]?.id;
+        if (krId) {
+          openSchedule(dayKey, krId);
+          return;
+        }
       }
 
+      // Nicht-KR-Überführung: nur Tag verschieben
       const card = drag.card;
-      const order = nextOrderInLane(cards, laneKey);
-      const nextAssignments = moveCardAssignment(plan.assignments, card, laneKey, order);
+      const order = nextOrderInLane(cards, dayKey);
+      const nextAssignments = moveCardAssignment(plan.assignments, card, dayKey, order);
       clearDrag();
       setFlashId(card.id);
-      try {
-        await savePlan({
-          assignments: nextAssignments,
-          publish: {
-            type: 'ueberfuehrung_umgeplant',
-            docId: card.docId,
-            sterbefallId: card.sterbefallId,
-            name: card.name,
-            vonOrt: card.vonOrt,
-            nachOrt: card.nachOrt,
-            plannedDayKey: laneKey,
-          },
-        });
-      } catch {
-        /* hook */
-      }
+      void savePlan({
+        assignments: nextAssignments,
+        publish: {
+          type: 'ueberfuehrung_umgeplant',
+          docId: card.docId,
+          sterbefallId: card.sterbefallId,
+          name: card.name,
+          vonOrt: card.vonOrt,
+          nachOrt: card.nachOrt,
+          plannedDayKey: dayKey,
+          plannedZeit: card.plannedZeit,
+        },
+      });
     },
-    [
-      drag,
-      saving,
-      clearDrag,
-      cards,
-      plan.assignments,
-      savePlan,
-      openScheduleForDrop,
-      settings.eigeneKuehlraeume,
-    ]
+    [drag, saving, clearDrag, settings.eigeneKuehlraeume, openSchedule, cards, plan.assignments, savePlan]
+  );
+
+  const handleDropOnKuehlraum = useCallback(
+    (kuehlraumId: string) => {
+      if (!drag || saving) {
+        clearDrag();
+        return;
+      }
+      openSchedule(focusDayKey || calendarDay, kuehlraumId);
+    },
+    [drag, saving, clearDrag, openSchedule, focusDayKey, calendarDay]
   );
 
   const confirmSchedule = useCallback(
@@ -269,12 +243,12 @@ export function PlanningPage() {
       const order = nextOrderInLane(cards, draft.dayKey);
       const result = scheduleToKuehlraum(plan.assignments, draft, order, existing);
       setScheduleDraft(null);
+      setFocusDayKey(draft.dayKey);
       setFlashId(result.assignment.id);
       window.setTimeout(
         () => setFlashId((id) => (id === result.assignment.id ? null : id)),
         800
       );
-
       try {
         await savePlan({
           assignments: result.assignments,
@@ -326,22 +300,22 @@ export function PlanningPage() {
   const loading = casesLoading || planLoading;
   const error = casesError || planError;
   const draggingId =
-    drag?.kind === 'card' ? drag.card.id : drag?.kind === 'sterbeort' ? drag.item.docId : null;
+    drag?.kind === 'card' ? drag.card.id : drag?.kind === 'source' ? drag.item.docId : null;
 
   return (
-    <div className="plan-page">
+    <div className="plan-page plan-page--board">
       <header className="plan-hero">
         <div>
           <p className="plan-eyebrow">Disposition</p>
           <h1>Überführungsplanung</h1>
           <p className="plan-lead">
-            Sterbefall vom Sterbeort auf einen Kühlraum-Tag ziehen, Termin eingeben — Überführung
-            erscheint visuell, Kühlraum-Kapazität wird angepasst, Event wird weitergegeben.
+            Links aktueller Ort → Mitte wann/wohin planen → rechts Kühlraum-Ressourcen, Freigabe,
+            Beisetzung und wann wieder Platz frei wird.
           </p>
         </div>
         <div className="plan-hero-actions">
           <Link to="/disposition?tab=ueberfuehrungen" className="btn btn-ghost">
-            Zur Listenansicht
+            Listenansicht
           </Link>
           <LiveDataBar />
         </div>
@@ -363,13 +337,20 @@ export function PlanningPage() {
 
       <div className="plan-toolbar">
         <div className="plan-toolbar-nav">
-          <button type="button" className="btn btn-ghost" onClick={() => shiftRange(-7)} aria-label="Vorherige Woche">
+          <button type="button" className="btn btn-ghost" onClick={() => setRangeStart((d) => addDays(d, -7))}>
             ←
           </button>
-          <button type="button" className="btn btn-ghost" onClick={goToday}>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => {
+              setRangeStart(startOfWeekMonday(today));
+              setFocusDayKey(calendarDay);
+            }}
+          >
             Diese Woche
           </button>
-          <button type="button" className="btn btn-ghost" onClick={() => shiftRange(7)} aria-label="Nächste Woche">
+          <button type="button" className="btn btn-ghost" onClick={() => setRangeStart((d) => addDays(d, 7))}>
             →
           </button>
           <span className="plan-toolbar-range">
@@ -392,101 +373,61 @@ export function PlanningPage() {
         <p className="plan-loading">Lade Planung…</p>
       ) : (
         <>
-          <div className="plan-canvas plan-canvas--v2" role="region" aria-label="Planungs-Canvas">
-            <aside className="plan-sidebar">
-              <section className="plan-column plan-column--sterbeort">
-                <header className="plan-column-head">
-                  <div>
-                    <h2>Am Sterbeort</h2>
-                    <p>Auf Kühlraum ziehen</p>
-                  </div>
-                  <span className="plan-column-count">{sterbeortPool.length}</span>
-                </header>
-                <div className="plan-column-cards">
-                  {sterbeortPool.length === 0 ? (
-                    <p className="plan-column-empty">Keine Fälle am Sterbeort/KH</p>
-                  ) : (
-                    sterbeortPool.map((item) => (
-                      <PlanningSterbeortCard
-                        key={item.docId}
-                        item={item}
-                        dragging={drag?.kind === 'sterbeort' && drag.item.docId === item.docId}
-                        onDragStart={(it) => setDrag({ kind: 'sterbeort', item: it })}
-                        onDragEnd={clearDrag}
+          <div className="plan-board" role="region" aria-label="Planungs-Canvas">
+            <PlanningLocationRail
+              groups={locationGroups}
+              draggingId={draggingId}
+              onDragStart={(item) => setDrag({ kind: 'source', item })}
+              onDragEnd={clearDrag}
+            />
+
+            <div className="plan-center">
+              <div className="plan-center-scroll">
+                {dayKeys.map((dayKey) => {
+                  const dayCards = cardsForLane(filteredCards, dayKey);
+                  const dayCaps = capacities.filter((c) => c.dayKey === dayKey);
+                  const dayCeremonies = ceremoniesByDay.get(dayKey) ?? [];
+                  return (
+                    <div
+                      key={dayKey}
+                      className={`plan-center-day-wrap${
+                        flashId && dayCards.some((c) => c.id === flashId) ? ' has-flash' : ''
+                      }${focusDayKey === dayKey ? ' is-focus' : ''}`}
+                      onClick={() => setFocusDayKey(dayKey)}
+                    >
+                      <PlanningCenterDay
+                        dayKey={dayKey}
+                        title={formatDayLabelDe(dayKey)}
+                        isToday={dayKey === calendarDay}
+                        transfers={dayCards}
+                        ceremonies={dayCeremonies}
+                        capacities={dayCaps}
+                        isDropTarget={dropTarget === `day:${dayKey}`}
+                        draggingId={draggingId}
+                        onDragOver={() => setDropTarget(`day:${dayKey}`)}
+                        onDragLeave={() =>
+                          setDropTarget((t) => (t === `day:${dayKey}` ? null : t))
+                        }
+                        onDrop={() => handleDropOnDay(dayKey)}
+                        onCardDragStart={(card) => setDrag({ kind: 'card', card })}
+                        onCardDragEnd={clearDrag}
+                        onResetCard={(card) => void resetCard(card)}
                       />
-                    ))
-                  )}
-                </div>
-              </section>
-
-              <PlanningDayColumn
-                dayKey={null}
-                title="Backlog"
-                subtitle="Ohne Tag / außerhalb"
-                cards={backlog}
-                isDropTarget={dropLane === 'backlog'}
-                dropTargetKey={dropLane}
-                draggingId={draggingId}
-                onDragOverLane={setDropLane}
-                onDragLeaveLane={(key) => setDropLane((l) => (l === key ? null : l))}
-                onDropLane={(key) => void handleDropLane(key)}
-                onCardDragStart={(card) => setDrag({ kind: 'card', card })}
-                onCardDragEnd={clearDrag}
-                emptyHint="Karten ohne Tag"
-              />
-            </aside>
-
-            <div className="plan-days-scroll">
-              {dayKeys.map((dayKey) => {
-                const dayCards = cardsForLane(filteredCards, dayKey);
-                const dayCaps = capacities.filter((c) => c.dayKey === dayKey);
-                const isToday = dayKey === calendarDay;
-                return (
-                  <div
-                    key={dayKey}
-                    className={`plan-day-wrap${isToday ? ' is-today' : ''}${
-                      flashId && dayCards.some((c) => c.id === flashId) ? ' has-flash' : ''
-                    }`}
-                  >
-                    <PlanningDayColumn
-                      dayKey={dayKey}
-                      title={formatDayLabelDe(dayKey)}
-                      subtitle={isToday ? 'Heute' : undefined}
-                      cards={dayCards}
-                      capacities={dayCaps}
-                      kuehlraeume={settings.eigeneKuehlraeume}
-                      enableKuehlraumDrops
-                      isDropTarget={!!dropLane?.startsWith(`${dayKey}::`)}
-                      dropTargetKey={dropLane}
-                      draggingId={draggingId}
-                      onDragOverLane={setDropLane}
-                      onDragLeaveLane={(key) => setDropLane((l) => (l === key ? null : l))}
-                      onDropLane={(key, krId) => void handleDropLane(key, krId)}
-                      onCardDragStart={(card) => setDrag({ kind: 'card', card })}
-                      onCardDragEnd={clearDrag}
-                      emptyHint="Sterbefall auf Kühlraum ziehen"
-                    />
-                    {dayCards.some((c) => c.hasManualPlan) && (
-                      <div className="plan-day-reset">
-                        {dayCards
-                          .filter((c) => c.hasManualPlan)
-                          .map((c) => (
-                            <button
-                              key={c.id}
-                              type="button"
-                              className="plan-reset-btn"
-                              title="Manuelle Planung zurücksetzen"
-                              onClick={() => void resetCard(c)}
-                            >
-                              {c.name.split(' ')[0]} ↺
-                            </button>
-                          ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
+
+            <PlanningKuehlraumRail
+              rails={krRails}
+              dropTargetId={dropTarget?.startsWith('kr:') ? dropTarget.slice(3) : null}
+              onDragOver={(id) => setDropTarget(`kr:${id}`)}
+              onDragLeave={(id) =>
+                setDropTarget((t) => (t === `kr:${id}` ? null : t))
+              }
+              onDrop={handleDropOnKuehlraum}
+            />
           </div>
 
           {recentEvents.length > 0 && (

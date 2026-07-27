@@ -2,22 +2,33 @@ import type { Sterbefall } from '../types';
 import type { DispositionSettings, EigenerKuehlraumConfig } from '../types/dispositionSettings';
 import { getEffectiveAusstehend, schrittZielIstEigeneKr } from '../board/ausstehendEffective';
 import { resolveAusstehendStatus } from '../board/ausstehendStatus';
-import { dayKeyFromDeDatum, dayKeyFromDate, parseDatumDeToDate } from '../board/dateUtils';
+import {
+  dayKeyFromDeDatum,
+  dayKeyFromDate,
+  extractZeitDe,
+} from '../board/dateUtils';
+import { istFreigabeWirksam } from '../board/freigabeLogic';
 import {
   isAmKrankenhausOderSterbeort,
   isImEigenenKuehlraum,
 } from '../board/kuehlraumLogic';
-import { resolveFallKuehlraumIdOrPrimary } from '../board/kuehlraumZuordnung';
-import { belegeKuehlraumSlots } from '../board/kuehlplatzSlots';
+import { buildKuehlraumTerminMarkers } from '../board/kuehlraumTerminMarker';
+import { resolveFallKuehlraumId, resolveFallKuehlraumIdOrPrimary } from '../board/kuehlraumZuordnung';
+import { belegeKuehlraumSlots, resolveSlotKuehlraumId } from '../board/kuehlplatzSlots';
 import { isUeberfuehrungZeileErledigt } from '../board/ueberfuehrungErledigt';
 import { matchEigenerKuehlraum } from '../settings/ortMatchers';
 import { parseUeberfuehrungRoute } from '../board/routeParse';
 import type {
-  DispositionPlanEvent,
+  CeremonyInfo,
+  FreigabeState,
   KuehlraumDayCapacity,
+  KuehlraumOccupant,
+  KuehlraumRailState,
+  LocationGroup,
   PlanAssignment,
   PlanningCard,
   ScheduleDraft,
+  SlotFreeEvent,
   SterbeortPoolItem,
 } from './types';
 
@@ -46,11 +57,41 @@ export function formatDeDatumFromDayKey(dayKey: string): string {
   return `${d}.${m}.${y}`;
 }
 
-export function formatTerminDisplay(dayKey: string | null, zeit?: string | null, fallback = 'ohne Datum'): string {
+export function formatTerminDisplay(
+  dayKey: string | null,
+  zeit?: string | null,
+  fallback = 'ohne Datum'
+): string {
   if (!dayKey) return fallback;
   const date = formatDeDatumFromDayKey(dayKey);
   const t = zeit?.trim();
   return t ? `${date} ${t}` : date;
+}
+
+export function resolveFreigabeState(
+  s: Pick<Sterbefall, 'freigabeFrei' | 'freigabeDatum'>,
+  now = new Date()
+): FreigabeState {
+  if (!s.freigabeFrei) return 'offen';
+  return istFreigabeWirksam(s.freigabeFrei, s.freigabeDatum, now) ? 'frei' : 'geplant';
+}
+
+export function freigabeLabel(state: FreigabeState, datum?: string): string {
+  if (state === 'offen') return 'Freigabe offen';
+  if (state === 'geplant') return datum ? `Freigabe ab ${datum}` : 'Freigabe geplant';
+  return datum ? `Frei ${datum}` : 'Freigabe da';
+}
+
+export function buildCeremoniesForFall(s: Sterbefall, now = new Date()): CeremonyInfo[] {
+  return buildKuehlraumTerminMarkers(s, now).map((m) => ({
+    kind: m.kind,
+    datum: m.datum,
+    dayKey: dayKeyFromDeDatum(m.datum),
+    zeit: extractZeitDe(m.datum) || undefined,
+    label: m.label,
+    relativeLabel: m.relativeLabel,
+    bestattungsMarker: m.bestattungsMarker,
+  }));
 }
 
 function resolveNachOrtLabel(
@@ -65,17 +106,30 @@ function resolveNachOrtLabel(
   return fallback?.trim() || '—';
 }
 
+function enrichCardMeta(s: Sterbefall, now: Date): Pick<
+  PlanningCard,
+  'freigabeState' | 'freigabeDatum' | 'ceremonies' | 'endzielTyp' | 'endziel'
+> {
+  return {
+    freigabeState: resolveFreigabeState(s, now),
+    freigabeDatum: s.freigabeDatum,
+    ceremonies: buildCeremoniesForFall(s, now),
+    endzielTyp: s.endzielTyp,
+    endziel: s.endziel,
+  };
+}
+
 function cardFromAssignment(
   s: Sterbefall,
   assignment: PlanAssignment,
-  settings: DispositionSettings
+  settings: DispositionSettings,
+  now: Date
 ): PlanningCard {
   const sterbefallId = s.sterbefallId ?? s.id;
   const name = s.verstorbenerName ?? sterbefallId;
   const kuehlraumId = assignment.plannedKuehlraumId?.trim() || null;
   const nachOrt =
-    assignment.nachOrt?.trim() ||
-    resolveNachOrtLabel(kuehlraumId, settings);
+    assignment.nachOrt?.trim() || resolveNachOrtLabel(kuehlraumId, settings);
   const vonOrt =
     assignment.vonOrt?.trim() ||
     s.aktuellePosition?.trim() ||
@@ -113,6 +167,7 @@ function cardFromAssignment(
     hasManualPlan: true,
     source: 'canvas',
     amSterbeort: isAmKrankenhausOderSterbeort(s),
+    ...enrichCardMeta(s, now),
   };
 }
 
@@ -120,7 +175,8 @@ function cardFromAssignment(
 export function buildPlanningCards(
   sterbefaelle: Sterbefall[],
   assignments: Record<string, PlanAssignment>,
-  settings: DispositionSettings
+  settings: DispositionSettings,
+  now = new Date()
 ): PlanningCard[] {
   const cards: PlanningCard[] = [];
   const covered = new Set<string>();
@@ -130,6 +186,7 @@ export function buildPlanningCards(
     const sterbefallId = s.sterbefallId ?? s.id;
     const name = s.verstorbenerName ?? sterbefallId;
     let zeilenFallback = 0;
+    const meta = enrichCardMeta(s, now);
 
     for (const a of getEffectiveAusstehend(s)) {
       zeilenFallback += 1;
@@ -191,6 +248,7 @@ export function buildPlanningCards(
         hasManualPlan: assignment != null,
         source: assignment?.source === 'canvas' ? 'canvas' : 'alamida',
         amSterbeort: isAmKrankenhausOderSterbeort(s),
+        ...meta,
       });
     }
   }
@@ -200,7 +258,7 @@ export function buildPlanningCards(
     if (covered.has(assignment.id)) continue;
     const s = byId.get(assignment.docId);
     if (!s) continue;
-    cards.push(cardFromAssignment(s, assignment, settings));
+    cards.push(cardFromAssignment(s, assignment, settings, now));
   }
 
   return cards.sort((a, b) => {
@@ -213,12 +271,66 @@ export function buildPlanningCards(
 }
 
 /**
- * Fälle am Sterbeort/KH, die noch keine terminierte KR-Überführung im Plan haben.
+ * Wann wird ein Platz im eigenen KR wieder frei?
+ * — Abgang (Kremation/Weiterführung) oder Beisetzung.
  */
+export function buildSlotFreeEvents(
+  sterbefaelle: Sterbefall[],
+  cards: PlanningCard[],
+  settings: DispositionSettings,
+  now = new Date()
+): SlotFreeEvent[] {
+  const events: SlotFreeEvent[] = [];
+
+  for (const card of cards) {
+    if (card.erledigt || !card.plannedDayKey) continue;
+    if (!(card.leavesEigenerKr && !card.targetsEigenerKr)) continue;
+    const reason: SlotFreeEvent['reason'] =
+      card.schrittTyp === 'kremation' ? 'kremation' : 'ueberfuehrung';
+    events.push({
+      docId: card.docId,
+      name: card.name,
+      dayKey: card.plannedDayKey,
+      zeit: card.plannedZeit,
+      reason,
+      vonOrt: card.vonOrt,
+      nachOrt: card.nachOrt,
+    });
+  }
+
+  for (const s of sterbefaelle) {
+    if (!isImEigenenKuehlraum(s)) continue;
+    const ceremonies = buildCeremoniesForFall(s, now);
+    const beisetzung = ceremonies.find((c) => c.kind === 'beisetzung' && c.dayKey);
+    if (!beisetzung?.dayKey) continue;
+    const already = events.some(
+      (e) => e.docId === s.id && e.dayKey === beisetzung.dayKey && e.reason === 'beisetzung'
+    );
+    if (already) continue;
+    const krId = resolveFallKuehlraumId(s, settings);
+    const kr = settings.eigeneKuehlraeume.find((k) => k.id === krId);
+    events.push({
+      docId: s.id,
+      name: s.verstorbenerName ?? s.sterbefallId ?? s.id,
+      dayKey: beisetzung.dayKey,
+      zeit: beisetzung.zeit ?? null,
+      reason: 'beisetzung',
+      vonOrt: kr?.alamidaName || kr?.label || 'Kühlraum',
+      nachOrt: s.endziel?.trim() || 'Beisetzung',
+    });
+  }
+
+  return events.sort((a, b) => {
+    if (a.dayKey !== b.dayKey) return a.dayKey.localeCompare(b.dayKey);
+    return (a.zeit ?? '').localeCompare(b.zeit ?? '');
+  });
+}
+
 export function buildSterbeortPool(
   sterbefaelle: Sterbefall[],
   cards: PlanningCard[],
-  settings: DispositionSettings
+  settings: DispositionSettings,
+  now = new Date()
 ): SterbeortPoolItem[] {
   const scheduledDocIds = new Set(
     cards
@@ -238,6 +350,7 @@ export function buildSterbeortPool(
       s.abholort?.trim() ||
       s.sterbeort?.trim() ||
       'Sterbeort';
+    const ceremonies = buildCeremoniesForFall(s, now);
 
     items.push({
       docId: s.id,
@@ -250,41 +363,118 @@ export function buildSterbeortPool(
         resolveFallKuehlraumIdOrPrimary(s, settings) ??
         settings.eigeneKuehlraeume[0]?.id ??
         null,
+      freigabeState: resolveFreigabeState(s, now),
+      freigabeDatum: s.freigabeDatum,
+      nextCeremony: ceremonies[0],
+      endzielTyp: s.endzielTyp,
+      endziel: s.endziel,
     });
   }
 
   return items.sort((a, b) => a.name.localeCompare(b.name, 'de'));
 }
 
+export function buildLocationGroups(pool: SterbeortPoolItem[]): LocationGroup[] {
+  const map = new Map<string, LocationGroup>();
+  for (const item of pool) {
+    const label = item.vonOrt.trim() || 'Unbekannter Ort';
+    const key = label.toLowerCase();
+    const existing = map.get(key);
+    if (existing) existing.items.push(item);
+    else map.set(key, { key, label, items: [item] });
+  }
+  return [...map.values()]
+    .map((g) => ({
+      ...g,
+      items: [...g.items].sort((a, b) => a.name.localeCompare(b.name, 'de')),
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'de'));
+}
+
+export function buildKuehlraumRailStates(
+  sterbefaelle: Sterbefall[],
+  cards: PlanningCard[],
+  settings: DispositionSettings,
+  focusDayKey?: string | null,
+  now = new Date()
+): KuehlraumRailState[] {
+  const slotFrees = buildSlotFreeEvents(sterbefaelle, cards, settings, now);
+
+  return settings.eigeneKuehlraeume.map((cfg) => {
+    const slots = belegeKuehlraumSlots(sterbefaelle, cfg);
+    const occupants: KuehlraumOccupant[] = [];
+
+    slots.forEach((fall, idx) => {
+      if (!fall) return;
+      const ceremonies = buildCeremoniesForFall(fall, now);
+      const freeEv = slotFrees.find((e) => e.docId === fall.id);
+      occupants.push({
+        docId: fall.id,
+        name: fall.verstorbenerName ?? fall.sterbefallId ?? fall.id,
+        sterbefallId: fall.sterbefallId ?? fall.id,
+        platz: fall.kuehlplatzDisposition || fall.kuehlplatz || String(idx + 1),
+        freigabeState: resolveFreigabeState(fall, now),
+        freigabeDatum: fall.freigabeDatum,
+        nextCeremony: ceremonies[0],
+        freesOnDayKey: freeEv?.dayKey ?? null,
+        freesReason: freeEv?.reason,
+      });
+    });
+
+    const plannedArrivals = cards.filter(
+      (c) =>
+        c.targetsEigenerKr &&
+        !c.erledigt &&
+        c.kuehlraumId === cfg.id &&
+        (focusDayKey ? c.plannedDayKey === focusDayKey : c.plannedDayKey != null)
+    ).length;
+
+    const plannedDepartures = slotFrees.filter((e) => {
+      if (focusDayKey && e.dayKey !== focusDayKey) return false;
+      const fall = sterbefaelle.find((s) => s.id === e.docId);
+      if (!fall) return false;
+      return resolveSlotKuehlraumId(fall) === cfg.id || resolveFallKuehlraumId(fall, settings) === cfg.id;
+    }).length;
+
+    const occupiedNow = occupants.length;
+    const projected = Math.max(0, occupiedNow + plannedArrivals - plannedDepartures);
+
+    return {
+      id: cfg.id,
+      label: cfg.label,
+      alamidaName: cfg.alamidaName,
+      plaetze: cfg.plaetze,
+      occupiedNow,
+      plannedArrivals,
+      plannedDepartures,
+      free: cfg.plaetze - projected,
+      overbooked: projected > cfg.plaetze,
+      occupants,
+      slotFrees: slotFrees.filter((e) => {
+        const fall = sterbefaelle.find((s) => s.id === e.docId);
+        if (!fall) return false;
+        return (
+          resolveSlotKuehlraumId(fall) === cfg.id ||
+          resolveFallKuehlraumId(fall, settings) === cfg.id
+        );
+      }),
+    };
+  });
+}
+
 export function cardsForLane(cards: PlanningCard[], dayKey: string | null): PlanningCard[] {
   return cards.filter((c) => c.plannedDayKey === dayKey);
 }
 
-export function cardsForKuehlraumLane(
-  cards: PlanningCard[],
-  dayKey: string,
-  kuehlraumId: string
-): PlanningCard[] {
-  return cards.filter(
-    (c) =>
-      c.plannedDayKey === dayKey &&
-      c.kuehlraumId === kuehlraumId &&
-      c.targetsEigenerKr &&
-      !c.erledigt
-  );
-}
-
-/**
- * Prognostiziert Kühlraum-Kapazität über mehrere Tage.
- * Start: aktuelle physische Belegung. Pro Tag: +Ankünfte / −Abgänge aus Planungskarten.
- */
 export function buildKuehlraumCapacities(
   sterbefaelle: Sterbefall[],
   cards: PlanningCard[],
   settings: DispositionSettings,
-  dayKeys: string[]
+  dayKeys: string[],
+  now = new Date()
 ): KuehlraumDayCapacity[] {
   const result: KuehlraumDayCapacity[] = [];
+  const slotFrees = buildSlotFreeEvents(sterbefaelle, cards, settings, now);
 
   for (const cfg of settings.eigeneKuehlraeume) {
     const slots = belegeKuehlraumSlots(sterbefaelle, cfg);
@@ -296,7 +486,19 @@ export function buildKuehlraumCapacities(
         (c) => c.plannedDayKey === dayKey && c.kuehlraumId === cfg.id && !c.erledigt
       );
       const arrivals = dayCards.filter((c) => c.targetsEigenerKr).length;
-      const departures = dayCards.filter((c) => c.leavesEigenerKr && !c.targetsEigenerKr).length;
+      const transferDeps = dayCards.filter(
+        (c) => c.leavesEigenerKr && !c.targetsEigenerKr
+      ).length;
+      const beisetzungDeps = slotFrees.filter((e) => {
+        if (e.dayKey !== dayKey || e.reason !== 'beisetzung') return false;
+        const fall = sterbefaelle.find((s) => s.id === e.docId);
+        if (!fall) return false;
+        return (
+          resolveSlotKuehlraumId(fall) === cfg.id ||
+          resolveFallKuehlraumId(fall, settings) === cfg.id
+        );
+      }).length;
+      const departures = transferDeps + beisetzungDeps;
 
       running = Math.max(0, running + arrivals - departures);
       const free = cfg.plaetze - running;
@@ -349,7 +551,11 @@ export function scheduleToKuehlraum(
   draft: ScheduleDraft,
   order: number,
   existingCard?: PlanningCard | null
-): { assignments: Record<string, PlanAssignment>; assignment: PlanAssignment; eventType: DispositionPlanEvent['type'] } {
+): {
+  assignments: Record<string, PlanAssignment>;
+  assignment: PlanAssignment;
+  eventType: 'ueberfuehrung_geplant' | 'ueberfuehrung_umgeplant';
+} {
   const id =
     existingCard?.id ??
     (draft.existingZeile != null
@@ -388,7 +594,6 @@ export function removeAssignment(
   return next;
 }
 
-/** Nächste order in einer Lane (Ende anhängen). */
 export function nextOrderInLane(cards: PlanningCard[], dayKey: string | null): number {
   const lane = cardsForLane(cards, dayKey);
   if (lane.length === 0) return 10;
@@ -438,28 +643,6 @@ export function buildScheduleDraftFromCard(opts: {
     schrittTyp: card.schrittTyp || 'abholung',
     existingZeile: card.zeile > 0 ? card.zeile : undefined,
   };
-}
-
-export function dayKeyFromIsoDateInput(value: string): string | null {
-  const m = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (!m) return null;
-  return `${m[1]}-${m[2]}-${m[3]}`;
-}
-
-export function isoDateInputFromDayKey(dayKey: string): string {
-  return dayKey;
-}
-
-export function defaultZeitNowRounded(): string {
-  const d = new Date();
-  const minutes = d.getMinutes() < 30 ? 0 : 30;
-  d.setMinutes(minutes, 0, 0);
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-}
-
-export function parseDayKeySafe(dayKey: string): Date | null {
-  const d = parseDatumDeToDate(formatDeDatumFromDayKey(dayKey));
-  return d;
 }
 
 export function todayDayKey(now = new Date()): string {

@@ -41,7 +41,23 @@ export type PlanDocument = {
   updatedAtMs?: number;
 };
 
-export type PlanningLaneId = 'backlog' | 'sterbeort' | string; // dayKey or dayKey::krId
+export type FreigabeState = 'offen' | 'geplant' | 'frei';
+
+export type CeremonyKind =
+  | 'kremation'
+  | 'beisetzung'
+  | 'trauerfeier'
+  | 'verabschiedung';
+
+export type CeremonyInfo = {
+  kind: CeremonyKind;
+  datum: string;
+  dayKey: string | null;
+  zeit?: string;
+  label: string;
+  relativeLabel?: string;
+  bestattungsMarker?: 'S' | 'U';
+};
 
 export type PlanningCard = {
   id: string;
@@ -54,35 +70,80 @@ export type PlanningCard = {
   nachOrt: string;
   terminAm: string;
   plannedZeit?: string | null;
-  /** Alamida-/Quell-Tag (yyyy-MM-dd), null wenn ohne Datum. */
   sourceDayKey: string | null;
-  /** Effektiver Tag auf dem Canvas. */
   plannedDayKey: string | null;
   status: string;
   erledigt?: boolean;
   istAbholungVomSterbeort?: boolean;
-  /** Ob Ziel ein eigener Kühlraum ist. */
   targetsEigenerKr: boolean;
-  /** Ob Start ein eigener Kühlraum ist (Abgang). */
   leavesEigenerKr: boolean;
-  /** Zugeordneter Kühlraum für Kapazität. */
   kuehlraumId: string | null;
   order: number;
   hasManualPlan: boolean;
   source: 'alamida' | 'canvas';
-  /** Aktuell am Sterbeort/KH und für KR-Überführung planbar. */
   amSterbeort?: boolean;
+  freigabeState?: FreigabeState;
+  freigabeDatum?: string;
+  ceremonies?: CeremonyInfo[];
+  endzielTyp?: string;
+  endziel?: string;
 };
 
-/** Fall im Sterbeort-Pool (noch nicht als KR-Überführung auf dem Canvas terminiert). */
+/** Fall in der linken Ort-Schiene. */
 export type SterbeortPoolItem = {
   docId: string;
   sterbefallId: string;
   name: string;
   vonOrt: string;
-  /** Bestehende offene Alamida-Zeile Richtung eigener KR, falls vorhanden. */
   existingCardId?: string;
   suggestedKuehlraumId: string | null;
+  freigabeState: FreigabeState;
+  freigabeDatum?: string;
+  nextCeremony?: CeremonyInfo;
+  endzielTyp?: string;
+  endziel?: string;
+};
+
+export type LocationGroup = {
+  key: string;
+  label: string;
+  items: SterbeortPoolItem[];
+};
+
+export type SlotFreeEvent = {
+  docId: string;
+  name: string;
+  dayKey: string;
+  zeit?: string | null;
+  reason: 'kremation' | 'beisetzung' | 'ueberfuehrung';
+  vonOrt: string;
+  nachOrt: string;
+};
+
+export type KuehlraumOccupant = {
+  docId: string;
+  name: string;
+  sterbefallId: string;
+  platz?: string;
+  freigabeState: FreigabeState;
+  freigabeDatum?: string;
+  nextCeremony?: CeremonyInfo;
+  freesOnDayKey?: string | null;
+  freesReason?: SlotFreeEvent['reason'];
+};
+
+export type KuehlraumRailState = {
+  id: string;
+  label: string;
+  alamidaName?: string;
+  plaetze: number;
+  occupiedNow: number;
+  plannedArrivals: number;
+  plannedDepartures: number;
+  free: number;
+  overbooked: boolean;
+  occupants: KuehlraumOccupant[];
+  slotFrees: SlotFreeEvent[];
 };
 
 export type KuehlraumDayCapacity = {
@@ -90,19 +151,13 @@ export type KuehlraumDayCapacity = {
   kuehlraumId: string;
   label: string;
   plaetze: number;
-  /** Aktuelle physische Belegung zu Beginn des Horizonts. */
   baseOccupied: number;
-  /** Prognose am Tagesende nach geplanten Zu-/Abgängen. */
   projectedOccupied: number;
   arrivals: number;
   departures: number;
   free: number;
   overbooked: boolean;
 };
-
-export type PlanningDragPayload =
-  | { kind: 'card'; cardId: string }
-  | { kind: 'sterbeort'; docId: string };
 
 export type ScheduleDraft = {
   docId: string;
@@ -116,4 +171,17 @@ export type ScheduleDraft = {
   zeit: string;
   schrittTyp: string;
   existingZeile?: number;
+};
+
+export type DayBoardColumn = {
+  dayKey: string;
+  label: string;
+  isToday: boolean;
+  transfers: PlanningCard[];
+  ceremonies: Array<{
+    docId: string;
+    name: string;
+    ceremony: CeremonyInfo;
+  }>;
+  capacityByKr: KuehlraumDayCapacity[];
 };
