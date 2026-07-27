@@ -49,4 +49,5 @@ export const DEFAULT_DISPOSITION_SETTINGS: DispositionSettings = {
       plaetze: 9,
     },
   ],
+  personnelPool: [],
 };

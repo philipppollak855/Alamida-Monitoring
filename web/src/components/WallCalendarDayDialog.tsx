@@ -1,15 +1,23 @@
 import { useEffect, useRef } from 'react';
-import type { WallCalendarDay } from '../board/wallCalendar';
+import type { WallCalendarDay, WallCalendarEntry } from '../board/wallCalendar';
 import { summarizeWallCalendarDay } from '../board/wallCalendar';
 import { WallCalendarEventCard } from './WallCalendarEventCard';
 
 interface Props {
   day: WallCalendarDay;
   mobile?: boolean;
+  bookingSummaries?: Record<string, string | null | undefined>;
+  onEntryClick?: (entry: WallCalendarEntry) => void;
   onClose: () => void;
 }
 
-export function WallCalendarDayDialog({ day, mobile = false, onClose }: Props) {
+export function WallCalendarDayDialog({
+  day,
+  mobile = false,
+  bookingSummaries,
+  onEntryClick,
+  onClose,
+}: Props) {
   const closeRef = useRef<HTMLButtonElement>(null);
   const { total, ueberfuehrungen } = summarizeWallCalendarDay(day.entries);
   const titleId = `wall-cal-day-dialog-title-${day.dayKey}`;
@@ -74,7 +82,13 @@ export function WallCalendarDayDialog({ day, mobile = false, onClose }: Props) {
           <ul className="wall-cal-day-dialog-list">
             {day.entries.map((e) => (
               <li key={e.id} className={`wall-cal-event ${e.grouped ? 'is-grouped' : ''}`}>
-                <WallCalendarEventCard entry={e} mobile={mobile} compact={!mobile} />
+                <WallCalendarEventCard
+                  entry={e}
+                  mobile={mobile}
+                  compact={!mobile}
+                  bookingSummary={bookingSummaries?.[e.id]}
+                  onClick={onEntryClick}
+                />
               </li>
             ))}
           </ul>
