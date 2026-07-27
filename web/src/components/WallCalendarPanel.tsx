@@ -64,6 +64,8 @@ import { WallCalendarPeriodOverview } from './WallCalendarPeriodOverview';
 import { PersonnelBookingDialog } from './PersonnelBookingDialog';
 import { ZusatzTerminDialog } from './ZusatzTerminDialog';
 import type { ZusatzTermin } from '../types/zusatzTermin';
+import { setSterbefallBestattungsMarkerOverride } from '../services/bestattungsMarkerOverride';
+import type { BestattungsMarker } from '../board/feierterminLogic';
 
 
 
@@ -131,6 +133,8 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [dialogDayKey, setDialogDayKey] = useState<string | null>(null);
   const [bookingEntry, setBookingEntry] = useState<WallCalendarEntry | null>(null);
+  const [markerPending, setMarkerPending] = useState(false);
+  const [markerError, setMarkerError] = useState<string | null>(null);
   const [zusatzDialog, setZusatzDialog] = useState<{
     dayKey?: string;
     existing: ZusatzTermin | null;
@@ -904,13 +908,32 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
       {bookingEntry && (
         <PersonnelBookingDialog
           entry={bookingEntry}
+          sterbefall={sterbefaelle.find((s) => s.id === bookingEntry.docId) ?? null}
           personnelPool={settings.personnelPool ?? []}
           allBookings={bookings}
           existing={bookings[bookingEntry.id] ?? null}
           pending={bookingSaving}
-          error={bookingError}
+          markerPending={markerPending}
+          error={markerError ?? bookingError}
           onClose={() => {
-            if (!bookingSaving) setBookingEntry(null);
+            if (!bookingSaving && !markerPending) {
+              setBookingEntry(null);
+              setMarkerError(null);
+            }
+          }}
+          onMarkerOverrideChange={async (marker: BestattungsMarker | null) => {
+            setMarkerError(null);
+            setMarkerPending(true);
+            try {
+              await setSterbefallBestattungsMarkerOverride(bookingEntry.docId, marker);
+            } catch (e) {
+              setMarkerError(
+                e instanceof Error ? e.message : 'Sarg/Urne konnte nicht gespeichert werden'
+              );
+              throw e;
+            } finally {
+              setMarkerPending(false);
+            }
           }}
           onSave={(booking) => {
             void (async () => {

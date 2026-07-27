@@ -1932,6 +1932,90 @@ code {
   border: 1px solid #9a3412;
 }
 
+.bestattungs-marker-switch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.65rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.bestattungs-marker-switch-label {
+  font-size: 0.72rem;
+  font-weight: 650;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
+.bestattungs-marker-switch-btns {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+
+.bestattungs-marker-switch-btn {
+  min-width: 3.4rem;
+  padding: 0.28rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.bestattungs-marker-switch-btn.is-active.is-S {
+  background: #1d4ed8;
+  border-color: #1e3a8a;
+  color: #fff;
+}
+
+.bestattungs-marker-switch-btn.is-active.is-U {
+  background: #c2410c;
+  border-color: #9a3412;
+  color: #fff;
+}
+
+.bestattungs-marker-switch-btn.is-manual:not(.is-active) {
+  border-style: dashed;
+}
+
+.bestattungs-marker-switch-btn:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.bestattungs-marker-switch-btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.bestattungs-marker-switch-reset {
+  margin-left: auto;
+  padding: 0.2rem 0.45rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 650;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.bestattungs-marker-switch-reset:hover:not(:disabled) {
+  color: var(--accent);
+}
+
+[data-theme='alamida'] .bestattungs-marker-switch {
+  background: rgba(255, 255, 255, 0.72);
+  border-color: var(--border);
+}
+
 .wall-cal-card-headline {
   display: flex;
   align-items: center;

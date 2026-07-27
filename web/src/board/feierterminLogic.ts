@@ -7,6 +7,14 @@ import { istKrematorium } from './ortKeywords';
 /** S = Sarg (ohne Kremation), U = Urne (mit Kremation im Ablauf / schon als Urne). */
 export type BestattungsMarker = 'S' | 'U';
 
+/** Manuelle Überschreibung der automatischen S/U-Regeln. */
+export function resolveBestattungsMarkerOverride(
+  s: Pick<Sterbefall, 'bestattungsMarkerOverride'>
+): BestattungsMarker | null {
+  const v = s.bestattungsMarkerOverride;
+  return v === 'S' || v === 'U' ? v : null;
+}
+
 function istOffenerKremationsschritt(a: {
   schrittTyp?: string;
   status?: string;
@@ -49,6 +57,9 @@ function istKremationEndzielTyp(typ?: string): boolean {
  * Dann: Feiertermine = U, kein offener „Kremation“-Chip nötig.
  */
 export function istBereitsAlsUrne(s: Sterbefall, now: Date = new Date()): boolean {
+  const override = resolveBestattungsMarkerOverride(s);
+  if (override === 'U') return true;
+  if (override === 'S') return false;
   if (s.urnenBereich === true) return true;
   if (istKremationErledigt(s, now)) return true;
   // Externe Kremation: Urnen-/Feuerbestattung ohne offenen Kremationsschritt bei uns
@@ -168,6 +179,8 @@ export function kuehlraumBestattungsMarker(
   now: Date = new Date(),
   feierDatum?: string
 ): BestattungsMarker {
+  const override = resolveBestattungsMarkerOverride(s);
+  if (override) return override;
   if (kind === 'beisetzung') return hatKremationImSterbefall(s) ? 'U' : 'S';
   const feierDay = dayKeyFromDeDatum(feierDatum ?? s.trauerfeierdatum);
   return hatUrnenMarkerAufFeier(s, feierDay, now) ? 'U' : 'S';
@@ -198,11 +211,14 @@ export function calendarBestattungsMarker(
 ): BestattungsMarker | undefined {
   if (!arts.some((a) => FEIER_MARKER_ARTS.has(a))) return undefined;
 
-  const kremation = hatKremationFuerBestattungsMarker(s, arts, title);
   const tfOderVerabschiedung = entryHatTrauerfeierOderVerabschiedung(arts, title);
   const beisetzung = entryHatBeisetzung(arts, title);
-
   if (!tfOderVerabschiedung && !beisetzung) return undefined;
+
+  const override = resolveBestattungsMarkerOverride(s);
+  if (override) return override;
+
+  const kremation = hatKremationFuerBestattungsMarker(s, arts, title);
   return kremation ? 'U' : 'S';
 }
 

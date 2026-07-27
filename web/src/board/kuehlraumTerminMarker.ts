@@ -1,5 +1,4 @@
 import type { Sterbefall } from '../types';
-import { isAusstehendHeuteOrGeplant } from './ausstehendStatus';
 import { extractDeDatum, extractZeitDe, parseDatumDeToDate } from './dateUtils';
 import {
   beisetzungAlsEigenerTermin,
@@ -36,26 +35,15 @@ const MARKER_PREFIX: Record<KuehlraumTerminMarkerKind, string> = {
   verabschiedung: 'Verabschiedung',
 };
 
-function istOffenerKremationsschritt(a: {
-  schrittTyp?: string;
-  status?: string;
-  terminAm?: string;
-  abholungAm?: string;
-}): boolean {
-  if (a.schrittTyp !== 'kremation') return false;
-  if (a.status === 'abholung_noetig') return true;
-  return isAusstehendHeuteOrGeplant(a);
-}
-
 function hatKremationImAblauf(s: Sterbefall): boolean {
   return hatKremationImSterbefall(s);
 }
 
-function feierMarkerKindTf1(s: Sterbefall): KuehlraumTerminMarkerKind {
+function feierMarkerKindTf1(s: Sterbefall): Exclude<KuehlraumTerminMarkerKind, 'kremation'> {
   return trauerfeier1AlsVerabschiedung(s) ? 'verabschiedung' : 'trauerfeier';
 }
 
-function feierMarkerKindTf2(s: Sterbefall): KuehlraumTerminMarkerKind {
+function feierMarkerKindTf2(s: Sterbefall): Exclude<KuehlraumTerminMarkerKind, 'kremation'> {
   if (!beisetzungAlsEigenerTermin(s)) return 'trauerfeier';
   return 'verabschiedung';
 }
@@ -158,12 +146,16 @@ export function buildKuehlraumTerminMarkers(
 
   if (hatKremationImAblauf(s) && !istBereitsAlsUrne(s)) {
     const kremDatum = findeKremationTermin(s);
-    const kremSchritt =
-      (s.ausstehend ?? []).find((a) => a.schrittTyp === 'kremation') ??
-      (s.verlauf ?? []).find((v) => (v.typ ?? v.schrittTyp) === 'kremation');
+    const kremAusstehend = (s.ausstehend ?? []).find((a) => a.schrittTyp === 'kremation');
+    const kremVerlauf = (s.verlauf ?? []).find((v) => (v.typ ?? '').toLowerCase() === 'kremation');
     const kr = formatMarkerLabel('kremation', kremDatum, now, {
       zeit: extractZeitDe(kremDatum),
-      ort: kremSchritt?.nachOrt?.trim() || kremSchritt?.vonOrt?.trim() || kremSchritt?.ort?.trim(),
+      ort:
+        kremAusstehend?.nachOrt?.trim() ||
+        kremAusstehend?.vonOrt?.trim() ||
+        kremVerlauf?.nachOrt?.trim() ||
+        kremVerlauf?.vonOrt?.trim() ||
+        kremVerlauf?.ort?.trim(),
     });
     if (kr) markers.push(kr);
   }
