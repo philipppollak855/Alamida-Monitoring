@@ -4,6 +4,7 @@ import {
   isBegraebnisEntry,
   minTraegerForEntry,
   personnelBookingSummary,
+  personnelBookingTraegerLine,
   validatePersonnelBooking,
 } from './personnelBookingRules';
 import type { PersonnelBooking } from '../types/personnelBooking';
@@ -123,5 +124,58 @@ describe('personnelBookingSummary', () => {
     expect(
       personnelBookingSummary({ ...booking, traegerVonFamilie: true, traegerIds: [] })
     ).toBe('Arrangeur · Träger Familie');
+  });
+});
+
+describe('personnelBookingTraegerLine', () => {
+  const pool = [
+    { id: 't1', name: 'Anna' },
+    { id: 't2', name: 'Bert' },
+    { id: 't3', name: 'Clara' },
+    { id: 't4', name: 'Dirk' },
+  ];
+
+  it('listet Trägernamen unter dem Termin', () => {
+    expect(
+      personnelBookingTraegerLine(
+        {
+          id: '1',
+          docId: 'd',
+          sterbefallId: 's',
+          dayKey: '2026-07-27',
+          entryTitle: 'Beisetzung',
+          entryArts: ['beisetzung'],
+          timeLabel: '14:00',
+          name: 'Muster',
+          arrangeurId: 'a1',
+          traegerIds: ['t1', 't3'],
+          traegerVonFamilie: false,
+          requiredTraegerCount: 2,
+        },
+        pool
+      )
+    ).toBe('Anna, Clara');
+  });
+
+  it('zeigt Träger Familie', () => {
+    expect(
+      personnelBookingTraegerLine(
+        {
+          id: '1',
+          docId: 'd',
+          sterbefallId: 's',
+          dayKey: '2026-07-27',
+          entryTitle: 'Beisetzung',
+          entryArts: ['beisetzung'],
+          timeLabel: '14:00',
+          name: 'Muster',
+          arrangeurId: 'a1',
+          traegerIds: [],
+          traegerVonFamilie: true,
+          requiredTraegerCount: 0,
+        },
+        pool
+      )
+    ).toBe('Träger Familie');
   });
 });

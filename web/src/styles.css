@@ -2507,7 +2507,7 @@ code {
 .wall-urnen-section {
   flex-shrink: 0;
   min-height: 0;
-  max-height: clamp(3.25rem, 11vh, 5rem);
+  max-height: clamp(3.75rem, 14vh, 6.5rem);
   overflow: hidden;
   border-top: 2px solid rgba(77, 159, 255, 0.25);
   padding-top: 0.25rem;
@@ -2559,7 +2559,7 @@ code {
   gap: 0.35rem;
   padding: 0.22rem 0.45rem;
   flex: 0 0 auto;
-  max-width: min(100%, 200px);
+  max-width: none;
   background: var(--surface-solid);
   border: 1px solid rgba(77, 159, 255, 0.4);
   border-radius: var(--radius-sm);
@@ -2576,18 +2576,19 @@ code {
 .wall-urnen-name {
   font-size: clamp(0.78rem, 1.2vw, 0.92rem);
   font-weight: 700;
-  line-height: 1.15;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.2;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  overflow-wrap: anywhere;
 }
 
 .wall-urnen-meta {
   font-size: clamp(0.65rem, 0.95vw, 0.75rem);
   color: var(--muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
 }
 
 .wall-urnen-section .urnen-undo-btn {
@@ -3054,7 +3055,7 @@ code {
 
 .board-urnen-item--compact {
   flex: 0 1 auto;
-  max-width: min(100%, 220px);
+  max-width: none;
   padding: 0.32rem 0.5rem;
   gap: 0.35rem;
 }
@@ -3072,11 +3073,18 @@ code {
   font-weight: 700;
   font-size: 1.05rem;
   line-height: 1.2;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  overflow-wrap: anywhere;
 }
 
 .board-urnen-item--compact .board-urnen-name {
   font-size: 0.82rem;
-  line-height: 1.15;
+  line-height: 1.2;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
 }
 
 .board-urnen-meta {
@@ -3087,9 +3095,9 @@ code {
 
 .board-urnen-item--compact .board-urnen-meta {
   font-size: 0.68rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
 }
 
 .board-urnen-panel .urnen-undo-btn {
@@ -4382,16 +4390,16 @@ code {
   outline: none;
 }
 
-.wall-cal-personnel-badge {
+.wall-cal-traeger-line {
   display: block;
-  margin-top: 0.25rem;
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--accent);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  margin-top: 0.18rem;
+  font-size: 0.62rem;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  color: var(--muted);
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .wall-cal-day-open--head {

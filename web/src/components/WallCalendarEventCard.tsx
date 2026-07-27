@@ -10,14 +10,15 @@ export function WallCalendarEventCard({
   compact = false,
   strip = false,
   mobile = false,
-  bookingSummary,
+  traegerLine,
   onClick,
 }: {
   entry: WallCalendarEntry;
   compact?: boolean;
   strip?: boolean;
   mobile?: boolean;
-  bookingSummary?: string | null;
+  /** Trägernamen klein unter dem Termin */
+  traegerLine?: string | null;
   onClick?: (entry: WallCalendarEntry) => void;
 }) {
   const colorClass = `wall-cal-card--color-${calendarColorGroupFromArts(entry.arts)}`;
@@ -25,8 +26,8 @@ export function WallCalendarEventCard({
   const bestattungsBadge = entry.bestattungsMarker ? (
     <WallCalBestattungsBadge marker={entry.bestattungsMarker} />
   ) : null;
-  const bookingBadge = bookingSummary ? (
-    <span className="wall-cal-personnel-badge">{bookingSummary}</span>
+  const traegerBadge = traegerLine ? (
+    <span className="wall-cal-traeger-line">{traegerLine}</span>
   ) : null;
 
   const className = [
@@ -81,7 +82,7 @@ export function WallCalendarEventCard({
               <span className="wall-cal-meta">{entry.subtitle || entry.title}</span>
             )}
           </span>
-          {bookingBadge}
+          {traegerBadge}
         </div>
       </article>
     );
@@ -99,7 +100,7 @@ export function WallCalendarEventCard({
         </div>
         <span className="wall-cal-name">{entry.name}</span>
         {stripMeta ? <span className="wall-cal-strip-meta">{stripMeta}</span> : null}
-        {bookingBadge}
+        {traegerBadge}
       </article>
     );
   }
@@ -121,7 +122,7 @@ export function WallCalendarEventCard({
       </div>
       <span className="wall-cal-name">{entry.name}</span>
       <span className="wall-cal-meta">{entry.subtitle || entry.title}</span>
-      {bookingBadge}
+      {traegerBadge}
       {!compact && entry.grouped && (
         <span className="wall-cal-group-hint">Trauerblock · {entry.sterbefallId}</span>
       )}

@@ -81,3 +81,19 @@ export function personnelBookingSummary(booking: PersonnelBooking | null | undef
   else if (booking.traegerIds.length > 0) parts.push(`${booking.traegerIds.length} Träger`);
   return parts.length > 0 ? parts.join(' · ') : 'Personal offen';
 }
+
+/** Kleine Zeile unter dem Kalendertermin: Trägernamen (oder „Träger Familie“). */
+export function personnelBookingTraegerLine(
+  booking: PersonnelBooking | null | undefined,
+  pool: { id: string; name: string }[]
+): string | null {
+  if (!booking) return null;
+  if (booking.traegerVonFamilie) return 'Träger Familie';
+  if (booking.traegerIds.length === 0) return null;
+  const byId = new Map(pool.map((p) => [p.id, p.name]));
+  const names = booking.traegerIds
+    .map((id) => (byId.get(id) ?? '').trim())
+    .filter(Boolean);
+  if (names.length === 0) return `${booking.traegerIds.length} Träger`;
+  return names.join(', ');
+}

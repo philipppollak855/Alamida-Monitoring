@@ -6,7 +6,7 @@ import { WallCalendarEventCard } from './WallCalendarEventCard';
 interface Props {
   day: WallCalendarDay;
   mobile?: boolean;
-  bookingSummaries?: Record<string, string | null | undefined>;
+  traegerLines?: Record<string, string | null | undefined>;
   onEntryClick?: (entry: WallCalendarEntry) => void;
   onClose: () => void;
 }
@@ -14,7 +14,7 @@ interface Props {
 export function WallCalendarDayDialog({
   day,
   mobile = false,
-  bookingSummaries,
+  traegerLines,
   onEntryClick,
   onClose,
 }: Props) {
@@ -86,7 +86,7 @@ export function WallCalendarDayDialog({
                   entry={e}
                   mobile={mobile}
                   compact={!mobile}
-                  bookingSummary={bookingSummaries?.[e.id]}
+                  traegerLine={traegerLines?.[e.id]}
                   onClick={onEntryClick}
                 />
               </li>
