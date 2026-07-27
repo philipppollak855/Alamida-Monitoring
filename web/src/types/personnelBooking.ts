@@ -2,7 +2,7 @@ import type { BestattungsMarker } from '../board/feierterminLogic';
 import type { CalendarTerminArt } from '../board/wallCalendar';
 
 export type PersonnelBooking = {
-  /** = WallCalendarEntry.id */
+  /** = WallCalendarEntry.id bzw. Planungs-Zeremonie-ID */
   id: string;
   docId: string;
   sterbefallId: string;
@@ -21,8 +21,19 @@ export type PersonnelBooking = {
   updatedAtMs?: number;
 };
 
+/** Abwesenheit einer Pool-Person (inklusive Tage). */
+export type PersonnelAbsence = {
+  id: string;
+  personId: string;
+  fromDayKey: string;
+  toDayKey: string;
+  note?: string;
+  updatedAtMs?: number;
+};
+
 export type PersonnelBookingDocument = {
   bookings: Record<string, PersonnelBooking>;
+  absences?: Record<string, PersonnelAbsence>;
   updatedAtMs?: number;
 };
 
@@ -34,3 +45,5 @@ export type PersonnelBookingValidation = {
   requiresArrangeur: boolean;
   isBegraebnis: boolean;
 };
+
+export type PersonUnavailableReason = 'absent' | 'booked-arrangeur' | 'booked-traeger';

@@ -1,4 +1,5 @@
 import type { CeremonyInfo, KuehlraumDayCapacity, PlanningCard } from '../../planning/types';
+import type { PersonnelBooking } from '../../types/personnelBooking';
 import { PlanningTransferCard } from './PlanningTransferCard';
 import { PlanningCapacityMeters } from './PlanningCapacityMeters';
 import { WallCalBestattungsBadge } from '../WallCalBestattungsBadge';
@@ -7,6 +8,9 @@ type DayCeremony = {
   docId: string;
   name: string;
   ceremony: CeremonyInfo;
+  booking?: PersonnelBooking | null;
+  personnelLine?: string | null;
+  needsLine?: string | null;
 };
 
 type Props = {
@@ -24,6 +28,7 @@ type Props = {
   onCardDragStart: (card: PlanningCard) => void;
   onCardDragEnd: () => void;
   onResetCard: (card: PlanningCard) => void;
+  onCeremonyClick?: (ceremony: DayCeremony) => void;
 };
 
 function ceremonyKindLabel(kind: CeremonyInfo['kind']): string {
@@ -61,6 +66,7 @@ export function PlanningCenterDay({
   onCardDragStart,
   onCardDragEnd,
   onResetCard,
+  onCeremonyClick,
 }: Props) {
   const sortedCeremonies = [...ceremonies].sort(
     (a, b) => ceremonyTimeSortKey(a.ceremony) - ceremonyTimeSortKey(b.ceremony)
@@ -100,11 +106,9 @@ export function PlanningCenterDay({
                 (!isToday && ceremony.relativeLabel ? ceremony.relativeLabel : null) ||
                 ceremony.datum ||
                 null;
-              return (
-                <li
-                  key={`${c.docId}-${ceremony.kind}-${ceremony.datum}-${ceremony.zeit ?? ''}`}
-                  className={`plan-center-ceremony is-${ceremony.kind}`}
-                >
+              const clickable = Boolean(onCeremonyClick);
+              const content = (
+                <>
                   <div className="plan-center-ceremony-top">
                     <span className={`plan-ceremony-kind is-${ceremony.kind}`}>
                       {ceremonyKindLabel(ceremony.kind)}
@@ -121,6 +125,39 @@ export function PlanningCenterDay({
                     <span className="plan-center-ceremony-ort" title={ceremony.ort}>
                       {ceremony.ort}
                     </span>
+                  )}
+                  {c.needsLine && (
+                    <span className="plan-center-ceremony-needs" title={c.needsLine}>
+                      {c.needsLine}
+                    </span>
+                  )}
+                  {c.personnelLine ? (
+                    <span className="plan-center-ceremony-personnel" title={c.personnelLine}>
+                      {c.personnelLine}
+                    </span>
+                  ) : (
+                    <span className="plan-center-ceremony-personnel is-open">Personal offen</span>
+                  )}
+                </>
+              );
+
+              return (
+                <li
+                  key={`${c.docId}-${ceremony.kind}-${ceremony.datum}-${ceremony.zeit ?? ''}`}
+                  className={`plan-center-ceremony is-${ceremony.kind}${
+                    clickable ? ' is-clickable' : ''
+                  }`}
+                >
+                  {clickable ? (
+                    <button
+                      type="button"
+                      className="plan-center-ceremony-btn"
+                      onClick={() => onCeremonyClick?.(c)}
+                    >
+                      {content}
+                    </button>
+                  ) : (
+                    content
                   )}
                 </li>
               );

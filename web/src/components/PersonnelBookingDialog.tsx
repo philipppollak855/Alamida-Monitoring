@@ -11,10 +11,12 @@ import {
   availableTraegerPool,
   defaultRequiredTraegerCount,
   isBegraebnisEntry,
+  personUnavailableReason,
+  unavailableReasonLabel,
   validatePersonnelBooking,
 } from '../board/personnelBookingRules';
 import type { DispositionPerson } from '../types/dispositionSettings';
-import type { PersonnelBooking } from '../types/personnelBooking';
+import type { PersonnelAbsence, PersonnelBooking } from '../types/personnelBooking';
 import type { Sterbefall } from '../types';
 import { BestattungsMarkerSwitch } from './BestattungsMarkerSwitch';
 import { WallCalBestattungsBadge } from './WallCalBestattungsBadge';
@@ -25,6 +27,7 @@ type Props = {
   personnelPool: DispositionPerson[];
   /** Alle Personalbuchungen — Arrangeure am gleichen Tag sind als Träger gesperrt. */
   allBookings?: Record<string, PersonnelBooking>;
+  absences?: Record<string, PersonnelAbsence>;
   existing: PersonnelBooking | null;
   pending?: boolean;
   markerPending?: boolean;
@@ -40,6 +43,7 @@ export function PersonnelBookingDialog({
   sterbefall,
   personnelPool,
   allBookings = {},
+  absences = {},
   existing,
   pending,
   markerPending,
@@ -97,11 +101,21 @@ export function PersonnelBookingDialog({
     return () => window.removeEventListener('keydown', onKey);
   }, [entry, onClose, pending, markerPending]);
 
-  const arrangeure = useMemo(
-    () =>
-      personnelPool.filter((p) => p.active !== false && p.roles.includes('arrangeur')),
-    [personnelPool]
-  );
+  const arrangeure = useMemo(() => {
+    return personnelPool
+      .filter((p) => p.active !== false && p.roles.includes('arrangeur'))
+      .map((p) => {
+        const reason =
+          entry &&
+          personUnavailableReason(p.id, entry.dayKey, {
+            absences,
+            bookings: allBookings,
+            excludeBookingId: entry.id,
+            asRole: 'arrangeur',
+          });
+        return { ...p, unavailable: reason };
+      });
+  }, [personnelPool, entry, absences, allBookings]);
 
   const bookedArrangeurIds = useMemo(() => {
     if (!entry) return new Set<string>();
@@ -112,11 +126,27 @@ export function PersonnelBookingDialog({
     const pool = personnelPool.filter(
       (p) => p.active !== false && p.roles.includes('traeger')
     );
-    return availableTraegerPool(pool, {
+    // Arrangeur-Auswahl immer raus; Abwesende/Eingebuchte ausgegraut behalten.
+    const withoutSelectedArrangeur = availableTraegerPool(pool, {
       selectedArrangeurId: arrangeurId || null,
-      bookedArrangeurIds,
+      bookedArrangeurIds: [],
     });
-  }, [personnelPool, arrangeurId, bookedArrangeurIds]);
+    return withoutSelectedArrangeur.map((p) => {
+      const reason =
+        entry &&
+        personUnavailableReason(p.id, entry.dayKey, {
+          absences,
+          bookings: allBookings,
+          excludeBookingId: entry.id,
+          asRole: 'traeger',
+        });
+      const blockedAsArrangeur = Boolean(arrangeurId && p.id === arrangeurId);
+      return {
+        ...p,
+        unavailable: blockedAsArrangeur ? ('booked-arrangeur' as const) : reason,
+      };
+    });
+  }, [personnelPool, arrangeurId, entry, absences, allBookings]);
 
   const entryForValidation = useMemo(() => {
     if (!entry) return null;
@@ -147,6 +177,10 @@ export function PersonnelBookingDialog({
   const begraebnis = isBegraebnisEntry(entry);
 
   function selectArrangeur(nextId: string) {
+    if (nextId) {
+      const person = arrangeure.find((p) => p.id === nextId);
+      if (person?.unavailable) return;
+    }
     setArrangeurId(nextId);
     if (nextId) {
       setTraegerIds((prev) => prev.filter((id) => id !== nextId));
@@ -154,6 +188,8 @@ export function PersonnelBookingDialog({
   }
 
   function toggleTraeger(id: string) {
+    const person = traeger.find((p) => p.id === id);
+    if (person?.unavailable) return;
     if (id === arrangeurId || bookedArrangeurIds.has(id)) return;
     setTraegerIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
@@ -242,8 +278,9 @@ export function PersonnelBookingDialog({
             >
               <option value="">— wählen —</option>
               {arrangeure.map((p) => (
-                <option key={p.id} value={p.id}>
+                <option key={p.id} value={p.id} disabled={Boolean(p.unavailable)}>
                   {p.name}
+                  {p.unavailable ? ` (${unavailableReasonLabel(p.unavailable)})` : ''}
                 </option>
               ))}
             </select>
@@ -290,17 +327,36 @@ export function PersonnelBookingDialog({
                   </p>
                 ) : (
                   <div className="personnel-booking-pool-list">
-                    {traeger.map((p) => (
-                      <label key={p.id} className="personnel-booking-pool-item">
-                        <input
-                          type="checkbox"
-                          checked={traegerIds.includes(p.id)}
-                          onChange={() => toggleTraeger(p.id)}
-                          disabled={pending}
-                        />
-                        <span>{p.name}</span>
-                      </label>
-                    ))}
+                    {traeger.map((p) => {
+                      const unavailable = Boolean(p.unavailable);
+                      return (
+                        <label
+                          key={p.id}
+                          className={`personnel-booking-pool-item${
+                            unavailable ? ' is-unavailable' : ''
+                          }`}
+                          title={
+                            p.unavailable ? unavailableReasonLabel(p.unavailable) : undefined
+                          }
+                        >
+                          <input
+                            type="checkbox"
+                            checked={traegerIds.includes(p.id)}
+                            onChange={() => toggleTraeger(p.id)}
+                            disabled={pending || unavailable}
+                          />
+                          <span>
+                            {p.name}
+                            {p.unavailable ? (
+                              <em className="personnel-booking-unavailable-hint">
+                                {' '}
+                                · {unavailableReasonLabel(p.unavailable)}
+                              </em>
+                            ) : null}
+                          </span>
+                        </label>
+                      );
+                    })}
                   </div>
                 )}
               </fieldset>

@@ -855,6 +855,101 @@
   color: #2a4048;
 }
 
+[data-theme='alamida'] .plan-center-ceremony-btn {
+  background: rgba(106, 122, 154, 0.1);
+  color: var(--text);
+}
+
+[data-theme='alamida'] .plan-center-ceremony-btn:hover {
+  background: rgba(106, 122, 154, 0.16);
+  border-color: rgba(90, 154, 170, 0.35);
+}
+
+[data-theme='alamida'] .plan-center-ceremony-needs {
+  color: #2a4048;
+}
+
+[data-theme='alamida'] .plan-center-ceremony-personnel {
+  color: #2f6b4f;
+}
+
+[data-theme='alamida'] .plan-center-ceremony-personnel.is-open {
+  color: #9a6b1f;
+}
+
+[data-theme='alamida'] .plan-rail--locations {
+  border-color: rgba(184, 90, 104, 0.32);
+  box-shadow:
+    6px 0 22px rgba(42, 72, 78, 0.08),
+    0 8px 28px rgba(42, 72, 78, 0.07);
+}
+
+[data-theme='alamida'] .plan-rail--kuehlraum {
+  border-color: rgba(61, 138, 98, 0.32);
+  box-shadow:
+    -6px 0 22px rgba(42, 72, 78, 0.08),
+    0 8px 28px rgba(42, 72, 78, 0.07);
+}
+
+[data-theme='alamida'] .plan-kr-panel-toggle:hover {
+  background: rgba(61, 138, 98, 0.1);
+}
+
+[data-theme='alamida'] .plan-kr-panel-body {
+  border-top-color: rgba(61, 138, 98, 0.22);
+}
+
+[data-theme='alamida'] .plan-rail-body,
+[data-theme='alamida'] .plan-center-scroll,
+[data-theme='alamida'] .plan-center-day-body,
+[data-theme='alamida'] .plan-kr-panel-body {
+  scrollbar-color: rgba(90, 154, 170, 0.55) transparent;
+}
+
+[data-theme='alamida'] .plan-rail-body::-webkit-scrollbar-thumb,
+[data-theme='alamida'] .plan-center-scroll::-webkit-scrollbar-thumb,
+[data-theme='alamida'] .plan-center-day-body::-webkit-scrollbar-thumb,
+[data-theme='alamida'] .plan-kr-panel-body::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    rgba(90, 154, 170, 0.5),
+    rgba(61, 122, 140, 0.65)
+  );
+  background-clip: padding-box;
+  border: 2px solid transparent;
+}
+
+[data-theme='alamida'] .settings-person-table {
+  background: rgba(255, 255, 255, 0.72);
+  border-color: var(--border);
+}
+
+[data-theme='alamida'] .settings-person-table-head {
+  background: rgba(61, 122, 140, 0.08);
+  color: var(--muted);
+  border-bottom-color: var(--border);
+}
+
+[data-theme='alamida'] .settings-person-table-row {
+  border-bottom-color: rgba(120, 158, 162, 0.18);
+}
+
+[data-theme='alamida'] .personnel-absence-dialog {
+  background: rgba(255, 255, 255, 0.97);
+  border-color: var(--border);
+  box-shadow: 0 16px 48px rgba(42, 72, 78, 0.14);
+}
+
+[data-theme='alamida'] .personnel-absence-list li {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: var(--border);
+}
+
+[data-theme='alamida'] .personnel-booking-pool-item.is-unavailable {
+  color: var(--muted);
+  opacity: 0.5;
+}
+
 [data-theme='alamida'] .plan-kr-panel {
   border-color: rgba(61, 138, 98, 0.35);
   background: rgba(61, 138, 98, 0.06);

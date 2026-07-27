@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { LiveDataBar } from '../components/LiveDataBar';
+import { PersonnelAbsenceDialog } from '../components/PersonnelAbsenceDialog';
+import { PersonnelBookingDialog } from '../components/PersonnelBookingDialog';
 import { PlanningCenterDay } from '../components/planning/PlanningCenterDay';
 import { PlanningKuehlraumRail } from '../components/planning/PlanningKuehlraumRail';
 import { PlanningLocationRail } from '../components/planning/PlanningLocationRail';
@@ -13,9 +15,14 @@ import {
 } from '../board/dateUtils';
 import { filterAktiveSterbefaelle } from '../board/historieLogic';
 import { useCalendarDay } from '../hooks/useCalendarDay';
+import { usePersonnelBookings } from '../hooks/usePersonnelBookings';
 import { useSterbefaelle } from '../hooks/useSterbefaelle';
 import { useTransferPlan } from '../hooks/useTransferPlan';
 import { useDispositionSettings } from '../settings/SettingsProvider';
+import {
+  enrichPlanningCeremonies,
+  wallEntryFromPlanningCeremony,
+} from '../planning/planningPersonnel';
 import {
   buildCeremoniesForFall,
   buildKuehlraumCapacities,
@@ -37,7 +44,10 @@ import type {
   ScheduleDraft,
   SterbeortPoolItem,
 } from '../planning/types';
+import type { WallCalendarEntry } from '../board/wallCalendar';
 import { firebaseConfigured } from '../firebase';
+import { setSterbefallBestattungsMarkerOverride } from '../services/bestattungsMarkerOverride';
+import type { BestattungsMarker } from '../board/feierterminLogic';
 
 const HORIZON_DAYS = 7;
 
@@ -59,12 +69,26 @@ export function PlanningPage() {
   const { items: sterbefaelleRaw, loading: casesLoading, error: casesError } = useSterbefaelle();
   const { plan, loading: planLoading, saving, error: planError, savePlan, setError } =
     useTransferPlan();
+  const {
+    bookings,
+    absences,
+    saving: bookingSaving,
+    error: bookingError,
+    saveBooking,
+    clearBooking,
+    saveAbsence,
+    clearAbsence,
+    setError: setBookingError,
+  } = usePersonnelBookings();
 
   const [drag, setDrag] = useState<DragState>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [flashId, setFlashId] = useState<string | null>(null);
   const [scheduleDraft, setScheduleDraft] = useState<ScheduleDraft | null>(null);
+  const [bookingEntry, setBookingEntry] = useState<WallCalendarEntry | null>(null);
+  const [absenceOpen, setAbsenceOpen] = useState(false);
+  const [markerPending, setMarkerPending] = useState(false);
 
   const sterbefaelle = useMemo(
     () => filterAktiveSterbefaelle(sterbefaelleRaw),
@@ -118,18 +142,26 @@ export function PlanningPage() {
   );
 
   const ceremoniesByDay = useMemo(() => {
-    const map = new Map<string, Array<{ docId: string; name: string; ceremony: ReturnType<typeof buildCeremoniesForFall>[number] }>>();
+    const pool = settings.personnelPool ?? [];
+    const raw = new Map<
+      string,
+      Array<{ docId: string; name: string; ceremony: ReturnType<typeof buildCeremoniesForFall>[number] }>
+    >();
     for (const s of sterbefaelle) {
       const name = s.verstorbenerName ?? s.sterbefallId ?? s.id;
       for (const ceremony of buildCeremoniesForFall(s, today)) {
         if (!ceremony.dayKey || !dayKeys.includes(ceremony.dayKey)) continue;
-        const list = map.get(ceremony.dayKey) ?? [];
+        const list = raw.get(ceremony.dayKey) ?? [];
         list.push({ docId: s.id, name, ceremony });
-        map.set(ceremony.dayKey, list);
+        raw.set(ceremony.dayKey, list);
       }
     }
+    const map = new Map<string, ReturnType<typeof enrichPlanningCeremonies>>();
+    for (const [dayKey, list] of raw) {
+      map.set(dayKey, enrichPlanningCeremonies(list, bookings, pool));
+    }
     return map;
-  }, [sterbefaelle, today, dayKeys]);
+  }, [sterbefaelle, today, dayKeys, bookings, settings.personnelPool]);
 
   const recentEvents = useMemo(() => (plan.events ?? []).slice(0, 6), [plan.events]);
 
@@ -137,6 +169,20 @@ export function PlanningPage() {
     setDrag(null);
     setDropTarget(null);
   }, []);
+
+  const openCeremonyBooking = useCallback(
+    (c: {
+      docId: string;
+      name: string;
+      ceremony: ReturnType<typeof buildCeremoniesForFall>[number];
+    }) => {
+      const fall = sterbefaelle.find((s) => s.id === c.docId);
+      if (!fall || !c.ceremony.dayKey) return;
+      setBookingError(null);
+      setBookingEntry(wallEntryFromPlanningCeremony(fall, c.ceremony, c.name));
+    },
+    [sterbefaelle, setBookingError]
+  );
 
   const openSchedule = useCallback(
     (dayKey: string, kuehlraumId: string) => {
@@ -303,19 +349,21 @@ export function PlanningPage() {
     drag?.kind === 'card' ? drag.card.id : drag?.kind === 'source' ? drag.item.docId : null;
 
   return (
-    <div className="plan-page plan-page--board">
-      <header className="plan-hero">
+    <div className="plan-page plan-page--board plan-page--compact">
+      <header className="plan-hero plan-hero--compact">
         <div>
-          <p className="plan-eyebrow">Disposition</p>
-          <h1>Überführungsplanung</h1>
-          <p className="plan-lead">
-            Links aktueller Ort → Mitte wann/wohin planen → rechts Kühlraum-Ressourcen, Freigabe,
-            Beisetzung und wann wieder Platz frei wird.
-          </p>
+          <h1>Planung</h1>
         </div>
         <div className="plan-hero-actions">
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => setAbsenceOpen(true)}
+          >
+            Abwesenheiten
+          </button>
           <Link to="/disposition?tab=ueberfuehrungen" className="btn btn-ghost">
-            Listenansicht
+            Listen
           </Link>
           <LiveDataBar />
         </div>
@@ -326,16 +374,23 @@ export function PlanningPage() {
           Firebase ist nicht konfiguriert.
         </p>
       )}
-      {error && (
+      {(error || bookingError) && (
         <p className="board-inline-error" role="alert">
-          {error}
-          <button type="button" className="btn btn-ghost" onClick={() => setError(null)}>
+          {error || bookingError}
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => {
+              setError(null);
+              setBookingError(null);
+            }}
+          >
             Schließen
           </button>
         </p>
       )}
 
-      <div className="plan-toolbar">
+      <div className="plan-toolbar plan-toolbar--compact">
         <div className="plan-toolbar-nav">
           <button type="button" className="btn btn-ghost" onClick={() => setRangeStart((d) => addDays(d, -7))}>
             ←
@@ -356,7 +411,7 @@ export function PlanningPage() {
           <span className="plan-toolbar-range">
             {formatDayLabelDe(dayKeys[0])} – {formatDayLabelDe(dayKeys[dayKeys.length - 1])}
           </span>
-          {saving && <span className="plan-toolbar-saving">Speichert…</span>}
+          {(saving || bookingSaving) && <span className="plan-toolbar-saving">Speichert…</span>}
         </div>
         <label className="plan-toolbar-search">
           <span className="sr-only">Suchen</span>
@@ -412,6 +467,7 @@ export function PlanningPage() {
                         onCardDragStart={(card) => setDrag({ kind: 'card', card })}
                         onCardDragEnd={clearDrag}
                         onResetCard={(card) => void resetCard(card)}
+                        onCeremonyClick={(c) => openCeremonyBooking(c)}
                       />
                     </div>
                   );
@@ -469,6 +525,69 @@ export function PlanningPage() {
         error={planError}
         onClose={() => setScheduleDraft(null)}
         onConfirm={(d) => void confirmSchedule(d)}
+      />
+
+      {bookingEntry && (
+        <PersonnelBookingDialog
+          entry={bookingEntry}
+          sterbefall={sterbefaelle.find((s) => s.id === bookingEntry.docId) ?? null}
+          personnelPool={settings.personnelPool ?? []}
+          allBookings={bookings}
+          absences={absences}
+          existing={bookings[bookingEntry.id] ?? null}
+          pending={bookingSaving}
+          markerPending={markerPending}
+          error={bookingError}
+          onClose={() => {
+            if (!bookingSaving && !markerPending) setBookingEntry(null);
+          }}
+          onMarkerOverrideChange={async (marker: BestattungsMarker | null) => {
+            setMarkerPending(true);
+            try {
+              await setSterbefallBestattungsMarkerOverride(bookingEntry.docId, marker);
+            } finally {
+              setMarkerPending(false);
+            }
+          }}
+          onSave={(booking) => {
+            void (async () => {
+              try {
+                await saveBooking(booking);
+                setBookingEntry(null);
+              } catch {
+                /* Fehler im Hook */
+              }
+            })();
+          }}
+          onClear={() => {
+            void (async () => {
+              try {
+                await clearBooking(bookingEntry.id);
+                setBookingEntry(null);
+              } catch {
+                /* Fehler im Hook */
+              }
+            })();
+          }}
+        />
+      )}
+
+      <PersonnelAbsenceDialog
+        open={absenceOpen}
+        dayKeys={dayKeys}
+        personnelPool={settings.personnelPool ?? []}
+        absences={absences}
+        pending={bookingSaving}
+        error={bookingError}
+        onClose={() => {
+          if (!bookingSaving) setAbsenceOpen(false);
+        }}
+        onSave={async (absence) => {
+          await saveAbsence(absence);
+        }}
+        onDelete={async (id) => {
+          await clearAbsence(id);
+        }}
       />
     </div>
   );

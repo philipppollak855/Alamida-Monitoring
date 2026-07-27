@@ -584,60 +584,68 @@ export function DispositionSettingsPanel({ defaultOpen = false }: { defaultOpen?
                   </span>
                 </div>
                 <p className="settings-hint">
-                  Poolliste für Einbuchung am Kalendertermin. Pro Person festlegen: Arrangeur und/oder
-                  Träger. Begräbnis braucht einen Arrangeur; eingebuchter Arrangeur steht nicht als
-                  Träger zur Verfügung. Bei Sarg ohne „Träger von Familie“ mind. 4 Träger.
+                  Poolliste für Kalender- und Planungs-Einbuchung. Kompakt: Name, Rollen, Aktiv.
+                  Abwesenheiten werden in der Planung eingetragen.
                 </p>
-                {(draft.personnelPool ?? []).map((person, index) => (
-                  <div key={person.id} className="settings-kr-card settings-person-card">
-                    <div className="settings-kr-row">
-                      <label>
-                        Name
+                <div className="settings-person-table" role="table" aria-label="Personalpool">
+                  <div className="settings-person-table-head" role="row">
+                    <span role="columnheader">Name</span>
+                    <span role="columnheader">Arrangeur</span>
+                    <span role="columnheader">Träger</span>
+                    <span role="columnheader">Aktiv</span>
+                    <span role="columnheader" className="sr-only">
+                      Entfernen
+                    </span>
+                  </div>
+                  {(draft.personnelPool ?? []).map((person, index) => (
+                    <div key={person.id} className="settings-person-table-row" role="row">
+                      <label className="settings-person-name" role="cell">
+                        <span className="sr-only">Name</span>
                         <input
                           type="text"
                           value={person.name}
-                          placeholder="Vor- und Nachname"
+                          placeholder="Name"
                           onChange={(e) => updatePerson(index, { name: e.target.value })}
                         />
                       </label>
-                      <label className="settings-person-active">
-                        Aktiv
+                      <label className="settings-person-role" role="cell" title="Arrangeur">
+                        <input
+                          type="checkbox"
+                          checked={person.roles.includes('arrangeur')}
+                          onChange={() => togglePersonRole(index, 'arrangeur')}
+                        />
+                      </label>
+                      <label className="settings-person-role" role="cell" title="Träger">
+                        <input
+                          type="checkbox"
+                          checked={person.roles.includes('traeger')}
+                          onChange={() => togglePersonRole(index, 'traeger')}
+                        />
+                      </label>
+                      <label className="settings-person-role" role="cell" title="Aktiv">
                         <input
                           type="checkbox"
                           checked={person.active !== false}
                           onChange={(e) => updatePerson(index, { active: e.target.checked })}
                         />
                       </label>
+                      <button
+                        type="button"
+                        className="btn-ghost btn-small settings-person-remove"
+                        role="cell"
+                        aria-label={`${person.name || 'Person'} entfernen`}
+                        onClick={() =>
+                          setDraft((d) => ({
+                            ...d,
+                            personnelPool: (d.personnelPool ?? []).filter((_, i) => i !== index),
+                          }))
+                        }
+                      >
+                        ✕
+                      </button>
                     </div>
-                    <fieldset className="settings-kr-wand-tab">
-                      <legend>Rollen</legend>
-                      <div className="settings-kr-wand-tab-options">
-                        {PERSONNEL_ROLE_OPTIONS.map(({ id, label }) => (
-                          <label key={id} className="settings-kr-wand-tab-option">
-                            <input
-                              type="checkbox"
-                              checked={person.roles.includes(id)}
-                              onChange={() => togglePersonRole(index, id)}
-                            />
-                            {label}
-                          </label>
-                        ))}
-                      </div>
-                    </fieldset>
-                    <button
-                      type="button"
-                      className="btn-ghost btn-small"
-                      onClick={() =>
-                        setDraft((d) => ({
-                          ...d,
-                          personnelPool: (d.personnelPool ?? []).filter((_, i) => i !== index),
-                        }))
-                      }
-                    >
-                      Person entfernen
-                    </button>
-                  </div>
-                ))}
+                  ))}
+                </div>
                 <button
                   type="button"
                   className="btn-ghost btn-small"
@@ -648,7 +656,7 @@ export function DispositionSettingsPanel({ defaultOpen = false }: { defaultOpen?
                     }))
                   }
                 >
-                  + Person hinzufügen
+                  + Person
                 </button>
               </div>
 

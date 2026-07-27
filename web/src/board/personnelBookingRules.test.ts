@@ -4,9 +4,12 @@ import {
   availableTraegerPool,
   defaultRequiredTraegerCount,
   isBegraebnisEntry,
+  isPersonAbsentOnDay,
   minTraegerForEntry,
   personnelBookingSummary,
   personnelBookingTraegerLine,
+  personUnavailableReason,
+  unavailableReasonLabel,
   validatePersonnelBooking,
 } from './personnelBookingRules';
 import type { PersonnelBooking } from '../types/personnelBooking';
@@ -216,5 +219,54 @@ describe('personnelBookingTraegerLine', () => {
         pool
       )
     ).toBe('Träger Familie');
+  });
+});
+
+describe('Abwesenheiten / Nicht verfügbar', () => {
+  it('erkennt Abwesenheit im inklusiven Tagesbereich', () => {
+    const absences = {
+      a1: {
+        personId: 'p1',
+        fromDayKey: '2026-07-26',
+        toDayKey: '2026-07-28',
+      },
+    };
+    expect(isPersonAbsentOnDay(absences, 'p1', '2026-07-26')).toBe(true);
+    expect(isPersonAbsentOnDay(absences, 'p1', '2026-07-27')).toBe(true);
+    expect(isPersonAbsentOnDay(absences, 'p1', '2026-07-28')).toBe(true);
+    expect(isPersonAbsentOnDay(absences, 'p1', '2026-07-29')).toBe(false);
+    expect(isPersonAbsentOnDay(absences, 'p2', '2026-07-27')).toBe(false);
+  });
+
+  it('personUnavailableReason priorisiert Abwesenheit', () => {
+    const reason = personUnavailableReason('p1', '2026-07-27', {
+      absences: {
+        a1: { personId: 'p1', fromDayKey: '2026-07-27', toDayKey: '2026-07-27' },
+      },
+      bookings: {
+        b1: {
+          dayKey: '2026-07-27',
+          arrangeurId: 'p1',
+          traegerIds: [],
+        },
+      },
+    });
+    expect(reason).toBe('absent');
+    expect(unavailableReasonLabel('absent')).toBe('Abwesend');
+  });
+
+  it('blockiert bereits eingebuchten Arrangeur', () => {
+    expect(
+      personUnavailableReason('arr-1', '2026-07-27', {
+        bookings: {
+          b1: {
+            dayKey: '2026-07-27',
+            arrangeurId: 'arr-1',
+            traegerIds: ['t1'],
+          },
+        },
+        asRole: 'traeger',
+      })
+    ).toBe('booked-arrangeur');
   });
 });

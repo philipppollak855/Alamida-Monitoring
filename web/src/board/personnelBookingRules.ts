@@ -1,5 +1,10 @@
 import type { WallCalendarEntry } from '../board/wallCalendar';
-import type { PersonnelBooking, PersonnelBookingValidation } from '../types/personnelBooking';
+import type {
+  PersonnelAbsence,
+  PersonnelBooking,
+  PersonnelBookingValidation,
+  PersonUnavailableReason,
+} from '../types/personnelBooking';
 
 export function isBegraebnisEntry(entry: Pick<WallCalendarEntry, 'arts' | 'title'>): boolean {
   return entry.arts.includes('beisetzung') || entry.title === 'Beisetzung';
@@ -85,18 +90,109 @@ export function arrangeurIdsBookedOnDay(
   return ids;
 }
 
+/** Träger-IDs an einem Tag (optional ohne eine Buchung). */
+export function traegerIdsBookedOnDay(
+  bookings: Record<string, Pick<PersonnelBooking, 'dayKey' | 'traegerIds'>>,
+  dayKey: string,
+  excludeBookingId?: string
+): Set<string> {
+  const ids = new Set<string>();
+  for (const [id, booking] of Object.entries(bookings)) {
+    if (excludeBookingId && id === excludeBookingId) continue;
+    if (booking.dayKey !== dayKey) continue;
+    for (const tid of booking.traegerIds ?? []) ids.add(tid);
+  }
+  return ids;
+}
+
+export function isPersonAbsentOnDay(
+  absences: Record<string, Pick<PersonnelAbsence, 'personId' | 'fromDayKey' | 'toDayKey'>>,
+  personId: string,
+  dayKey: string
+): boolean {
+  for (const a of Object.values(absences)) {
+    if (a.personId !== personId) continue;
+    if (a.fromDayKey <= dayKey && dayKey <= a.toDayKey) return true;
+  }
+  return false;
+}
+
+/** Warum eine Person am Tag nicht verfügbar ist (Abwesenheit oder Einbuchung). */
+export function personUnavailableReason(
+  personId: string,
+  dayKey: string,
+  opts: {
+    absences?: Record<string, Pick<PersonnelAbsence, 'personId' | 'fromDayKey' | 'toDayKey'>>;
+    bookings?: Record<
+      string,
+      Pick<PersonnelBooking, 'dayKey' | 'arrangeurId' | 'traegerIds'>
+    >;
+    excludeBookingId?: string;
+    /** Rolle, für die geprüft wird — Arrangeur-Buchung blockiert Träger. */
+    asRole?: 'arrangeur' | 'traeger';
+  }
+): PersonUnavailableReason | null {
+  if (opts.absences && isPersonAbsentOnDay(opts.absences, personId, dayKey)) {
+    return 'absent';
+  }
+  const bookings = opts.bookings ?? {};
+  const arrangeurs = arrangeurIdsBookedOnDay(bookings, dayKey, opts.excludeBookingId);
+  if (arrangeurs.has(personId)) return 'booked-arrangeur';
+  if (opts.asRole === 'traeger') {
+    const traeger = traegerIdsBookedOnDay(bookings, dayKey, opts.excludeBookingId);
+    if (traeger.has(personId)) return 'booked-traeger';
+  }
+  return null;
+}
+
+export function unavailableReasonLabel(reason: PersonUnavailableReason): string {
+  switch (reason) {
+    case 'absent':
+      return 'Abwesend';
+    case 'booked-arrangeur':
+      return 'Als Arrangeur eingebucht';
+    case 'booked-traeger':
+      return 'Als Träger eingebucht';
+  }
+}
+
 /** Träger-Pool ohne Personen, die als Arrangeur eingebucht / gewählt sind. */
 export function availableTraegerPool<T extends { id: string }>(
   traegerPool: T[],
   opts: {
     selectedArrangeurId?: string | null;
     bookedArrangeurIds?: Iterable<string>;
+    /** Wenn gesetzt: Abwesende und bereits gebuchte ausfiltern (Legacy). */
+    hardFilter?: boolean;
   }
 ): T[] {
   const blocked = new Set<string>(opts.bookedArrangeurIds ?? []);
   if (opts.selectedArrangeurId) blocked.add(opts.selectedArrangeurId);
   if (blocked.size === 0) return traegerPool;
   return traegerPool.filter((p) => !blocked.has(p.id));
+}
+
+export function ceremonyBookingId(docId: string, kind: string, dayKey: string): string {
+  return `${docId}:ceremony:${kind}:${dayKey}`;
+}
+
+export function findBookingForCeremony(
+  bookings: Record<string, PersonnelBooking>,
+  docId: string,
+  dayKey: string,
+  kind: string
+): PersonnelBooking | null {
+  const exact = bookings[ceremonyBookingId(docId, kind, dayKey)];
+  if (exact) return exact;
+  return (
+    Object.values(bookings).find(
+      (b) =>
+        b.docId === docId &&
+        b.dayKey === dayKey &&
+        (b.entryArts.includes(kind as PersonnelBooking['entryArts'][number]) ||
+          b.entryTitle.toLowerCase().includes(kind))
+    ) ?? null
+  );
 }
 
 export function personnelBookingSummary(booking: PersonnelBooking | null | undefined): string | null {

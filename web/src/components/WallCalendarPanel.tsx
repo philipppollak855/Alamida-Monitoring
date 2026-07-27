@@ -116,6 +116,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
   const { settings } = useDispositionSettings();
   const {
     bookings,
+    absences,
     saving: bookingSaving,
     error: bookingError,
     saveBooking,
@@ -911,6 +912,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
           sterbefall={sterbefaelle.find((s) => s.id === bookingEntry.docId) ?? null}
           personnelPool={settings.personnelPool ?? []}
           allBookings={bookings}
+          absences={absences}
           existing={bookings[bookingEntry.id] ?? null}
           pending={bookingSaving}
           markerPending={markerPending}

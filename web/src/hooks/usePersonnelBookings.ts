@@ -1,14 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { PersonnelBooking, PersonnelBookingDocument } from '../types/personnelBooking';
+import type {
+  PersonnelAbsence,
+  PersonnelBooking,
+  PersonnelBookingDocument,
+} from '../types/personnelBooking';
 import {
+  deletePersonnelAbsence,
   deletePersonnelBooking,
   loadPersonnelBookings,
+  savePersonnelAbsence,
   savePersonnelBooking,
   subscribePersonnelBookings,
 } from '../services/personnelBookings';
 
 export function usePersonnelBookings() {
-  const [doc, setDoc] = useState<PersonnelBookingDocument>({ bookings: {} });
+  const [doc, setDoc] = useState<PersonnelBookingDocument>({ bookings: {}, absences: {} });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -87,13 +93,52 @@ export function usePersonnelBookings() {
     }
   }, []);
 
+  const saveAbsence = useCallback(async (absence: PersonnelAbsence) => {
+    setSaving(true);
+    setError(null);
+    setDoc((prev) => ({
+      ...prev,
+      absences: { ...(prev.absences ?? {}), [absence.id]: absence },
+      updatedAtMs: Date.now(),
+    }));
+    try {
+      await savePersonnelAbsence(absence);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Abwesenheit speichern fehlgeschlagen');
+      throw e;
+    } finally {
+      setSaving(false);
+    }
+  }, []);
+
+  const clearAbsence = useCallback(async (id: string) => {
+    setSaving(true);
+    setError(null);
+    setDoc((prev) => {
+      const absences = { ...(prev.absences ?? {}) };
+      delete absences[id];
+      return { ...prev, absences, updatedAtMs: Date.now() };
+    });
+    try {
+      await deletePersonnelAbsence(id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Abwesenheit löschen fehlgeschlagen');
+      throw e;
+    } finally {
+      setSaving(false);
+    }
+  }, []);
+
   return {
     bookings: doc.bookings,
+    absences: doc.absences ?? {},
     loading,
     saving,
     error,
     saveBooking,
     clearBooking,
+    saveAbsence,
+    clearAbsence,
     setError,
   };
 }
