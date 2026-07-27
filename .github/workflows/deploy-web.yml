@@ -36,9 +36,22 @@ jobs:
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
         run: |
-          # Secrets überschreiben .env.production, falls gesetzt.
-          # Ohne Secrets greift web/.env.production (öffentliche Web-SDK-Config).
-          if [ -z "$VITE_FIREBASE_API_KEY" ] || [ -z "$VITE_FIREBASE_APP_ID" ]; then
+          # Leere Secrets setzen die Env-Vars trotzdem — Vite bevorzugt process.env
+          # gegenüber .env.production. Leere Werte müssen daher explizit entfernt werden.
+          for v in \
+            VITE_FIREBASE_API_KEY \
+            VITE_FIREBASE_AUTH_DOMAIN \
+            VITE_FIREBASE_PROJECT_ID \
+            VITE_FIREBASE_STORAGE_BUCKET \
+            VITE_FIREBASE_MESSAGING_SENDER_ID \
+            VITE_FIREBASE_APP_ID
+          do
+            if [ -z "${!v}" ]; then
+              unset "$v"
+            fi
+          done
+
+          if [ -z "${VITE_FIREBASE_API_KEY:-}" ] || [ -z "${VITE_FIREBASE_APP_ID:-}" ]; then
             if [ ! -f .env.production ]; then
               echo "Weder GitHub-Secrets noch web/.env.production vorhanden."
               exit 1
@@ -47,8 +60,21 @@ jobs:
           else
             echo "Build mit GitHub Secrets VITE_FIREBASE_*"
           fi
+
           npm ci
           npm run build
+
+          # Fail-fast: Config muss im Bundle landen (sonst Login kaputt).
+          JS=$(ls dist/assets/index-*.js | head -1)
+          if ! grep -q 'AIzaSy' "$JS"; then
+            echo "FEHLER: Firebase apiKey fehlt im Production-Bundle ($JS)."
+            exit 1
+          fi
+          if ! grep -q '9f465e3a7aa0e3d8791655' "$JS"; then
+            echo "FEHLER: Firebase appId fehlt im Production-Bundle ($JS)."
+            exit 1
+          fi
+          echo "Firebase-Config im Bundle verifiziert: $JS"
 
       - name: Prepare Firebase public
         working-directory: .
