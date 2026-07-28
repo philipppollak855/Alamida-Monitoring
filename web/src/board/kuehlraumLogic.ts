@@ -175,6 +175,50 @@ export function resolveKuehlraumOrtWennImKr(s: Sterbefall): string | undefined {
 }
 
 /**
+ * Fällige/erfolgte Ausfahrt aus dem eigenen Kühlraum (Weiterführung, Feier, Extern).
+ * Ohne das bliebe man nach Ankunft dauerhaft als „im KR“ stehen.
+ */
+export function hatFaelligeAusfahrtAusEigenemKr(s: Sterbefall, now = new Date()): boolean {
+  const heute = startOfTodayMs();
+  void now;
+
+  const isLeaveFromOwnKr = (von?: string, nach?: string): boolean => {
+    if (!matchEigenerKuehlraum(von)) return false;
+    const ziel = nachOrtAusSchritt(von, nach);
+    if (matchEigenerKuehlraum(ziel)) return false;
+    return Boolean(ziel?.trim() || nach?.trim());
+  };
+
+  for (const a of getEffectiveAusstehend(s)) {
+    if (!isLeaveFromOwnKr(a.vonOrt, a.nachOrt)) continue;
+    const termin = a.terminAm ?? a.abholungAm;
+    if (!termin?.trim()) {
+      const pos = s.aktuellePosition?.trim();
+      if (pos && !matchEigenerKuehlraum(pos) && !positionIstImKuehlraum(pos)) return true;
+      continue;
+    }
+    if (parseDatumDe(termin) <= heute) return true;
+  }
+
+  const topLevel: [string | undefined, string | undefined, string | undefined][] = [
+    [s.naechsterSchrittVon, s.naechsterSchrittNach, s.naechsterSchrittAm],
+    [s.naechsteUeberfuehrungVon, s.naechsteUeberfuehrungNach, s.naechsteUeberfuehrungAm],
+  ];
+  for (const [von, nach, termin] of topLevel) {
+    if (!isLeaveFromOwnKr(von, nach)) continue;
+    if (!termin?.trim()) continue;
+    if (parseDatumDe(termin) <= heute) return true;
+  }
+
+  const letzte = letzteAbgeschlosseneEtappe(s);
+  if (letzte && isLeaveFromOwnKr(letzte.vonOrt, letzte.nachOrt ?? letzte.ort)) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Überführung ins eigene Kühlraum abgeschlossen und Verstorbener noch nicht weiter (Kremation/Beisetzung).
  */
 export function hatAbgeschlosseneUeberfuehrungInsEigeneKr(s: Sterbefall): boolean {
@@ -258,6 +302,8 @@ export function isImEigenenKuehlraum(s: Sterbefall, now = new Date()): boolean {
   // Vorzeitige Alamida-Ausbuchung: bis Feier − 1h weiter als belegt zählen
   if (shouldHoldInKuehlraumUntilCheckout(s, now)) return true;
   if (istInHistory(s)) return false;
+  // Fällige Weiterführung aus dem KR beendet die Belegung (auch wenn Ankunfts-Schritt noch „erledigt“ wirkt)
+  if (hatFaelligeAusfahrtAusEigenemKr(s, now)) return false;
 
   return hatAbgeschlosseneUeberfuehrungInsEigeneKr(s);
 }

@@ -75,6 +75,51 @@ describe('isImEigenenKuehlraum', () => {
     expect(grafenbach?.slots.some((s) => s?.verstorbenerName === 'Kerschhofer')).toBe(true);
   });
 
+  it('bucht aus dem Kühlraum aus, sobald die Weiterführung fällig ist', () => {
+    vi.setSystemTime(new Date(2026, 5, 11, 12, 0, 0));
+    const fall = kerschhoferFall(true);
+    expect(isImEigenenKuehlraum(fall)).toBe(false);
+  });
+
+  it('bucht Schantl-ähnlich aus, wenn Überführung heute und Position schon extern', () => {
+    vi.setSystemTime(new Date(2026, 6, 28, 13, 0, 0));
+    const schantl: Sterbefall = {
+      id: 'schantl',
+      verstorbenerName: 'Günter Schantl',
+      aktivInAlamida: true,
+      aktuellePosition: 'UK - Neunkirchen',
+      aktuellePositionTyp: 'sterbeort',
+      kuehlraumId: 'Kühlr. Grafenbach',
+      kuehlplatz: '3',
+      status: 'im_kuehlraum',
+      ausstehend: [
+        {
+          zeile: 1,
+          schrittTyp: 'ueberfuehrung',
+          vonOrt: 'Kühl. Grafenbach',
+          nachOrt: 'UK - Neunkirchen',
+          terminAm: '28.07.2026',
+          status: 'heute',
+        },
+      ],
+      verlauf: [
+        {
+          typ: 'abholung',
+          vonOrt: 'UK - Wiener Neustadt',
+          nachOrt: 'Kühl. Grafenbach',
+          ort: 'Kühl. Grafenbach',
+        },
+        {
+          typ: 'ueberfuehrung',
+          vonOrt: 'Kühl. Grafenbach',
+          nachOrt: 'UK - Neunkirchen',
+          ort: 'UK - Neunkirchen',
+        },
+      ],
+    };
+    expect(isImEigenenKuehlraum(schantl)).toBe(false);
+  });
+
   it('hält Fall bis Feier − 1h im Kühlraum trotz vorzeitiger Alamida-Ausbuchung', () => {
     vi.setSystemTime(new Date(2026, 6, 28, 8, 0, 0));
     const berger: Sterbefall = {

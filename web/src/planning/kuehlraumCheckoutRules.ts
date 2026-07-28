@@ -10,6 +10,7 @@ import { isAusstehendHeuteOrGeplant } from '../board/ausstehendStatus';
 import { matchEigenerKuehlraum } from '../settings/ortMatchers';
 import type { Sterbefall } from '../types';
 import type { CeremonyInfo, CeremonyKind, SlotFreeEvent } from './types';
+import { istKrankenhaus } from '../board/ortKeywords';
 
 /** Frühester Kühlraum-Abgang: 1 Stunde vor Trauerfeier/Beisetzung/Verabschiedung. */
 export const KUEHLRAUM_CHECKOUT_LEAD_MINUTES = 60;
@@ -138,15 +139,19 @@ export function shouldHoldInKuehlraumUntilCheckout(
   // Noch physisch im KR laut Position → Hold unnötig (normale Belegung greift)
   if (matchEigenerKuehlraum(s.aktuellePosition)) return false;
 
+  // Bereits am Krankenhaus/extern → echte Ausfahrt, kein Feier-Hold
+  if (s.aktuellePosition?.trim() && istKrankenhaus(s.aktuellePosition)) return false;
+
   const earliest = parseTimeLabelMinutes(checkoutZeit);
   if (earliest == null) return false;
   const nowMins = now.getHours() * 60 + now.getMinutes();
   if (nowMins >= earliest) return false;
 
-  // Offene/heute Ausfahrt aus dem KR oder vorzeitige Positionsänderung
+  // Offene/heute Ausfahrt aus dem KR (nicht zu KH — das ist keine vorzeitige Feier-Ausbuchung)
   const leavesToday = getEffectiveAusstehend(s).some((a) => {
     if (!matchEigenerKuehlraum(a.vonOrt)) return false;
     if (matchEigenerKuehlraum(a.nachOrt)) return false;
+    if (a.nachOrt && istKrankenhaus(a.nachOrt)) return false;
     return a.status === 'heute' || isAusstehendHeuteOrGeplant(a);
   });
   if (leavesToday) return true;
