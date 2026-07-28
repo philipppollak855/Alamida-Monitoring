@@ -165,10 +165,10 @@ export function istNachBeisetzungOderTrauerfeierAbgelaufen(s: Sterbefall): boole
 export function istInHistory(s: Sterbefall): boolean {
   if (istFehlerhafterPlatzhalterFall(s)) return true;
   if (istManuellAusgeschlossen(s.historieGrund ?? s.abschlussGrund)) return true;
-  if (s.aktivInDisposition === false) return true;
 
-  // Vorzeitiges Agent-Archiv am Feiertag: inHistory erst nach echtem Terminende
-  if (s.inHistory === true) {
+  // Vorzeitiges Agent-Archiv (inHistory oder aktivInDisposition=false):
+  // am Feiertag erst nach Trauerfeier/Beisetzung+2h ausblenden.
+  if (s.inHistory === true || s.aktivInDisposition === false) {
     if (hatFeierterminInDaten(s) && !istNachBeisetzungOderTrauerfeierAbgelaufen(s)) {
       return false;
     }

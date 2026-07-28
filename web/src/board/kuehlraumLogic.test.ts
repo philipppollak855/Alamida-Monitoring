@@ -74,4 +74,49 @@ describe('isImEigenenKuehlraum', () => {
     const grafenbach = grids.find((g) => g.cfg.id === 'grafenbach');
     expect(grafenbach?.slots.some((s) => s?.verstorbenerName === 'Kerschhofer')).toBe(true);
   });
+
+  it('hält Fall bis Feier − 1h im Kühlraum trotz vorzeitiger Alamida-Ausbuchung', () => {
+    vi.setSystemTime(new Date(2026, 6, 28, 8, 0, 0));
+    const berger: Sterbefall = {
+      id: '260153',
+      verstorbenerName: 'Friedrich Berger',
+      inHistory: true,
+      aktivInDisposition: false,
+      aktuellePosition: 'Gloggnitz',
+      aktuellePositionTyp: 'ueberfuehrung',
+      imAnschluss: true,
+      trauerfeierdatum: '28.07.2026',
+      trauerfeierzeit: '11:00',
+      beisetzungsdatum: '28.07.2026',
+      ausstehend: [
+        {
+          zeile: 1,
+          schrittTyp: 'ueberfuehrung',
+          vonOrt: 'Grafenbach',
+          nachOrt: 'Gloggnitz',
+          terminAm: '28.07.2026',
+          status: 'heute',
+        },
+      ],
+      verlauf: [
+        {
+          typ: 'abholung',
+          vonOrt: 'UK - Neunkirchen',
+          nachOrt: 'Kühl. Grafenbach',
+          ort: 'Kühl. Grafenbach',
+        },
+        {
+          typ: 'ueberfuehrung',
+          vonOrt: 'Grafenbach',
+          nachOrt: 'Gloggnitz',
+          ort: 'Gloggnitz',
+        },
+      ],
+    };
+    expect(isImEigenenKuehlraum(berger)).toBe(true);
+    expect(resolveFallKuehlraumId(berger)).toBe('grafenbach');
+
+    vi.setSystemTime(new Date(2026, 6, 28, 10, 0, 0));
+    expect(isImEigenenKuehlraum(berger)).toBe(false);
+  });
 });

@@ -4405,6 +4405,26 @@ code {
   margin-top: 0.2rem;
 }
 
+.wall-cal-krem-names {
+  list-style: none;
+  margin: 0.1rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+}
+
+.wall-cal-krem-names li {
+  font-size: 0.72rem;
+  font-weight: 650;
+  line-height: 1.2;
+  color: var(--text);
+}
+
+.wall-cal-day--strip .wall-cal-krem-names li {
+  font-size: calc(0.62rem * var(--cal-density, 1));
+}
+
 .wall-cal-card--compact .wall-cal-name {
   font-size: 0.78rem;
 }

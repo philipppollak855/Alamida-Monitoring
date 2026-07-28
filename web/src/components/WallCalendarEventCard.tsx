@@ -105,6 +105,13 @@ export function WallCalendarEventCard({
           {stripTypes && <span className="wall-cal-strip-types">{stripTypes}</span>}
         </div>
         <span className="wall-cal-name">{entry.name}</span>
+        {entry.kremationMemberNames && entry.kremationMemberNames.length > 1 ? (
+          <ul className="wall-cal-krem-names">
+            {entry.kremationMemberNames.map((n) => (
+              <li key={n}>{n}</li>
+            ))}
+          </ul>
+        ) : null}
         {stripMeta ? <span className="wall-cal-strip-meta">{stripMeta}</span> : null}
         {traegerBadge}
       </article>
@@ -127,10 +134,22 @@ export function WallCalendarEventCard({
         </div>
       </div>
       <span className="wall-cal-name">{entry.name}</span>
+      {entry.kremationMemberNames && entry.kremationMemberNames.length > 1 ? (
+        <ul className="wall-cal-krem-names">
+          {entry.kremationMemberNames.map((n) => (
+            <li key={n}>{n}</li>
+          ))}
+        </ul>
+      ) : null}
       <span className="wall-cal-meta">{entry.subtitle || entry.title}</span>
       {traegerBadge}
-      {!compact && entry.grouped && (
+      {!compact && entry.grouped && !entry.kremationGroupId && (
         <span className="wall-cal-group-hint">Trauerblock · {entry.sterbefallId}</span>
+      )}
+      {!compact && entry.kremationGroupId && (
+        <span className="wall-cal-group-hint">
+          Kombinierte Kremation · {entry.kremationMemberNames?.length ?? 0} Fälle
+        </span>
       )}
     </article>
   );

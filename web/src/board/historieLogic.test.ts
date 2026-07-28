@@ -106,6 +106,26 @@ describe('sichtbarBis / vorzeitiges Archiv', () => {
     }
   });
 
+  it('hält aktivInDisposition=false bis nach Feiertermin (wie inHistory)', () => {
+    const s: Sterbefall = {
+      id: '260153',
+      verstorbenerName: 'Friedrich Berger',
+      imAnschluss: true,
+      trauerfeierdatum: '28.07.2026',
+      trauerfeierzeit: '11:00',
+      beisetzungsdatum: '28.07.2026',
+      inHistory: true,
+      aktivInDisposition: false,
+    };
+    const real = Date.now;
+    Date.now = () => new Date(2026, 6, 28, 8, 0).getTime();
+    try {
+      expect(istInHistory(s)).toBe(false);
+    } finally {
+      Date.now = real;
+    }
+  });
+
   it('blendet nach Trauerfeier+2h aus', () => {
     const s: Sterbefall = {
       id: '260153',

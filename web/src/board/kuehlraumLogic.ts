@@ -7,6 +7,7 @@ import { parseUeberfuehrungRoute } from './routeParse';
 import { istKrankenhaus, istKrematorium } from './ortKeywords';
 import { istAktuellImKrematorium, letzteAbgeschlosseneEtappe } from './positionLogic';
 import { istInHistory } from './historieLogic';
+import { shouldHoldInKuehlraumUntilCheckout } from '../planning/kuehlraumCheckoutRules';
 
 function startOfTodayMs(): number {
   const d = new Date();
@@ -145,10 +146,23 @@ export function resolveKuehlraumOrtWennImKr(s: Sterbefall): string | undefined {
   const pos = s.aktuellePosition?.trim();
   if (pos && matchEigenerKuehlraum(pos)) return pos;
 
+  // Offene Ausfahrt: Von-Ort ist noch der Firmen-KR
+  for (const a of getEffectiveAusstehend(s)) {
+    const von = a.vonOrt?.trim();
+    if (von && matchEigenerKuehlraum(von)) return von;
+  }
+
   const letzteKr = letzteAbgeschlosseneKrUeberfuehrung(s);
   if (letzteKr) {
     const nach = letzteKr.nachOrt ?? nachOrtAusSchritt(letzteKr.vonOrt, letzteKr.nachOrt);
     if (nach?.trim()) return nach.trim();
+  }
+
+  // Verlauf rückwärts: letzte KR-Etappe (auch wenn danach schon weitergefahren)
+  for (let i = (s.verlauf?.length ?? 0) - 1; i >= 0; i--) {
+    const v = s.verlauf![i]!;
+    const ort = (v.nachOrt ?? v.ort)?.trim();
+    if (ort && matchEigenerKuehlraum(ort)) return ort;
   }
 
   const etappe = letzteAbgeschlosseneEtappe(s);
@@ -239,8 +253,11 @@ export function isAmKrankenhausOderSterbeort(s: Sterbefall): boolean {
 }
 
 /** Physisch im Firmenkühlraum (z. B. Grafenbach) — nicht in Kremation oder nach Beisetzung. */
-export function isImEigenenKuehlraum(s: Sterbefall): boolean {
-  if (istInHistory(s) || istAktuellImKrematorium(s)) return false;
+export function isImEigenenKuehlraum(s: Sterbefall, now = new Date()): boolean {
+  if (istAktuellImKrematorium(s)) return false;
+  // Vorzeitige Alamida-Ausbuchung: bis Feier − 1h weiter als belegt zählen
+  if (shouldHoldInKuehlraumUntilCheckout(s, now)) return true;
+  if (istInHistory(s)) return false;
 
   return hatAbgeschlosseneUeberfuehrungInsEigeneKr(s);
 }

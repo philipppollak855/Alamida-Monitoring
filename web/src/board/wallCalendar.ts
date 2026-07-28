@@ -150,6 +150,9 @@ export interface WallCalendarEntry {
    * (kein eigener Personalbedarf).
    */
   attachedTransfer?: boolean;
+  /** Mehrere Fälle in einer kombinierten Kremationsfahrt (wie Planung). */
+  kremationGroupId?: string;
+  kremationMemberNames?: string[];
 }
 
 export interface WallCalendarDay {
@@ -761,6 +764,7 @@ export function mergeZusatzTermineIntoEntries(
 /**
  * Geplante Überführungen aus der Planung in den Kalender mischen.
  * Bestehende Alamida-Überführungen am gleichen Tag/Route werden ersetzt/ergänzt.
+ * Kremationen mit gleicher kremationGroupId werden zu einer Karte zusammengefasst.
  */
 export function mergeTransferPlanIntoEntries(
   entries: WallCalendarEntry[],
@@ -774,6 +778,7 @@ export function mergeTransferPlanIntoEntries(
       vonOrt?: string | null;
       nachOrt?: string | null;
       schrittTyp?: string | null;
+      kremationGroupId?: string | null;
     }
   >,
   sterbefaelle: Sterbefall[]
@@ -781,6 +786,17 @@ export function mergeTransferPlanIntoEntries(
   const byId = new Map(sterbefaelle.map((s) => [s.id, s]));
   const planned: WallCalendarEntry[] = [];
   const coveredKeys = new Set<string>();
+  const kremationGroups = new Map<
+    string,
+    {
+      groupId: string;
+      dayKey: string;
+      zeit?: string;
+      von: string;
+      nach: string;
+      members: { assignmentId: string; docId: string; name: string; sortMs: number }[];
+    }
+  >();
 
   for (const assignment of Object.values(assignments)) {
     const dayKey = assignment.plannedDayKey;
@@ -799,8 +815,34 @@ export function mergeTransferPlanIntoEntries(
     const title = schrittTypLabel(assignment.schrittTyp ?? 'ueberfuehrung');
     const name = fallName(s);
     const route = `${von} → ${nach}`;
+    const gid = assignment.kremationGroupId?.trim();
+
+    if (gid && art === 'ueberfuehrung_kremation') {
+      coveredKeys.add(`${assignment.docId}|${dayKey}`);
+      const existing = kremationGroups.get(gid);
+      const member = {
+        assignmentId: assignment.id,
+        docId: s.id,
+        name,
+        sortMs,
+      };
+      if (existing) {
+        existing.members.push(member);
+        if (!existing.zeit && zeit) existing.zeit = zeit;
+      } else {
+        kremationGroups.set(gid, {
+          groupId: gid,
+          dayKey,
+          zeit,
+          von,
+          nach,
+          members: [member],
+        });
+      }
+      continue;
+    }
+
     const id = `plan:${assignment.id}`;
-    // Dedup über Tag (Art-agnostisch): Alamida „ueberfuehrung“ vs. Planung „ueberfuehrung_kremation“
     coveredKeys.add(`${assignment.docId}|${dayKey}`);
     planned.push({
       id,
@@ -821,6 +863,62 @@ export function mergeTransferPlanIntoEntries(
         .join(' ')
         .toLowerCase(),
       bestattungsMarker: calendarBestattungsMarker(s, [art], title),
+    });
+  }
+
+  for (const group of kremationGroups.values()) {
+    if (group.members.length < 2) {
+      // Verwaiste Einzel-ID → normale Plan-Karte
+      const m = group.members[0]!;
+      const s = byId.get(m.docId);
+      if (!s) continue;
+      const route = `${group.von} → ${group.nach}`;
+      planned.push({
+        id: `plan:${m.assignmentId}`,
+        docId: s.id,
+        sterbefallId: s.sterbefallId ?? s.id,
+        dayKey: group.dayKey,
+        dayLabel: formatDayLabelDe(group.dayKey),
+        timeLabel: group.zeit || '—',
+        sortMs: m.sortMs,
+        name: m.name,
+        title: 'Kremation',
+        subtitle: route,
+        badges: ['Kremation', 'Geplant'],
+        grouped: false,
+        arts: ['ueberfuehrung_kremation'],
+        searchText: [m.name, 'kremation', route, 'geplant'].join(' ').toLowerCase(),
+        bestattungsMarker: calendarBestattungsMarker(s, ['ueberfuehrung_kremation'], 'Kremation'),
+      });
+      continue;
+    }
+
+    const members = [...group.members].sort(
+      (a, b) => a.sortMs - b.sortMs || a.name.localeCompare(b.name, 'de')
+    );
+    const host = byId.get(members[0]!.docId)!;
+    const names = members.map((m) => m.name);
+    const route = `${group.von} → ${group.nach}`;
+    planned.push({
+      id: `plan:krem-group:${group.groupId}`,
+      docId: members[0]!.docId,
+      sterbefallId: host.sterbefallId ?? host.id,
+      dayKey: group.dayKey,
+      dayLabel: formatDayLabelDe(group.dayKey),
+      timeLabel: group.zeit || '—',
+      sortMs: members[0]!.sortMs,
+      name: names.join(' · '),
+      title: 'Kremation',
+      subtitle: route,
+      badges: ['Kremation', `${members.length}×`, 'Geplant'],
+      grouped: true,
+      arts: ['ueberfuehrung_kremation'],
+      searchText: [...names, 'kremation', route, 'geplant', String(members.length)]
+        .join(' ')
+        .toLowerCase(),
+      bestattungsMarker: 'U',
+      kremationGroupId: group.groupId,
+      kremationMemberNames: names,
     });
   }
 

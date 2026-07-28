@@ -222,6 +222,52 @@ describe('mergeTransferPlanIntoEntries', () => {
     expect(kremEntries[0]?.id).toBe('plan:a1');
     expect(kremEntries[0]?.badges).toContain('Geplant');
   });
+
+  it('fasst kombinierte Kremationen zu einer Kalenderkarte zusammen', () => {
+    const sterbefaelle = [
+      {
+        id: 'k1',
+        sterbefallId: '1',
+        verstorbenerName: 'Alpha',
+      },
+      {
+        id: 'k2',
+        sterbefallId: '2',
+        verstorbenerName: 'Beta',
+      },
+    ];
+    const merged = mergeTransferPlanIntoEntries(
+      [],
+      {
+        a: {
+          id: 'a',
+          docId: 'k1',
+          plannedDayKey: '2026-07-30',
+          plannedZeit: '09:00',
+          vonOrt: 'Grafenbach',
+          nachOrt: 'Innermanzing',
+          schrittTyp: 'kremation',
+          kremationGroupId: 'g1',
+        },
+        b: {
+          id: 'b',
+          docId: 'k2',
+          plannedDayKey: '2026-07-30',
+          plannedZeit: '09:00',
+          vonOrt: 'Grafenbach',
+          nachOrt: 'Innermanzing',
+          schrittTyp: 'kremation',
+          kremationGroupId: 'g1',
+        },
+      },
+      sterbefaelle
+    );
+    const groups = merged.filter((e) => e.kremationGroupId === 'g1');
+    expect(groups).toHaveLength(1);
+    expect(groups[0]?.kremationMemberNames).toEqual(['Alpha', 'Beta']);
+    expect(groups[0]?.badges).toContain('2×');
+    expect(merged.filter((e) => e.arts.includes('ueberfuehrung_kremation'))).toHaveLength(1);
+  });
 });
 
 describe('Schantl Begräbnis-Überführung', () => {

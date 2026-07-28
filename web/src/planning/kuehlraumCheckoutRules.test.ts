@@ -1,14 +1,20 @@
-import { describe, expect, it } from 'vitest';
 import {
   clampKuehlraumCheckoutZeit,
   earliestKuehlraumCheckoutZeit,
   isKuehlraumCheckoutZeitAllowed,
   isSlotFreeEffectiveForNow,
   pickFuneralCeremonyForCheckout,
+  shouldHoldInKuehlraumUntilCheckout,
 } from './kuehlraumCheckoutRules';
 import type { CeremonyInfo, SlotFreeEvent } from './types';
+import { setDispositionSettings } from '../settings/dispositionSettingsStore';
+import { DEFAULT_DISPOSITION_SETTINGS } from '../config/defaultDispositionSettings';
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 
 describe('kuehlraumCheckoutRules', () => {
+  beforeEach(() => {
+    setDispositionSettings(DEFAULT_DISPOSITION_SETTINGS);
+  });
   it('Trauerfeier 14:00 → Ausbuchung ab 13:00', () => {
     expect(earliestKuehlraumCheckoutZeit('14:00')).toBe('13:00');
     expect(earliestKuehlraumCheckoutZeit('14:30')).toBe('13:30');
@@ -65,5 +71,33 @@ describe('kuehlraumCheckoutRules', () => {
     const afternoon = new Date(2026, 6, 28, 13, 0, 0);
     expect(isSlotFreeEffectiveForNow(event, morning)).toBe(false);
     expect(isSlotFreeEffectiveForNow(event, afternoon)).toBe(true);
+  });
+
+  it('hält Berger bis 10:00 im Kühlraum (TF 11:00)', () => {
+    const berger = {
+      id: '260153',
+      verstorbenerName: 'Friedrich Berger',
+      aktuellePosition: 'Gloggnitz',
+      imAnschluss: true,
+      trauerfeierdatum: '28.07.2026',
+      trauerfeierzeit: '11:00',
+      beisetzungsdatum: '28.07.2026',
+      ausstehend: [
+        {
+          zeile: 1,
+          schrittTyp: 'ueberfuehrung' as const,
+          vonOrt: 'Grafenbach',
+          nachOrt: 'Gloggnitz',
+          terminAm: '28.07.2026',
+          status: 'heute',
+        },
+      ],
+      verlauf: [
+        { typ: 'abholung', nachOrt: 'Kühl. Grafenbach', ort: 'Kühl. Grafenbach' },
+        { typ: 'ueberfuehrung', nachOrt: 'Gloggnitz', ort: 'Gloggnitz' },
+      ],
+    };
+    expect(shouldHoldInKuehlraumUntilCheckout(berger, new Date(2026, 6, 28, 8, 0))).toBe(true);
+    expect(shouldHoldInKuehlraumUntilCheckout(berger, new Date(2026, 6, 28, 10, 0))).toBe(false);
   });
 });
