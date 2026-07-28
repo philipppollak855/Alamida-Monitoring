@@ -101,14 +101,11 @@ function parseDatumZeitDe(datum?: string, zeit?: string, endOfDayIfNoTime = fals
   return new Date(+m[3], +m[2] - 1, +m[1], h, min, sec, ms).getTime();
 }
 
-/** Beisetzung/Trauerfeier abgelaufen (gleiche Regeln wie Agent). */
-export function istNachBeisetzungOderTrauerfeierAbgelaufen(s: Sterbefall): boolean {
-  const jetzt = Date.now();
-
-  if (s.sichtbarBis?.seconds && jetzt >= s.sichtbarBis.seconds * 1000) {
-    return true;
-  }
-
+/** Beisetzung/Trauerfeier abgelaufen — nur Terminregeln, ohne sichtbarBis/Flags. */
+export function istNachBeisetzungOderTrauerfeierAbgelaufenCeremony(
+  s: Sterbefall,
+  jetzt = Date.now()
+): boolean {
   if (sterbefallImAnschluss(s) && hatGueltigesDatum(s.trauerfeierdatum)) {
     const trauerfeier = parseDatumZeitDe(s.trauerfeierdatum, s.trauerfeierzeit);
     if (trauerfeier != null && jetzt >= trauerfeier + 2 * 60 * 60 * 1000) return true;
@@ -119,15 +116,40 @@ export function istNachBeisetzungOderTrauerfeierAbgelaufen(s: Sterbefall): boole
     const beisetzung = parseDatumZeitDe(s.beisetzungsdatum, s.beisetzungszeit, false);
     if (beisetzung == null) return false;
     const m = s.beisetzungsdatum!.trim().match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
-    const sichtbarBis = hatUhrzeit
+    const bis = hatUhrzeit
       ? beisetzung + 2 * 60 * 60 * 1000
       : m
         ? new Date(+m[3], +m[2] - 1, +m[1], 23, 59, 59, 999).getTime()
         : beisetzung;
-    if (jetzt >= sichtbarBis) return true;
+    if (jetzt >= bis) return true;
   }
 
   return false;
+}
+
+/**
+ * Beisetzung/Trauerfeier abgelaufen.
+ * `sichtbarBis` verlängert die Sichtbarkeit, verkürzt sie aber nicht vor dem Terminfenster
+ * (Agent setzt sichtbarBis manchmal auf Tagesbeginn → Fälle verschwinden morgens).
+ */
+export function istNachBeisetzungOderTrauerfeierAbgelaufen(s: Sterbefall): boolean {
+  const jetzt = Date.now();
+  const ceremonyExpired = istNachBeisetzungOderTrauerfeierAbgelaufenCeremony(s, jetzt);
+
+  if (s.sichtbarBis?.seconds) {
+    const bis = s.sichtbarBis.seconds * 1000;
+    // Noch innerhalb sichtbarBis → sichtbar (Verlängerung)
+    if (jetzt < bis) return false;
+    // sichtbarBis vorbei: nur ausblenden, wenn auch das Terminfenster vorbei ist
+    // (oder kein berechenbares Terminfenster existiert)
+    const hatTermin =
+      (sterbefallImAnschluss(s) && hatGueltigesDatum(s.trauerfeierdatum)) ||
+      hatGueltigesDatum(s.beisetzungsdatum);
+    if (hatTermin) return ceremonyExpired;
+    return true;
+  }
+
+  return ceremonyExpired;
 }
 
 /**
@@ -135,8 +157,17 @@ export function istNachBeisetzungOderTrauerfeierAbgelaufen(s: Sterbefall): boole
  */
 export function istInHistory(s: Sterbefall): boolean {
   if (istFehlerhafterPlatzhalterFall(s)) return true;
-  if (s.inHistory === true) return true;
+  if (istManuellAusgeschlossen(s.historieGrund ?? s.abschlussGrund)) return true;
   if (s.aktivInDisposition === false) return true;
+
+  // Vorzeitiges Agent-Archiv am Feiertag: inHistory erst nach echtem Terminende
+  if (s.inHistory === true) {
+    if (hatFeierterminInDaten(s) && !istNachBeisetzungOderTrauerfeierAbgelaufen(s)) {
+      return false;
+    }
+    return true;
+  }
+
   return istNachBeisetzungOderTrauerfeierAbgelaufen(s);
 }
 
