@@ -8,9 +8,9 @@ import {
 } from './permissions';
 
 describe('resolveAccessPermissions', () => {
-  it('ohne Feld = Vollzugriff', () => {
-    expect(resolveAccessPermissions(undefined)).toEqual(FULL_ACCESS_PERMISSIONS);
-    expect(resolveAccessPermissions(null)).toEqual(FULL_ACCESS_PERMISSIONS);
+  it('ohne Feld = Vollzugriff inkl. Benutzerverwaltung (Legacy-Admin)', () => {
+    expect(resolveAccessPermissions(undefined).canManageUsers).toBe(true);
+    expect(resolveAccessPermissions(null).canDisposition).toBe(true);
   });
 
   it('übernimmt Staff-Preset', () => {
@@ -18,6 +18,7 @@ describe('resolveAccessPermissions', () => {
     expect(p.calendarScope).toBe('own');
     expect(p.canDisposition).toBe(false);
     expect(p.canSelfConfirm).toBe(true);
+    expect(p.canManageUsers).toBe(false);
     expect(p.wallTabs.kalender).toBe(true);
     expect(p.wallTabs.kuehlraum).toBe(false);
   });

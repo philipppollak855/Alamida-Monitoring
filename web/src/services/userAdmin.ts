@@ -1,5 +1,6 @@
 import {
   collection,
+  deleteField,
   doc,
   onSnapshot,
   serverTimestamp,
@@ -17,6 +18,22 @@ import type { DispositionPerson } from '../types/dispositionSettings';
 export type ManagedUser = AppUserProfile & {
   uid: string;
 };
+
+function normalizeFirestoreMessage(err: unknown): string {
+  const code =
+    err && typeof err === 'object' && 'code' in err
+      ? String((err as { code?: string }).code ?? '')
+      : '';
+  const msg = err instanceof Error ? err.message : String(err ?? '');
+  if (code.includes('permission-denied') || /permission/i.test(msg)) {
+    return (
+      'Keine Berechtigung für Benutzerverwaltung. Firestore-Rules müssen deployed sein, ' +
+      'und dein Konto braucht Benutzerverwaltung (Legacy ohne permissions-Feld oder ' +
+      'permissions.canManageUsers = true).'
+    );
+  }
+  return msg || 'Unbekannter Fehler';
+}
 
 export function subscribeManagedUsers(
   onData: (users: ManagedUser[]) => void,
@@ -38,7 +55,7 @@ export function subscribeManagedUsers(
       );
       onData(users);
     },
-    (err) => onError?.(err.message || 'Benutzerliste konnte nicht geladen werden')
+    (err) => onError?.(normalizeFirestoreMessage(err))
   );
 }
 
@@ -65,10 +82,15 @@ export async function updateManagedUser(
     data.permissions = serializeAccessPermissions(patch.permissions);
   }
   if (patch.linkedPersonId !== undefined) {
-    data.linkedPersonId = patch.linkedPersonId?.trim() || null;
+    const id = patch.linkedPersonId?.trim();
+    data.linkedPersonId = id ? id : deleteField();
   }
   if (Object.keys(data).length === 0) return;
-  await updateDoc(doc(db, 'users', uid), data);
+  try {
+    await updateDoc(doc(db, 'users', uid), data);
+  } catch (e) {
+    throw new Error(normalizeFirestoreMessage(e));
+  }
 }
 
 /**

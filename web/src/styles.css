@@ -5853,11 +5853,17 @@ code {
 
 .settings-person-link {
   font-size: 0.75rem;
-  opacity: 0.8;
+  opacity: 0.9;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
   align-self: center;
+}
+
+.settings-person-link input {
+  width: 100%;
+  min-width: 0;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.35rem;
 }
 
 .settings-person-remove {

@@ -15,10 +15,12 @@ service cloud.firestore {
     }
 
     function isUserManager() {
+      // Explizites Admin-Recht ODER Legacy-Konto ohne permissions-Objekt.
       return isActivatedUser()
-        && 'permissions' in userDoc().data
-        && userDoc().data.permissions.keys().hasAll(['canManageUsers'])
-        && userDoc().data.permissions.canManageUsers == true;
+        && (
+          !('permissions' in userDoc().data)
+          || userDoc().data.permissions.canManageUsers == true
+        );
     }
 
     // Öffentlicher Wandmonitor-Link ohne Login.
@@ -46,7 +48,10 @@ service cloud.firestore {
 
       // Admin: Freischaltung, Rechte, Personal-Verknüpfung.
       allow update: if isUserManager()
-        && request.resource.data.email == resource.data.email;
+        && (
+          !('email' in resource.data)
+          || request.resource.data.email == resource.data.email
+        );
 
       allow delete: if false;
     }

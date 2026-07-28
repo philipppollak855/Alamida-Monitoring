@@ -613,7 +613,8 @@ export function DispositionSettingsPanel({ defaultOpen = false }: { defaultOpen?
                 <p className="settings-hint">
                   Poolliste für Kalender- und Planungs-Einbuchung. Arrangeur/Träger für Feiern;
                   Fahrer für Überführungen. „Extern“ = von außerhalb — eigener Tab bei der
-                  Einbuchung.
+                  Einbuchung. Spalte „Konto“: Google-E-Mail des Mitarbeiters eintragen (gleiche
+                  Adresse wie bei der Anmeldung) — danach unter Benutzer &amp; Rechte freischalten.
                 </p>
                 <label className="personnel-booking-field" style={{ marginBottom: '0.65rem' }}>
                   <span>Feiertage (Bereitschaft)</span>
@@ -689,17 +690,29 @@ export function DispositionSettingsPanel({ defaultOpen = false }: { defaultOpen?
                           onChange={(e) => updatePerson(index, { active: e.target.checked })}
                         />
                       </label>
-                      <span
-                        className="settings-person-link"
-                        role="cell"
-                        title={person.linkedUserEmail || person.linkedUserId || 'Nicht verknüpft'}
-                      >
-                        {person.linkedUserEmail
-                          ? person.linkedUserEmail
-                          : person.linkedUserId
-                            ? 'verknüpft'
-                            : '—'}
-                      </span>
+                      <label className="settings-person-link" role="cell" title="Google-Konto E-Mail">
+                        <span className="sr-only">Google-Konto</span>
+                        <input
+                          type="email"
+                          value={person.linkedUserEmail ?? ''}
+                          placeholder="google@…"
+                          autoComplete="off"
+                          onChange={(e) => {
+                            const email = e.target.value;
+                            updatePerson(index, {
+                              linkedUserEmail: email.trim() || undefined,
+                              // E-Mail-Änderung: alte UID verwerfen, bis erneut über Benutzer & Rechte gesetzt
+                              linkedUserId: email.trim()
+                                ? person.linkedUserId &&
+                                  (person.linkedUserEmail ?? '').trim().toLowerCase() ===
+                                    email.trim().toLowerCase()
+                                  ? person.linkedUserId
+                                  : undefined
+                                : undefined,
+                            });
+                          }}
+                        />
+                      </label>
                       <button
                         type="button"
                         className="btn-ghost btn-small settings-person-remove"

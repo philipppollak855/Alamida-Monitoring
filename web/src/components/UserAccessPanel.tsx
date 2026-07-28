@@ -60,7 +60,12 @@ function UserAccessEditor({
   }) => Promise<void>;
 }) {
   const [activated, setActivated] = useState(user.activated === true);
-  const [linkedPersonId, setLinkedPersonId] = useState(user.linkedPersonId ?? '');
+  const [linkedPersonId, setLinkedPersonId] = useState(() => {
+    if (user.linkedPersonId) return user.linkedPersonId;
+    const email = (user.email || '').trim().toLowerCase();
+    if (!email) return '';
+    return pool.find((p) => (p.linkedUserEmail ?? '').trim().toLowerCase() === email)?.id ?? '';
+  });
   const [permissions, setPermissions] = useState(() =>
     resolveAccessPermissions(user.permissions)
   );
@@ -69,10 +74,15 @@ function UserAccessEditor({
 
   useEffect(() => {
     setActivated(user.activated === true);
-    setLinkedPersonId(user.linkedPersonId ?? '');
+    const email = (user.email || '').trim().toLowerCase();
+    setLinkedPersonId(
+      user.linkedPersonId ||
+        pool.find((p) => (p.linkedUserEmail ?? '').trim().toLowerCase() === email)?.id ||
+        ''
+    );
     setPermissions(resolveAccessPermissions(user.permissions));
     setLocalError(null);
-  }, [user]);
+  }, [user, pool]);
 
   const applyPreset = (preset: AccessPermissionPreset) => {
     setPermissions(permissionsForPreset(preset));
@@ -336,8 +346,10 @@ export function UserAccessPanel({ defaultOpen = false }: { defaultOpen?: boolean
         personId: patch.linkedPersonId,
       });
       const poolChanged =
-        JSON.stringify(nextPool.map((p) => [p.id, p.linkedUserId ?? ''])) !==
-        JSON.stringify(pool.map((p) => [p.id, p.linkedUserId ?? '']));
+        JSON.stringify(
+          nextPool.map((p) => [p.id, p.linkedUserId ?? '', p.linkedUserEmail ?? ''])
+        ) !==
+        JSON.stringify(pool.map((p) => [p.id, p.linkedUserId ?? '', p.linkedUserEmail ?? '']));
 
       await updateManagedUser(target.uid, {
         activated: patch.activated,
@@ -378,14 +390,15 @@ export function UserAccessPanel({ defaultOpen = false }: { defaultOpen?: boolean
       {open && (
         <div className="settings-body">
           <p className="settings-hint">
-            Hier Konten freischalten, mit dem Personalpool verknüpfen und festlegen, ob jemand
-            alles sieht oder nur Termine, in die er eingebucht ist — inkl. Tabs und Aktionen
-            (Planen, Disposition, Fälle löschen, Selbstbestätigung).
+            Hier Konten freischalten, mit dem Personalpool verknüpfen und Rechte setzen. Verknüpfung
+            geht auch umgekehrt: im Personalpool die Google-E-Mail eintragen, dann hier Person
+            wählen und speichern. Ohne deployte Firestore-Rules schlägt die Benutzerliste fehl.
           </p>
           <p className="settings-hint">
-            Erster Admin: In Firebase Console beim eigenen <code>users</code>-Dokument
-            <code> permissions.canManageUsers: true </code> und <code>activated: true</code>{' '}
-            setzen. Danach kann die Verwaltung hier erfolgen.
+            Erster Admin / Rules: einmalig{' '}
+            <code>npx firebase-tools deploy --only firestore:rules</code> im Ordner{' '}
+            <code>firebase</code>. Legacy-Konten ohne <code>permissions</code>-Feld dürfen
+            Benutzer verwalten.
           </p>
 
           <div className="user-access-toolbar">

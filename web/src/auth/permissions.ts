@@ -107,15 +107,16 @@ function normalizeWallTabs(raw: unknown, fallback: WallTabAccess): WallTabAccess
 }
 
 /**
- * Effektive Rechte. Ohne gespeichertes `permissions`-Objekt → Vollzugriff
- * (bestehende Admins/Nutzer bleiben uneingeschränkt).
+ * Effektive Rechte. Ohne gespeichertes `permissions`-Objekt → Vollzugriff inkl.
+ * Benutzerverwaltung (bestehende aktivierte Konten bleiben Admins).
+ * Eingeschränkte Konten speichern ein explizites `permissions`-Objekt.
  */
 export function resolveAccessPermissions(
   raw: Partial<AppAccessPermissions> | null | undefined
 ): AppAccessPermissions {
   if (!raw || typeof raw !== 'object') {
     return {
-      ...FULL_ACCESS_PERMISSIONS,
+      ...ADMIN_FULL_PERMISSIONS,
       wallTabs: { ...FULL_WALL_TABS },
     };
   }
