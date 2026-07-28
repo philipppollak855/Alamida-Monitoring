@@ -55,6 +55,7 @@ import {
   buildScheduleDraftFromCard,
   buildScheduleDraftFromSterbeort,
   buildSterbeortPool,
+  canvasPlanningId,
   canUndoPlanEvent,
   cardsForLane,
   clearCardToAbholort,
@@ -591,8 +592,87 @@ export function PlanningPage() {
         return;
       }
       if (drag.kind === 'source') {
-        // Quelle auf Termin fallen lassen: gleiches Verhalten wie Tages-Drop (Planungsdialog)
-        handleDropOnDay(target.ceremony.dayKey ?? focusDayKey);
+        if (!target.ceremony.dayKey) {
+          handleDropOnDay(focusDayKey);
+          return;
+        }
+        const order = nextOrderInLane(cards, target.ceremony.dayKey);
+        const existing =
+          (drag.item.existingCardId
+            ? cards.find((c) => c.id === drag.item.existingCardId)
+            : null) ??
+          cards.find(
+            (c) =>
+              c.docId === drag.item.docId &&
+              !c.erledigt &&
+              c.leavesEigenerKr &&
+              !c.targetsEigenerKr
+          );
+        const sourceCard: PlanningCard =
+          existing ??
+          {
+            id: canvasPlanningId(
+              drag.item.docId,
+              drag.item.fromKuehlraumId ?? `ceremony-${target.docId}-${target.ceremony.kind}`
+            ),
+            docId: drag.item.docId,
+            zeile: -1,
+            sterbefallId: drag.item.sterbefallId,
+            name: drag.item.name,
+            schrittTyp: 'ueberfuehrung',
+            vonOrt: drag.item.vonOrt,
+            nachOrt: target.ceremony.ort?.trim() || target.name,
+            terminAm: formatTerminDisplay(
+              target.ceremony.dayKey,
+              target.ceremony.zeit ?? null,
+              target.ceremony.datum
+            ),
+            plannedZeit: target.ceremony.zeit ?? null,
+            sourceDayKey: null,
+            plannedDayKey: target.ceremony.dayKey,
+            status: 'geplant',
+            erledigt: false,
+            istAbholungVomSterbeort: false,
+            targetsEigenerKr: false,
+            leavesEigenerKr: true,
+            kuehlraumId: null,
+            order,
+            hasManualPlan: true,
+            attachedCeremony: null,
+            detachedFromCeremony: false,
+            source: 'canvas',
+            amSterbeort: false,
+          };
+        const prev = plan.assignments[sourceCard.id];
+        const result = attachTransferToCeremony(
+          plan.assignments,
+          sourceCard,
+          { ...target.ceremony, hostDocId: target.docId },
+          order
+        );
+        clearDrag();
+        if (!result) {
+          handleDropOnDay(target.ceremony.dayKey);
+          return;
+        }
+        setFocusDayKey(target.ceremony.dayKey);
+        setFlashId(result.assignment.id);
+        void savePlan({
+          assignments: result.assignments,
+          publish: {
+            type: result.eventType,
+            docId: sourceCard.docId,
+            sterbefallId: sourceCard.sterbefallId,
+            name: sourceCard.name,
+            vonOrt: sourceCard.vonOrt,
+            nachOrt: sourceCard.nachOrt,
+            assignmentId: result.assignment.id,
+            plannedDayKey: result.assignment.plannedDayKey,
+            plannedZeit: result.assignment.plannedZeit,
+            previousSnapshot: prev ? snapshotFromAssignment(prev) : null,
+            snapshot: assignmentSnapshotPayload(result.assignment),
+          },
+        });
         return;
       }
       if (drag.kind !== 'card') {

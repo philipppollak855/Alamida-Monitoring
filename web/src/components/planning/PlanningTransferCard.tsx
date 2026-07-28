@@ -66,6 +66,11 @@ export function PlanningTransferCard({
     Boolean(card.plannedDayKey) &&
     !attachedToCeremony &&
     !kremationCompact;
+  const showStatusChip =
+    !kremationCompact &&
+    (card.istAbholungVomSterbeort
+      ? card.schrittTyp.trim().toLowerCase() !== 'abholung'
+      : true);
   const compactTransferSingle =
     !kremationCompact &&
     ['abholung', 'ueberfuehrung'].includes(card.schrittTyp.trim().toLowerCase());
@@ -137,7 +142,7 @@ export function PlanningTransferCard({
           {tapSelect ? '◎' : '⠿'}
         </span>
         <SchrittBadge typ={card.schrittTyp} />
-        {!kremationCompact && (
+        {showStatusChip && (
           <StatusChip
             status={card.istAbholungVomSterbeort ? 'abholung_noetig' : card.status}
             highlight={card.status === 'heute'}
