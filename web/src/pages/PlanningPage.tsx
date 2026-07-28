@@ -24,6 +24,8 @@ import {
 } from '../board/personnelBookingRules';
 import { zusatzTerminToEntry } from '../board/wallCalendar';
 import { filterAktiveSterbefaelle, filterSterbefaelleFuerPlanungTermine } from '../board/historieLogic';
+import { getEffectiveAusstehend } from '../board/ausstehendEffective';
+import { resolveAusstehendStatus } from '../board/ausstehendStatus';
 import { useCalendarDay } from '../hooks/useCalendarDay';
 import { useNarrowViewport } from '../hooks/useNarrowViewport';
 import { usePersonnelBookings } from '../hooks/usePersonnelBookings';
@@ -161,7 +163,7 @@ export function PlanningPage() {
     [rangeStart]
   );
 
-  /** Geplante Überführungen auch nach Fall-Abschluss weiter anzeigen. */
+  /** Geplante/offene Überführungen auch nach Fall-Abschluss weiter anzeigen. */
   const sterbefaelleFuerKarten = useMemo(() => {
     const activeIds = new Set(sterbefaelle.map((s) => s.id));
     const plannedDocIds = new Set(
@@ -169,9 +171,17 @@ export function PlanningPage() {
         .filter((a) => Boolean(a.plannedDayKey))
         .map((a) => a.docId)
     );
-    return sterbefaelleTermine.filter(
-      (s) => activeIds.has(s.id) || plannedDocIds.has(s.id)
-    );
+    return sterbefaelleTermine.filter((s) => {
+      if (activeIds.has(s.id) || plannedDocIds.has(s.id)) return true;
+      // Abgeschlossen, aber noch offene Alamida-Überführung (z. B. zum Begräbnis)
+      return getEffectiveAusstehend(s).some((a) => {
+        const status = resolveAusstehendStatus(
+          a.terminAm ?? a.abholungAm,
+          a.status ?? 'geplant'
+        );
+        return status !== 'vergangen';
+      });
+    });
   }, [sterbefaelle, sterbefaelleTermine, plan.assignments]);
 
   const cards = useMemo(

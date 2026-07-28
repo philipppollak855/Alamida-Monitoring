@@ -223,3 +223,42 @@ describe('mergeTransferPlanIntoEntries', () => {
     expect(kremEntries[0]?.badges).toContain('Geplant');
   });
 });
+
+describe('Schantl Begräbnis-Überführung', () => {
+  it('hängt KR→Friedhof an Trauerfeier/Beisetzung auch nach Abschluss', () => {
+    const entries = buildWallCalendarEntries([
+      {
+        id: '260166',
+        sterbefallId: '260166',
+        verstorbenerName: 'Günter Schantl',
+        endziel: 'Ternitz - Stadtfriedhof',
+        beisetzungsdatum: '28.07.2026',
+        trauerfeierdatum: '28.07.2026',
+        trauerfeierzeit: '14:30',
+        trauerfeierort: 'Ternitz - Stadtfriedhof',
+        imAnschluss: true,
+        inHistory: true,
+        aktivInDisposition: false,
+        historieGrund: 'trauerfeier_im_anschluss',
+        ausstehend: [
+          {
+            zeile: 3,
+            schrittTyp: 'ueberfuehrung',
+            vonOrt: 'Grafenbach',
+            nachOrt: 'Ternitz',
+            terminAm: '28.07.2026',
+            status: 'heute',
+            abholungAm: '28.07.2026',
+          },
+        ],
+      },
+    ]);
+
+    expect(entries.length).toBeGreaterThanOrEqual(1);
+    const host = entries.find((e) => e.docId === '260166');
+    expect(host).toBeTruthy();
+    expect(host?.attachedTransfer).toBe(true);
+    expect(host?.arts).toContain('ueberfuehrung');
+    expect(host?.badges.some((b) => /Überf|Grafenbach|Ternitz/i.test(b))).toBe(true);
+  });
+});
