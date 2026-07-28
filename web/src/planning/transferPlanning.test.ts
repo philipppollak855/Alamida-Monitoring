@@ -180,6 +180,10 @@ describe('transferPlanning board', () => {
     expect(cards[0].targetsEigenerKr).toBe(true);
     expect(cards[0].kuehlraumId).toBe('wrn');
 
+    // Belegung bleibt links sichtbar, auch wenn eine Planungs-Karte existiert
+    const stillInLeft = buildKuehlraumLocationGroups([occupied], cards, twoKr);
+    expect(stillInLeft.flatMap((g) => g.items).some((i) => i.docId === 'kr1')).toBe(true);
+
     const frees = buildSlotFreeEvents([occupied], cards, twoKr);
     expect(frees.some((f) => f.docId === 'kr1' && f.reason === 'ueberfuehrung')).toBe(true);
 

@@ -479,6 +479,7 @@ export function buildLocationGroups(pool: SterbeortPoolItem[]): LocationGroup[] 
 
 /**
  * Kühlräume mit Flag „linke Spalte“ — ziehbar für KR→KR-Überführung.
+ * Zeigt die aktuelle Belegung (wie rechts), unabhängig von offenen Planungs-Karten.
  */
 export function buildKuehlraumLocationGroups(
   sterbefaelle: Sterbefall[],
@@ -486,11 +487,6 @@ export function buildKuehlraumLocationGroups(
   settings: DispositionSettings,
   now = new Date()
 ): LocationGroup[] {
-  const scheduledDocIds = new Set(
-    cards
-      .filter((c) => c.targetsEigenerKr && c.plannedDayKey != null && !c.erledigt)
-      .map((c) => c.docId)
-  );
   const groups: LocationGroup[] = [];
   for (const cfg of settings.eigeneKuehlraeume) {
     if (cfg.zeigeInLinkerPlanungsspalte !== true) continue;
@@ -498,7 +494,6 @@ export function buildKuehlraumLocationGroups(
     const items: SterbeortPoolItem[] = [];
     slots.forEach((fall) => {
       if (!fall) return;
-      if (scheduledDocIds.has(fall.id)) return;
       const ceremonies = buildCeremoniesForFall(fall, now);
       const existing = cards.find(
         (c) => c.docId === fall.id && c.targetsEigenerKr && !c.erledigt
