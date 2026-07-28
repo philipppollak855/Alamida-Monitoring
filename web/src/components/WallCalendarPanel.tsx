@@ -1464,7 +1464,7 @@ function WallCalendarDaySection({
       >
         <button
           type="button"
-          className="wall-cal-day-open wall-cal-day-open--head"
+          className="wall-cal-day-head-btn"
           onClick={() => onOpenDay!(day.dayKey)}
           aria-label={`Termine am ${day.dayLabel}${summary.total > 0 ? `, ${summary.total} Termine` : ''}`}
         >
