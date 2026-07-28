@@ -264,6 +264,7 @@ describe('mergeTransferPlanIntoEntries', () => {
     );
     const groups = merged.filter((e) => e.kremationGroupId === 'g1');
     expect(groups).toHaveLength(1);
+    expect(groups[0]?.name).toBe('Kremation');
     expect(groups[0]?.kremationMemberNames).toEqual(['Alpha', 'Beta']);
     expect(groups[0]?.badges).toContain('2×');
     expect(merged.filter((e) => e.arts.includes('ueberfuehrung_kremation'))).toHaveLength(1);

@@ -907,7 +907,7 @@ export function mergeTransferPlanIntoEntries(
       dayLabel: formatDayLabelDe(group.dayKey),
       timeLabel: group.zeit || '—',
       sortMs: members[0]!.sortMs,
-      name: names.join(' · '),
+      name: 'Kremation',
       title: 'Kremation',
       subtitle: route,
       badges: ['Kremation', `${members.length}×`, 'Geplant'],

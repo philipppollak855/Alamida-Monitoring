@@ -5,6 +5,10 @@ import {
 import { WallCalBestattungsBadge } from './WallCalBestattungsBadge';
 import type { KeyboardEvent, MouseEvent } from 'react';
 
+function isKremationGroupEntry(entry: WallCalendarEntry): boolean {
+  return Boolean(entry.kremationGroupId && (entry.kremationMemberNames?.length ?? 0) > 1);
+}
+
 export function WallCalendarEventCard({
   entry,
   compact = false,
@@ -23,6 +27,8 @@ export function WallCalendarEventCard({
 }) {
   const colorClass = `wall-cal-card--color-${calendarColorGroupFromArts(entry.arts)}`;
   const clickable = Boolean(onClick);
+  const kremGroup = isKremationGroupEntry(entry);
+  const memberNames = entry.kremationMemberNames ?? [];
   const bestattungsBadge = entry.bestattungsMarker ? (
     <WallCalBestattungsBadge marker={entry.bestattungsMarker} />
   ) : null;
@@ -43,6 +49,7 @@ export function WallCalendarEventCard({
     compact && !strip && !mobile ? 'wall-cal-card--compact' : '',
     colorClass,
     entry.grouped ? 'is-grouped' : '',
+    kremGroup ? 'is-krem-group' : '',
     clickable ? 'is-clickable' : '',
   ]
     .filter(Boolean)
@@ -69,9 +76,33 @@ export function WallCalendarEventCard({
         tabIndex: 0,
         onClick: handleClick,
         onKeyDown: handleKeyDown,
-        'aria-label': `Personal einbuchen: ${entry.name}, ${entry.timeLabel}`,
+        'aria-label': kremGroup
+          ? `Kombinierte Kremation: ${memberNames.join(', ')}, ${entry.timeLabel}`
+          : `Personal einbuchen: ${entry.name}, ${entry.timeLabel}`,
       }
     : {};
+
+  if (kremGroup) {
+    const route = entry.subtitle?.trim() || null;
+    return (
+      <article className={className} {...interactiveProps}>
+        <div className={strip || mobile ? 'wall-cal-strip-top' : 'wall-cal-card-headline'}>
+          {bestattungsBadge}
+          {entry.timeLabel && entry.timeLabel !== '—' ? (
+            <time className="wall-cal-time">{entry.timeLabel}</time>
+          ) : null}
+        </div>
+        <span className="wall-cal-krem-title">Kremation</span>
+        <ul className="wall-cal-krem-names">
+          {memberNames.map((n) => (
+            <li key={n}>{n}</li>
+          ))}
+        </ul>
+        {route ? <span className="wall-cal-strip-meta wall-cal-meta">{route}</span> : null}
+        {traegerBadge}
+      </article>
+    );
+  }
 
   if (mobile) {
     return (
@@ -105,13 +136,6 @@ export function WallCalendarEventCard({
           {stripTypes && <span className="wall-cal-strip-types">{stripTypes}</span>}
         </div>
         <span className="wall-cal-name">{entry.name}</span>
-        {entry.kremationMemberNames && entry.kremationMemberNames.length > 1 ? (
-          <ul className="wall-cal-krem-names">
-            {entry.kremationMemberNames.map((n) => (
-              <li key={n}>{n}</li>
-            ))}
-          </ul>
-        ) : null}
         {stripMeta ? <span className="wall-cal-strip-meta">{stripMeta}</span> : null}
         {traegerBadge}
       </article>
@@ -134,22 +158,10 @@ export function WallCalendarEventCard({
         </div>
       </div>
       <span className="wall-cal-name">{entry.name}</span>
-      {entry.kremationMemberNames && entry.kremationMemberNames.length > 1 ? (
-        <ul className="wall-cal-krem-names">
-          {entry.kremationMemberNames.map((n) => (
-            <li key={n}>{n}</li>
-          ))}
-        </ul>
-      ) : null}
       <span className="wall-cal-meta">{entry.subtitle || entry.title}</span>
       {traegerBadge}
       {!compact && entry.grouped && !entry.kremationGroupId && (
         <span className="wall-cal-group-hint">Trauerblock · {entry.sterbefallId}</span>
-      )}
-      {!compact && entry.kremationGroupId && (
-        <span className="wall-cal-group-hint">
-          Kombinierte Kremation · {entry.kremationMemberNames?.length ?? 0} Fälle
-        </span>
       )}
     </article>
   );
