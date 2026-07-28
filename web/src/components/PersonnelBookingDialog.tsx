@@ -309,7 +309,6 @@ export function PersonnelBookingDialog({
       sterbefall?.beisetzungsort?.trim() ||
       (isFriedhofTermin ? entry.subtitle?.trim() || entry.title : null);
     const text = [
-      'Empfänger: (Auswahl aus WhatsApp-Kontakten)',
       `Termin: ${entry.name}`,
       `Verstorbene/r: ${entry.name}`,
       `${entry.dayLabel} ${entry.timeLabel}`,

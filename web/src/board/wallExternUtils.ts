@@ -15,6 +15,7 @@ import { istBestattung, istKrankenhaus, istKrematorium, ortLabel } from './ortKe
 import { isAusstehendHeute, isAusstehendHeuteOrGeplant } from './ausstehendStatus';
 import {
   hatAusstehendeUeberfuehrungInsEigeneKr,
+  hatAbgeschlosseneUeberfuehrungInsEigeneKr,
   isAmKrankenhausOderSterbeort,
   isImEigenenKuehlraum,
   zielIstEigenerKuehlraum,
@@ -253,6 +254,9 @@ function hatKhRouteInVerlaufZuEigeneKr(s: Sterbefall): boolean {
 }
 
 function istExternKrankenhausFall(s: Sterbefall): boolean {
+  // Bereits in Firmen-KR angekommen bzw. abgeschlossen weitergeführt:
+  // nicht mehr als KH-Fall im Extern-Tab führen.
+  if (hatAbgeschlosseneUeberfuehrungInsEigeneKr(s)) return false;
   if (isImEigenenKuehlraum(s) || istAktuellImKrematorium(s)) return false;
 
   if (hatOffeneKhUeberfuehrungInsEigeneKr(s)) return true;
@@ -331,7 +335,12 @@ function istExternKrankenhausFall(s: Sterbefall): boolean {
     return true;
   }
 
-  if (hatKhRouteInVerlaufZuEigeneKr(s)) return true;
+  if (
+    hatKhRouteInVerlaufZuEigeneKr(s) &&
+    (s.aktuellePositionTyp === 'sterbeort' || isAmKrankenhausOderSterbeort(s))
+  ) {
+    return true;
+  }
 
   return false;
 }

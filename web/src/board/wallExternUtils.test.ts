@@ -75,7 +75,7 @@ describe('buildExternGruppen', () => {
     expect(gruppen.some((g) => g.typ === 'krankenhaus' && g.faelle.length > 0)).toBe(true);
   });
 
-  it('erkennt UK→Kühl nur aus Verlauf (ohne ausstehend/naechsterSchritt)', () => {
+  it('zeigt UK→Kühl aus Verlauf nicht mehr, wenn Überführung bereits abgeschlossen ist', () => {
     const gruppen = buildExternGruppen([
       baseFall({
         id: 't3',
@@ -100,8 +100,7 @@ describe('buildExternGruppen', () => {
     ]);
 
     const kh = gruppen.find((g) => g.typ === 'krankenhaus');
-    expect(kh).toBeDefined();
-    expect(kh!.faelle.some((f) => f.name.includes('Touahria'))).toBe(true);
+    expect(kh).toBeUndefined();
   });
 
   it('zeigt Fall gleichzeitig in Krankenhaus und Kremation bei offenen Schritten', () => {
