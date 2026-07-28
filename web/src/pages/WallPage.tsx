@@ -57,6 +57,10 @@ import { useWallEdgeSwipe } from '../hooks/useWallEdgeSwipe';
 import { useWallFreezeGuard } from '../hooks/useWallFreezeGuard';
 import { useTransferPlan } from '../hooks/useTransferPlan';
 import type { Sterbefall } from '../types';
+import {
+  listDuePlannedKuehlraumArrivals,
+  overlayDuePlannedKuehlraumArrivals,
+} from '../board/plannedKuehlraumArrival';
 
 const WALL_TAB_LABELS: Record<WallView, string> = {
   kuehlraum: 'Kühlraum',
@@ -195,9 +199,21 @@ export function WallPage({
     const [y, m, d] = calendarDay.split('-').map(Number);
     return new Date(y, m - 1, d);
   }, [calendarDay]);
-  const sterbefaelle = useMemo(
+  const sterbefaelleBase = useMemo(
     () => filterAktiveSterbefaelle(sterbefaelleRaw),
     [sterbefaelleRaw]
+  );
+  /** Fällige Planungs-Ankünfte zählen bereits als Kühlraum-Belegung (bis Alamida nachzieht). */
+  const sterbefaelle = useMemo(
+    () =>
+      overlayDuePlannedKuehlraumArrivals(
+        sterbefaelleBase,
+        transferPlan.assignments,
+        settings,
+        calendarDay,
+        now
+      ),
+    [sterbefaelleBase, transferPlan.assignments, settings, calendarDay, now]
   );
   const sterbefaelleKalender = useMemo(
     () => filterSterbefaelleFuerKalender(sterbefaelleRaw),
@@ -238,18 +254,18 @@ export function WallPage({
     const idx = Math.max(0, kuehlraumGrids.findIndex((g) => g.cfg.id === kuehlraumSub.activeId));
     return kuehlraumGrids[idx >= 0 ? idx : 0] ?? kuehlraumGrids[0];
   }, [kuehlraumGrids, kuehlraumSub.activeId]);
-  const externExcludedDocIds = useMemo(() => {
-    const ids = new Set<string>();
-    for (const assignment of Object.values(transferPlan.assignments)) {
-      if (!assignment.docId) continue;
-      if (!assignment.plannedDayKey) continue;
-      if (!assignment.plannedKuehlraumId) continue;
-      if (assignment.plannedDayKey <= calendarDay) {
-        ids.add(assignment.docId);
-      }
-    }
-    return ids;
-  }, [transferPlan.assignments, calendarDay]);
+  const externExcludedDocIds = useMemo(
+    () =>
+      new Set(
+        listDuePlannedKuehlraumArrivals(
+          transferPlan.assignments,
+          settings,
+          calendarDay,
+          now
+        ).map((a) => a.docId)
+      ),
+    [transferPlan.assignments, settings, calendarDay, now]
+  );
   const externGruppen = useMemo(
     () =>
       buildExternGruppen(sterbefaelle, {
