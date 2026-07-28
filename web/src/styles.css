@@ -7891,6 +7891,7 @@ code {
 .plan-ceremony-chip,
 .plan-endziel-chip,
 .plan-free-chip,
+.plan-checkout-chip,
 .plan-freigabe-tage-chip {
   display: inline-flex;
   align-items: center;
@@ -7945,6 +7946,11 @@ code {
 .plan-free-chip {
   background: rgba(255, 255, 255, 0.06);
   color: var(--muted);
+}
+
+.plan-checkout-chip {
+  background: rgba(251, 191, 36, 0.14);
+  color: #fbbf24;
 }
 
 .plan-center {

@@ -35,6 +35,12 @@ import type {
   SlotFreeEvent,
   SterbeortPoolItem,
 } from './types';
+import {
+  clampKuehlraumCheckoutZeit,
+  earliestKuehlraumCheckoutZeit,
+  isSlotFreeEffectiveForNow,
+  pickFuneralCeremonyForCheckout,
+} from './kuehlraumCheckoutRules';
 
 export function planningCardId(docId: string, zeile: number): string {
   return `${docId}:${zeile}`;
@@ -330,6 +336,7 @@ export function buildPlanningCards(
 /**
  * Wann wird ein Platz im eigenen KR wieder frei?
  * — Abgang (Kremation/Weiterführung) oder Beisetzung.
+ * Bei Begräbnis: frühestens 1 Stunde vor Trauerfeier/Beisetzung.
  */
 export function buildSlotFreeEvents(
   sterbefaelle: Sterbefall[],
@@ -338,6 +345,7 @@ export function buildSlotFreeEvents(
   now = new Date()
 ): SlotFreeEvent[] {
   const events: SlotFreeEvent[] = [];
+  const byId = new Map(sterbefaelle.map((s) => [s.id, s]));
 
   for (const card of cards) {
     if (card.erledigt || !card.plannedDayKey) continue;
@@ -345,11 +353,25 @@ export function buildSlotFreeEvents(
     if (!card.leavesEigenerKr) continue;
     const reason: SlotFreeEvent['reason'] =
       card.schrittTyp === 'kremation' ? 'kremation' : 'ueberfuehrung';
+    let zeit = card.plannedZeit ?? null;
+    // KR → Feier/Friedhof: Checkout nicht vor Feier−1h
+    if (!card.targetsEigenerKr && reason === 'ueberfuehrung') {
+      const fall = byId.get(card.docId);
+      if (fall) {
+        const host = pickFuneralCeremonyForCheckout(
+          buildCeremoniesForFall(fall, now),
+          card.plannedDayKey
+        );
+        if (host?.zeit) {
+          zeit = clampKuehlraumCheckoutZeit(zeit, host.zeit);
+        }
+      }
+    }
     events.push({
       docId: card.docId,
       name: card.name,
       dayKey: card.plannedDayKey,
-      zeit: card.plannedZeit,
+      zeit,
       reason,
       vonOrt: card.vonOrt,
       nachOrt: card.nachOrt,
@@ -365,13 +387,15 @@ export function buildSlotFreeEvents(
       (e) => e.docId === s.id && e.dayKey === beisetzung.dayKey && e.reason === 'beisetzung'
     );
     if (already) continue;
+    const host = pickFuneralCeremonyForCheckout(ceremonies, beisetzung.dayKey) ?? beisetzung;
     const krId = resolveFallKuehlraumId(s, settings);
     const kr = settings.eigeneKuehlraeume.find((k) => k.id === krId);
     events.push({
       docId: s.id,
       name: s.verstorbenerName ?? s.sterbefallId ?? s.id,
       dayKey: beisetzung.dayKey,
-      zeit: beisetzung.zeit ?? null,
+      zeit:
+        earliestKuehlraumCheckoutZeit(host.zeit) ?? host.zeit ?? beisetzung.zeit ?? null,
       reason: 'beisetzung',
       vonOrt: kr?.alamidaName || kr?.label || 'Kühlraum',
       nachOrt: s.endziel?.trim() || 'Beisetzung',
@@ -590,6 +614,8 @@ export function buildKuehlraumRailStates(
 
     const plannedDepartures = slotFrees.filter((e) => {
       if (focusDayKey && e.dayKey !== focusDayKey) return false;
+      // Heute: erst ab frühester Ausbuchungszeit (Feier − 1h) als Abgang zählen
+      if (!isSlotFreeEffectiveForNow(e, now)) return false;
       const fall = sterbefaelle.find((s) => s.id === e.docId);
       if (!fall) return false;
       return resolveSlotKuehlraumId(fall) === cfg.id || resolveFallKuehlraumId(fall, settings) === cfg.id;
@@ -963,7 +989,12 @@ export function attachTransferToCeremony(
     dayKey: ceremony.dayKey,
   };
   const next = moveCardAssignment(assignments, card, ceremony.dayKey, order, {
-    plannedZeit: ceremony.zeit?.trim() || card.plannedZeit || null,
+    // Ausbuchung frühestens 1h vor Feier (z. B. TF 14:00 → 13:00)
+    plannedZeit:
+      earliestKuehlraumCheckoutZeit(ceremony.zeit) ||
+      ceremony.zeit?.trim() ||
+      card.plannedZeit ||
+      null,
     attachedCeremony: attached,
     detachedFromCeremony: false,
   });

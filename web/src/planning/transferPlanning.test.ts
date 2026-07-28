@@ -216,6 +216,49 @@ describe('transferPlanning board', () => {
     expect(rails[0].slotFrees.some((f) => f.reason === 'beisetzung')).toBe(true);
   });
 
+  it('setzt Slot-Frei / Attach auf Feier − 1h (Ausbuchungsregel)', () => {
+    const occupied = fall({
+      id: 'occ2',
+      verstorbenerName: 'Feier',
+      aktuellePosition: 'Kühlr. Grafenbach',
+      aktuellePositionTyp: 'kuehlraum',
+      kuehlraumId: 'Kühlr. Grafenbach',
+      kuehlplatz: '1',
+      status: 'im_kuehlraum',
+      imAnschluss: true,
+      trauerfeierdatum: '28.07.2026',
+      trauerfeierzeit: '14:00',
+      beisetzungsdatum: '28.07.2026',
+      ausstehend: [
+        {
+          zeile: 1,
+          schrittTyp: 'ueberfuehrung',
+          vonOrt: 'Grafenbach',
+          nachOrt: 'Friedhof',
+          terminAm: '28.07.2026',
+          status: 'heute',
+        },
+      ],
+    });
+    const cards = buildPlanningCards([occupied], {}, settings);
+    const card = cards[0]!;
+    const attached = attachTransferToCeremony(
+      {},
+      card,
+      { kind: 'trauerfeier', dayKey: '2026-07-28', zeit: '14:00' },
+      10
+    );
+    expect(attached!.assignment.plannedZeit).toBe('13:00');
+
+    const frees = buildSlotFreeEvents(
+      [occupied],
+      buildPlanningCards([occupied], attached!.assignments, settings),
+      settings
+    );
+    const leave = frees.find((f) => f.docId === 'occ2' && f.dayKey === '2026-07-28');
+    expect(leave?.zeit).toBe('13:00');
+  });
+
   it('buildPlanningCards merged Assignments mit Uhrzeit', () => {
     const sterbefaelle = [
       fall({
@@ -375,7 +418,7 @@ describe('transferPlanning board', () => {
       kind: 'beisetzung',
       dayKey: '2026-07-30',
     });
-    expect(result!.assignment.plannedZeit).toBe('14:00');
+    expect(result!.assignment.plannedZeit).toBe('13:00');
 
     const cards = buildPlanningCards(sterbefaelle, result!.assignments, settings);
     expect(cards[0]!.attachedCeremony?.kind).toBe('beisetzung');

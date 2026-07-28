@@ -72,6 +72,10 @@ import {
   undoPlanEvent,
   scheduleToKuehlraum,
 } from '../planning/transferPlanning';
+import {
+  clampKuehlraumCheckoutZeit,
+  pickFuneralCeremonyForCheckout,
+} from '../planning/kuehlraumCheckoutRules';
 import type {
   CeremonyInfo,
   DispositionPlanEvent,
@@ -500,12 +504,28 @@ export function PlanningPage() {
         }
       }
 
-      // Nicht-KR-Überführung: nur Tag verschieben
+      // Nicht-KR-Überführung: nur Tag verschieben (Checkout frühestens Feier − 1h)
       const order = nextOrderInLane(cards, dayKey);
       const prev = plan.assignments[card.id];
+      let plannedZeit = card.plannedZeit ?? null;
+      if (card.leavesEigenerKr && !card.targetsEigenerKr) {
+        const fall =
+          sterbefaelleFuerKarten.find((s) => s.id === card.docId) ??
+          sterbefaelle.find((s) => s.id === card.docId);
+        if (fall) {
+          const host = pickFuneralCeremonyForCheckout(
+            buildCeremoniesForFall(fall, today),
+            dayKey
+          );
+          if (host?.zeit) {
+            plannedZeit = clampKuehlraumCheckoutZeit(plannedZeit, host.zeit);
+          }
+        }
+      }
       const nextAssignments = moveCardAssignment(plan.assignments, card, dayKey, order, {
         attachedCeremony: null,
         detachedFromCeremony: true,
+        plannedZeit,
       });
       const assignment = nextAssignments[card.id];
       clearDrag();
@@ -527,7 +547,7 @@ export function PlanningPage() {
         },
       });
     },
-    [drag, saving, clearDrag, settings, openSchedule, cards, plan.assignments, savePlan, setError]
+    [drag, saving, clearDrag, settings, openSchedule, cards, plan.assignments, savePlan, setError, sterbefaelleFuerKarten, sterbefaelle, today]
   );
 
   const handleDropOnCeremony = useCallback(

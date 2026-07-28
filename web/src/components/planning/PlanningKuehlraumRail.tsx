@@ -6,6 +6,7 @@ import {
   tageSeitFreigabeTitle,
 } from '../../board/freigabeLogic';
 import { formatTerminDisplay, freigabeLabel } from '../../planning/transferPlanning';
+import { earliestKuehlraumCheckoutZeit } from '../../planning/kuehlraumCheckoutRules';
 
 type Props = {
   rails: KuehlraumRailState[];
@@ -231,6 +232,19 @@ export function PlanningKuehlraumRail({
                                   {occ.freesReason ? ` (${occ.freesReason})` : ''}
                                 </span>
                               )}
+                              {occ.nextCeremony?.zeit &&
+                                (occ.nextCeremony.kind === 'trauerfeier' ||
+                                  occ.nextCeremony.kind === 'verabschiedung' ||
+                                  occ.nextCeremony.kind === 'beisetzung') &&
+                                earliestKuehlraumCheckoutZeit(occ.nextCeremony.zeit) && (
+                                  <span
+                                    className="plan-checkout-chip"
+                                    title="Kühlraum-Ausbuchung frühestens 1 Stunde vor dem Feiertermin"
+                                  >
+                                    Ausbuchung ab{' '}
+                                    {earliestKuehlraumCheckoutZeit(occ.nextCeremony.zeit)}
+                                  </span>
+                                )}
                             </li>
                           );
                         })}
