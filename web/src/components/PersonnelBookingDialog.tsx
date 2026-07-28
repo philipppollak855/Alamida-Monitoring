@@ -295,21 +295,27 @@ export function PersonnelBookingDialog({
   }
 
   function shareBookingViaWhatsApp() {
-    const selectedExternNames = selectedExternIds
-      .map((id) => selectedExternMap.get(id)?.name || id)
-      .filter(Boolean);
-    const confirmedNames = confirmedPersonIds
-      .filter((id) => selectedExternIds.includes(id))
-      .map((id) => selectedExternMap.get(id)?.name || id);
+    const isFriedhofTermin = /friedhof/i.test(
+      [entry.title, entry.subtitle, sterbefall?.beisetzungsort, sterbefall?.trauerfeierort]
+        .filter(Boolean)
+        .join(' ')
+    );
+    const terminOrt =
+      sterbefall?.beisetzungsort?.trim() ||
+      sterbefall?.trauerfeierort?.trim() ||
+      entry.subtitle?.trim() ||
+      entry.title;
+    const beisetzungsInfo =
+      sterbefall?.beisetzungsort?.trim() ||
+      (isFriedhofTermin ? entry.subtitle?.trim() || entry.title : null);
     const text = [
+      'Empfänger: (Auswahl aus WhatsApp-Kontakten)',
       `Termin: ${entry.name}`,
+      `Verstorbene/r: ${entry.name}`,
       `${entry.dayLabel} ${entry.timeLabel}`,
-      `Art: ${entry.badges.join(' · ') || entry.title}`,
-      entry.subtitle ? `Ort/Route: ${entry.subtitle}` : null,
-      selectedExternNames.length > 0
-        ? `Extern eingebucht: ${selectedExternNames.join(', ')}`
-        : null,
-      confirmedNames.length > 0 ? `Extern bestätigt: ${confirmedNames.join(', ')}` : null,
+      `Art: ${entry.badges.join(' · ') || entry.title}${effectiveMarker ? ` · ${effectiveMarker === 'S' ? 'Sarg' : 'Urne'}` : ''}`,
+      terminOrt ? `Wo ist Termin: ${terminOrt}` : null,
+      beisetzungsInfo ? `Friedhof: ${beisetzungsInfo}` : null,
       note.trim() ? `Notiz: ${note.trim()}` : null,
     ]
       .filter(Boolean)
