@@ -107,6 +107,7 @@ export function PersonnelStandbyDialog({
   const [rangeAnchor, setRangeAnchor] = useState<string | null>(null);
   const [calFilterActive, setCalFilterActive] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [regionLocal, setRegionLocal] = useState<HolidayRegion>(holidayRegion);
 
   useEffect(() => {
@@ -124,6 +125,7 @@ export function PersonnelStandbyDialog({
     setRangeAnchor(null);
     setCalFilterActive(Boolean(initialDayKey));
     setDeletingId(null);
+    setEditingId(null);
     setMonthCursor(startOfMonth(dateFromDayKey(start)));
     setRegionLocal(holidayRegion);
   }, [open, dayKeys, people, initialDayKey, holidayRegion]);
@@ -218,6 +220,31 @@ export function PersonnelStandbyDialog({
   function clearCalSelection() {
     setRangeAnchor(null);
     setCalFilterActive(false);
+  }
+
+  function resetForm(day = fromDayKey) {
+    setEditingId(null);
+    setSelectedIds([]);
+    setNote('');
+    setExclusions([]);
+    setExPersonId(people[0]?.id || '');
+    setExDayKey(day);
+    setExFromTime('12:00');
+    setExToTime('14:00');
+  }
+
+  function startEdit(s: PersonnelStandby) {
+    setEditingId(s.id);
+    setFromDayKey(s.fromDayKey);
+    setToDayKey(s.toDayKey);
+    setSelectedIds([...s.personIds]);
+    setNote(s.note ?? '');
+    setExclusions(s.exclusions ? s.exclusions.map((e) => ({ ...e })) : []);
+    setExPersonId(s.personIds[0] || people[0]?.id || '');
+    setExDayKey(s.fromDayKey);
+    setRangeAnchor(null);
+    setCalFilterActive(true);
+    setMonthCursor(startOfMonth(dateFromDayKey(s.fromDayKey)));
   }
 
   function handleDayClick(dayKey: string) {
@@ -585,30 +612,44 @@ export function PersonnelStandbyDialog({
                 )}
               </div>
 
-              <button
-                type="button"
-                className="btn-primary"
-                disabled={
-                  pending ||
-                  selectedIds.length === 0 ||
-                  !fromDayKey ||
-                  !toDayKey ||
-                  toDayKey < fromDayKey
-                }
-                onClick={() =>
-                  void onSave({
-                    id: newId('stb'),
-                    fromDayKey,
-                    toDayKey,
-                    personIds: selectedIds,
-                    exclusions: exclusions.length > 0 ? exclusions : undefined,
-                    note: note.trim() || undefined,
-                    updatedAtMs: Date.now(),
-                  })
-                }
-              >
-                Eintragen
-              </button>
+              <div className="personnel-standby-form-actions">
+                {editingId && (
+                  <button
+                    type="button"
+                    className="btn-ghost"
+                    disabled={pending}
+                    onClick={() => resetForm(fromDayKey)}
+                  >
+                    Abbrechen
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn-primary"
+                  disabled={
+                    pending ||
+                    selectedIds.length === 0 ||
+                    !fromDayKey ||
+                    !toDayKey ||
+                    toDayKey < fromDayKey
+                  }
+                  onClick={() => {
+                    const id = editingId ?? newId('stb');
+                    void onSave({
+                      id,
+                      fromDayKey,
+                      toDayKey,
+                      personIds: selectedIds,
+                      exclusions: exclusions.length > 0 ? exclusions : undefined,
+                      note: note.trim() || undefined,
+                      updatedAtMs: Date.now(),
+                    });
+                    resetForm(fromDayKey);
+                  }}
+                >
+                  {editingId ? 'Änderungen speichern' : 'Eintragen'}
+                </button>
+              </div>
             </div>
 
             {error && (
@@ -632,12 +673,14 @@ export function PersonnelStandbyDialog({
                       .map((id) => personAbbrev(byId.get(id)?.name ?? id))
                       .join(' ');
                     const warn = standbyStaffingWarning(s.personIds.length);
+                    const isEditing = editingId === s.id;
                     return (
-                      <li key={s.id}>
+                      <li key={s.id} className={isEditing ? 'is-editing' : ''}>
                         <div>
                           <strong>
                             {formatRangeLabel(s.fromDayKey, s.toDayKey)}
                             {warn ? ' · !' : ''}
+                            {isEditing ? ' · wird bearbeitet' : ''}
                           </strong>
                           <span>
                             {abbrevs} · {names}
@@ -647,14 +690,27 @@ export function PersonnelStandbyDialog({
                             {s.note ? ` · ${s.note}` : ''}
                           </span>
                         </div>
-                        <button
-                          type="button"
-                          className="btn-ghost btn-small"
-                          disabled={pending || deletingId === s.id}
-                          onClick={() => void handleDelete(s.id)}
-                        >
-                          {deletingId === s.id ? 'Löscht…' : 'Löschen'}
-                        </button>
+                        <div className="personnel-standby-list-actions">
+                          <button
+                            type="button"
+                            className="btn-ghost btn-small"
+                            disabled={pending || deletingId === s.id}
+                            onClick={() => startEdit(s)}
+                          >
+                            Bearbeiten
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-ghost btn-small"
+                            disabled={pending || deletingId === s.id}
+                            onClick={() => {
+                              if (editingId === s.id) resetForm(fromDayKey);
+                              void handleDelete(s.id);
+                            }}
+                          >
+                            {deletingId === s.id ? 'Löscht…' : 'Löschen'}
+                          </button>
+                        </div>
                       </li>
                     );
                   })}

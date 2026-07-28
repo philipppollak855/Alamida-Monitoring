@@ -5267,6 +5267,25 @@ code {
   gap: 0.25rem;
 }
 
+.personnel-standby-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
+  margin-top: 0.15rem;
+}
+
+.personnel-standby-list-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.25rem;
+}
+
+.personnel-absence-list li.is-editing {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
 .personnel-standby-people {
   margin: 0;
   padding: 0.45rem 0.55rem;
