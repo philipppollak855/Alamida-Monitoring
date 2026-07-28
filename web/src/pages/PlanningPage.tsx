@@ -586,7 +586,16 @@ export function PlanningPage() {
 
   const handleDropOnCeremony = useCallback(
     (target: { docId: string; ceremony: CeremonyInfo }) => {
-      if (!drag || drag.kind !== 'card' || saving) {
+      if (!drag || saving) {
+        clearDrag();
+        return;
+      }
+      if (drag.kind === 'source') {
+        // Quelle auf Termin fallen lassen: gleiches Verhalten wie Tages-Drop (Planungsdialog)
+        handleDropOnDay(target.ceremony.dayKey ?? focusDayKey);
+        return;
+      }
+      if (drag.kind !== 'card') {
         clearDrag();
         return;
       }
