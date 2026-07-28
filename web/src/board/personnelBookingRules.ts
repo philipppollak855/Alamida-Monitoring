@@ -398,11 +398,12 @@ export function personnelBookingTraegerLine(
   if (booking.traegerVonFamilie) return 'Träger Familie';
   if (booking.traegerIds.length === 0) return null;
   const byId = new Map(pool.map((p) => [p.id, p]));
+  // Kein „(extern)“-Suffix in der Kalenderzeile — sonst wirkt es wie Fall-Standort.
   const names = booking.traegerIds
     .map((id) => {
       const p = byId.get(id);
       if (!p?.name?.trim()) return '';
-      return p.extern ? `${p.name.trim()} (extern)` : p.name.trim();
+      return p.name.trim();
     })
     .filter(Boolean);
   if (names.length === 0) {
@@ -432,7 +433,7 @@ export function personnelBookingDisplayLine(
   if (booking.arrangeurId) {
     const p = byId.get(booking.arrangeurId);
     if (p?.name?.trim()) {
-      parts.push(p.extern ? `Arr. ${p.name.trim()} (extern)` : `Arr. ${p.name.trim()}`);
+      parts.push(`Arr. ${p.name.trim()}`);
     } else {
       parts.push('Arrangeur');
     }

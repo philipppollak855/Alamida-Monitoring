@@ -165,7 +165,7 @@ export function planningCeremonyPersonnelLine(
       .map((id) => {
         const p = byId.get(id);
         if (!p?.name) return '';
-        return p.extern ? `${p.name} (extern)` : p.name;
+        return p.name;
       })
       .filter(Boolean);
     if (names.length === 0) {
@@ -178,7 +178,7 @@ export function planningCeremonyPersonnelLine(
   if (booking.arrangeurId) {
     const p = byId.get(booking.arrangeurId);
     if (p?.name) {
-      parts.push(p.extern ? `Arr. ${p.name} (extern)` : `Arr. ${p.name}`);
+      parts.push(`Arr. ${p.name}`);
     } else {
       parts.push('Arrangeur');
     }

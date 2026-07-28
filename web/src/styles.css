@@ -4761,6 +4761,9 @@ code {
 }
 
 .wall-cal-day-open--head {
+  flex: 0 0 auto;
+  height: auto;
+  align-self: stretch;
   width: 100%;
   display: block;
   text-align: inherit;

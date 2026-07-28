@@ -289,7 +289,7 @@ describe('personnelBookingTraegerLine', () => {
           { id: 't2', name: 'Bernd', extern: true },
         ]
       )
-    ).toBe('Anna, Bernd (extern)');
+    ).toBe('Anna, Bernd');
   });
 });
 
