@@ -391,9 +391,11 @@ export function PlanningCenterDay({
                           : 'Personal offen'}
                     </span>
                   )}
-                  {acceptDrop && !isMerged && (
+                  {acceptDrop && (
                     <span className="plan-center-ceremony-drop-hint">
-                      Überführung hierher ziehen
+                      {isMerged
+                        ? 'Weitere Überführung hierher ziehen'
+                        : 'Überführung hierher ziehen'}
                     </span>
                   )}
                 </>
@@ -454,6 +456,24 @@ export function PlanningCenterDay({
                       }`}
                       draggable={!card.erledigt}
                       title={`${card.vonOrt} → ${card.nachOrt}`}
+                      onDragOver={
+                        acceptDrop
+                          ? (e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              onCeremonyDragOver?.(c);
+                            }
+                          : undefined
+                      }
+                      onDrop={
+                        acceptDrop
+                          ? (e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              onDropOnCeremony?.(c);
+                            }
+                          : undefined
+                      }
                       onDragStart={(e) => {
                         e.stopPropagation();
                         e.dataTransfer.effectAllowed = 'move';
