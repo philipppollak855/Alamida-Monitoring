@@ -407,7 +407,14 @@ export function PersonnelStandbyDialog({
                     </span>
                     {cell.count > 0 && (
                       <span className="personnel-absence-cal-dots" aria-hidden>
-                        <i style={{ background: cell.count < 2 ? '#b85a68' : '#3d7a8c' }} />
+                        {Array.from({ length: Math.min(cell.count, 6) }, (_, i) => (
+                          <i
+                            key={i}
+                            style={{
+                              background: cell.count < 2 ? '#b85a68' : '#3d7a8c',
+                            }}
+                          />
+                        ))}
                       </span>
                     )}
                   </button>
