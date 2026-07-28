@@ -23,7 +23,7 @@ import {
   personnelBookingDisplayLine,
 } from '../board/personnelBookingRules';
 import { zusatzTerminToEntry } from '../board/wallCalendar';
-import { filterAktiveSterbefaelle } from '../board/historieLogic';
+import { filterAktiveSterbefaelle, filterSterbefaelleFuerPlanungTermine } from '../board/historieLogic';
 import { useCalendarDay } from '../hooks/useCalendarDay';
 import { useNarrowViewport } from '../hooks/useNarrowViewport';
 import { usePersonnelBookings } from '../hooks/usePersonnelBookings';
@@ -150,14 +150,33 @@ export function PlanningPage() {
     [sterbefaelleRaw]
   );
 
+  /** Feiertermine inkl. abgeschlossener Fälle (Kalender-Logik). */
+  const sterbefaelleTermine = useMemo(
+    () => filterSterbefaelleFuerPlanungTermine(sterbefaelleRaw),
+    [sterbefaelleRaw]
+  );
+
   const dayKeys = useMemo(
     () => Array.from({ length: HORIZON_DAYS }, (_, i) => dayKeyFromDate(addDays(rangeStart, i))),
     [rangeStart]
   );
 
+  /** Geplante Überführungen auch nach Fall-Abschluss weiter anzeigen. */
+  const sterbefaelleFuerKarten = useMemo(() => {
+    const activeIds = new Set(sterbefaelle.map((s) => s.id));
+    const plannedDocIds = new Set(
+      Object.values(plan.assignments)
+        .filter((a) => Boolean(a.plannedDayKey))
+        .map((a) => a.docId)
+    );
+    return sterbefaelleTermine.filter(
+      (s) => activeIds.has(s.id) || plannedDocIds.has(s.id)
+    );
+  }, [sterbefaelle, sterbefaelleTermine, plan.assignments]);
+
   const cards = useMemo(
-    () => buildPlanningCards(sterbefaelle, plan.assignments, settings, today),
-    [sterbefaelle, plan.assignments, settings, today]
+    () => buildPlanningCards(sterbefaelleFuerKarten, plan.assignments, settings, today),
+    [sterbefaelleFuerKarten, plan.assignments, settings, today]
   );
 
   const filteredCards = useMemo(() => {
@@ -216,7 +235,7 @@ export function PlanningPage() {
       string,
       Array<{ docId: string; name: string; ceremony: ReturnType<typeof buildCeremoniesForFall>[number] }>
     >();
-    for (const s of sterbefaelle) {
+    for (const s of sterbefaelleTermine) {
       const name = s.verstorbenerName ?? s.sterbefallId ?? s.id;
       for (const ceremony of buildCeremoniesForFall(s, today)) {
         if (!ceremony.dayKey || !dayKeys.includes(ceremony.dayKey)) continue;
@@ -230,7 +249,7 @@ export function PlanningPage() {
       map.set(dayKey, enrichPlanningCeremonies(list, bookings, pool));
     }
     return map;
-  }, [sterbefaelle, today, dayKeys, bookings, settings.personnelPool]);
+  }, [sterbefaelleTermine, today, dayKeys, bookings, settings.personnelPool]);
 
   const recentEvents = useMemo(() => (plan.events ?? []).slice(0, 6), [plan.events]);
 

@@ -68,14 +68,21 @@ export function hatFeierterminInDaten(s: Sterbefall): boolean {
   );
 }
 
-/** Kalender: auch archivierte Fälle mit Feierterminen (Wall-Tabs nutzen weiter filterAktive). */
+/** Kalender & Planung: Termine bleiben sichtbar; manuell entfernte/Duplikate nicht. */
 export function filterSterbefaelleFuerKalender(sterbefaelle: Sterbefall[]): Sterbefall[] {
   return sterbefaelle.filter((s) => {
     if (istFehlerhafterPlatzhalterFall(s)) return false;
-    if (istManuellAusgeschlossen(s.historieGrund)) return false;
+    if (istManuellAusgeschlossen(s.historieGrund ?? s.abschlussGrund)) return false;
     if (!istInHistory(s)) return true;
     return hatFeierterminInDaten(s);
   });
+}
+
+/** Alias: Feier-/Beisetzungstermine in Planung nach Abschluss behalten. */
+export function filterSterbefaelleFuerPlanungTermine(
+  sterbefaelle: Sterbefall[]
+): Sterbefall[] {
+  return filterSterbefaelleFuerKalender(sterbefaelle);
 }
 
 function parseDatumZeitDe(datum?: string, zeit?: string, endOfDayIfNoTime = false): number | null {

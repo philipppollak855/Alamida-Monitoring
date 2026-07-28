@@ -33,4 +33,18 @@ describe('fallAbschluss', () => {
     const filtered = filterSterbefaelleFuerKalender(faelle);
     expect(filtered.map((f) => f.id)).toEqual(['2']);
   });
+
+  it('behält fachlich abgeschlossene Feiertermine für Kalender/Planung', () => {
+    const faelle: Sterbefall[] = [
+      {
+        id: 'berger',
+        inHistory: true,
+        historieGrund: 'trauerfeier_im_anschluss',
+        trauerfeierdatum: '28.07.2026',
+        trauerfeierzeit: '11:00',
+        beisetzungsdatum: '28.07.2026',
+      },
+    ];
+    expect(filterSterbefaelleFuerKalender(faelle).map((f) => f.id)).toEqual(['berger']);
+  });
 });
