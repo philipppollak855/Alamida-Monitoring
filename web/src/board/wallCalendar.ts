@@ -711,12 +711,12 @@ export function zusatzTerminToEntry(t: {
   if (sortMs == null) return null;
   const calArt: CalendarTerminArt = t.art === 'graben' ? 'graben' : 'sonstiges';
   const artLabel = t.art === 'graben' ? 'Graben' : 'Sonstiges';
-  const name = t.name.trim() || t.sterbefallId || t.docId;
+  const name = t.name.trim() || t.title.trim() || artLabel;
   const subtitle = [t.ort, t.note].filter(Boolean).join(' · ');
   return {
     id: `zusatz:${t.id}`,
-    docId: t.docId,
-    sterbefallId: t.sterbefallId || t.docId,
+    docId: t.docId || `zusatz:${t.id}`,
+    sterbefallId: t.sterbefallId || t.docId || t.id,
     dayKey: t.dayKey,
     dayLabel: formatDayLabelDe(t.dayKey),
     timeLabel: zeit || '—',

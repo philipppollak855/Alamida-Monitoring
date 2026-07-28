@@ -4,6 +4,7 @@ import type { Sterbefall } from '../types';
 import {
   ZUSATZ_TERMIN_ART_LABELS,
   ZUSATZ_TERMIN_PRESETS,
+  zusatzTerminNeedsFall,
   type ZusatzTermin,
   type ZusatzTerminArt,
 } from '../types/zusatzTermin';
@@ -79,6 +80,7 @@ export function ZusatzTerminDialog({
   const [fallQuery, setFallQuery] = useState('');
   const [bookPersonnel, setBookPersonnel] = useState(false);
 
+  const needsFall = zusatzTerminNeedsFall(art);
   const options = useMemo(() => {
     if (existing || showAllFaelle) return allOptions;
     return activeOptions;
@@ -96,7 +98,7 @@ export function ZusatzTerminDialog({
       setNote(existing.note ?? '');
       setFallQuery('');
       const fall = sterbefaelle.find((s) => s.id === existing.docId);
-      setShowAllFaelle(fall ? istInHistory(fall) : true);
+      setShowAllFaelle(fall ? istInHistory(fall) : Boolean(existing.docId));
       return;
     }
     setShowAllFaelle(false);
@@ -113,6 +115,7 @@ export function ZusatzTerminDialog({
 
   useEffect(() => {
     if (!open || existing) return;
+    if (!needsFall) return;
     if (!docId) {
       setDocId(options[0]?.docId ?? '');
       return;
@@ -120,7 +123,7 @@ export function ZusatzTerminDialog({
     if (!options.some((o) => o.docId === docId)) {
       setDocId(options[0]?.docId ?? '');
     }
-  }, [open, existing, options, docId]);
+  }, [open, existing, options, docId, needsFall]);
 
   useEffect(() => {
     if (!open) return;
@@ -145,7 +148,12 @@ export function ZusatzTerminDialog({
   }, [options, fallQuery]);
 
   const selected = options.find((o) => o.docId === docId) ?? null;
-  const canSave = Boolean(docId && title.trim() && dayKey && /^\d{4}-\d{2}-\d{2}$/.test(dayKey));
+  const canSave = Boolean(
+    title.trim() &&
+      dayKey &&
+      /^\d{4}-\d{2}-\d{2}$/.test(dayKey) &&
+      (!needsFall || docId)
+  );
 
   if (!open) return null;
 
@@ -167,9 +175,12 @@ export function ZusatzTerminDialog({
         <header className="zusatz-termin-head">
           <div>
             <p className="zusatz-termin-kicker">Zusatztermin</p>
-            <h2 id={titleId}>{existing ? 'Termin bearbeiten' : 'Benutzerdefinierten Termin anlegen'}</h2>
+            <h2 id={titleId}>
+              {existing ? 'Termin bearbeiten' : 'Benutzerdefinierten Termin anlegen'}
+            </h2>
             <p className="zusatz-termin-sub">
-              z. B. Graben — mit Notiz{offerBookPersonnel ? ', optional Personal' : ''}
+              z. B. Graben — mit Notiz{offerBookPersonnel ? ', optional Personal' : ''}.
+              Sonstiges auch ohne Fall.
             </p>
           </div>
           <button type="button" className="btn-ghost" onClick={onClose} disabled={pending}>
@@ -187,6 +198,7 @@ export function ZusatzTerminDialog({
               onClick={() => {
                 setArt(p.art);
                 setTitle(p.title);
+                if (p.art === 'sonstiges' && !existing) setDocId('');
               }}
             >
               {p.title}
@@ -195,9 +207,31 @@ export function ZusatzTerminDialog({
         </div>
 
         <div className="zusatz-termin-fields">
+          <label className="zusatz-termin-field">
+            <span>Art</span>
+            <select
+              value={art}
+              onChange={(e) => {
+                const next = e.target.value as ZusatzTerminArt;
+                setArt(next);
+                if (next === 'sonstiges' && !existing) setDocId('');
+                if (next === 'graben' && !docId && !existing) {
+                  setDocId(options[0]?.docId ?? '');
+                }
+              }}
+              disabled={pending}
+            >
+              {(Object.keys(ZUSATZ_TERMIN_ART_LABELS) as ZusatzTerminArt[]).map((a) => (
+                <option key={a} value={a}>
+                  {ZUSATZ_TERMIN_ART_LABELS[a]}
+                </option>
+              ))}
+            </select>
+          </label>
+
           <div className="zusatz-termin-fall-filter">
             <label className="zusatz-termin-field">
-              <span>Fall suchen</span>
+              <span>Fall suchen{needsFall ? '' : ' (optional)'}</span>
               <input
                 type="search"
                 value={fallQuery}
@@ -232,7 +266,7 @@ export function ZusatzTerminDialog({
 
           <label className="zusatz-termin-field">
             <span>
-              Fall *
+              Fall{needsFall ? ' *' : ' (optional)'}
               <em className="zusatz-termin-fall-count">
                 {showAllFaelle || existing
                   ? `${allOptions.length} gesamt`
@@ -244,26 +278,11 @@ export function ZusatzTerminDialog({
               onChange={(e) => setDocId(e.target.value)}
               disabled={pending || Boolean(existing)}
             >
-              <option value="">— wählen —</option>
+              <option value="">{needsFall ? '— wählen —' : '— ohne Fall —'}</option>
               {filteredOptions.map((o) => (
                 <option key={o.docId} value={o.docId}>
                   {o.name}
                   {o.sterbefallId ? ` (#${o.sterbefallId})` : ''}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="zusatz-termin-field">
-            <span>Art</span>
-            <select
-              value={art}
-              onChange={(e) => setArt(e.target.value as ZusatzTerminArt)}
-              disabled={pending}
-            >
-              {(Object.keys(ZUSATZ_TERMIN_ART_LABELS) as ZusatzTerminArt[]).map((a) => (
-                <option key={a} value={a}>
-                  {ZUSATZ_TERMIN_ART_LABELS[a]}
                 </option>
               ))}
             </select>
@@ -276,7 +295,9 @@ export function ZusatzTerminDialog({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               disabled={pending}
-              placeholder="Graben für Begräbnis"
+              placeholder={
+                needsFall ? 'Graben für Begräbnis' : 'z. B. Besprechung, Abholung Material'
+              }
             />
           </label>
 
@@ -356,27 +377,34 @@ export function ZusatzTerminDialog({
             className="btn-primary"
             disabled={pending || !canSave}
             onClick={() => {
-              if (!selected && !existing) return;
-              const fall = selected ?? {
-                docId,
-                sterbefallId: existing?.sterbefallId ?? docId,
-                name: existing?.name ?? '',
-              };
-              onSave({
-                id: existing?.id ?? crypto.randomUUID(),
-                docId: fall.docId,
-                sterbefallId: fall.sterbefallId,
-                name: fall.name,
-                art,
-                title: title.trim(),
-                dayKey,
-                zeit: zeit.trim() || undefined,
-                ort: ort.trim() || undefined,
-                note: note.trim() || undefined,
-                updatedAtMs: Date.now(),
-              }, {
-                bookPersonnel: offerBookPersonnel && !existing && bookPersonnel,
-              });
+              if (needsFall && !selected && !existing?.docId) return;
+              const fall = selected;
+              const resolvedDocId = fall?.docId ?? (docId || existing?.docId || '');
+              const resolvedSterbefallId =
+                fall?.sterbefallId ??
+                (resolvedDocId ? existing?.sterbefallId || '' : '');
+              const displayName =
+                fall?.name ||
+                (resolvedDocId ? existing?.name || '' : '') ||
+                title.trim();
+              onSave(
+                {
+                  id: existing?.id ?? crypto.randomUUID(),
+                  docId: resolvedDocId,
+                  sterbefallId: resolvedSterbefallId,
+                  name: displayName,
+                  art,
+                  title: title.trim(),
+                  dayKey,
+                  zeit: zeit.trim() || undefined,
+                  ort: ort.trim() || undefined,
+                  note: note.trim() || undefined,
+                  updatedAtMs: Date.now(),
+                },
+                {
+                  bookPersonnel: offerBookPersonnel && !existing && bookPersonnel,
+                }
+              );
             }}
           >
             {pending

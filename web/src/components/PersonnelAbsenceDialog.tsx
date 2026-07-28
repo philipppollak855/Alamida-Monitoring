@@ -22,16 +22,10 @@ type Props = {
 
 const WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
-const PERSON_COLORS = [
-  '#3d7a8c',
-  '#b85a68',
-  '#5a8a62',
-  '#8a6b3d',
-  '#6a7a9a',
-  '#8a5a8a',
-  '#3d8a7a',
-  '#9a6b4a',
-];
+/** Arrangeur-Abwesenheit im Minikalender. */
+const ABSENCE_COLOR_ARRANGEUR = '#dc2626';
+/** Träger-/Fahrer-Abwesenheit im Minikalender. */
+const ABSENCE_COLOR_TRAEGER = '#9ca3af';
 
 function newId(): string {
   return `abs-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
@@ -46,10 +40,14 @@ function startOfMonth(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), 1);
 }
 
-function colorForPerson(personId: string): string {
-  let h = 0;
-  for (let i = 0; i < personId.length; i++) h = (h * 31 + personId.charCodeAt(i)) >>> 0;
-  return PERSON_COLORS[h % PERSON_COLORS.length]!;
+/** Markerfarbe: Arrangeur rot, Träger (sonst) grau. */
+function colorForPerson(
+  personId: string,
+  byId: Map<string, DispositionPerson>
+): string {
+  const person = byId.get(personId);
+  if (person?.roles.includes('arrangeur')) return ABSENCE_COLOR_ARRANGEUR;
+  return ABSENCE_COLOR_TRAEGER;
 }
 
 function formatRangeLabel(fromDayKey: string, toDayKey: string): string {
@@ -391,7 +389,7 @@ export function PersonnelAbsenceDialog({
                         {cell.absences.slice(0, 4).map((a) => (
                           <i
                             key={a.id}
-                            style={{ background: colorForPerson(a.personId) }}
+                            style={{ background: colorForPerson(a.personId, byId) }}
                           />
                         ))}
                       </span>
@@ -401,6 +399,10 @@ export function PersonnelAbsenceDialog({
               })}
             </div>
             <p className="personnel-absence-cal-hint">
+              <span className="personnel-absence-cal-legend" aria-hidden>
+                <i style={{ background: ABSENCE_COLOR_ARRANGEUR }} /> Arrangeur
+                <i style={{ background: ABSENCE_COLOR_TRAEGER }} /> Träger
+              </span>
               {rangeHint}{' '}
               {(calFilterActive || rangeAnchor) && (
                 <button
@@ -556,7 +558,7 @@ export function PersonnelAbsenceDialog({
                       <header className="personnel-absence-group-head">
                         <i
                           className="personnel-absence-swatch"
-                          style={{ background: colorForPerson(pid) }}
+                          style={{ background: colorForPerson(pid, byId) }}
                           aria-hidden
                         />
                         <strong>{person?.name ?? pid}</strong>

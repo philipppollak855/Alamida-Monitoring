@@ -22,15 +22,19 @@ function normalizeTermine(raw: unknown): Record<string, ZusatzTermin> {
   for (const [id, value] of Object.entries(raw as Record<string, unknown>)) {
     if (!value || typeof value !== 'object') continue;
     const v = value as Partial<ZusatzTermin>;
-    if (!v.docId || !v.dayKey || !v.title?.trim()) continue;
+    if (!v.dayKey || !v.title?.trim()) continue;
     const art = isZusatzTerminArt(v.art) ? v.art : 'sonstiges';
+    const docId = v.docId != null ? String(v.docId).trim() : '';
+    // Graben ohne Fall verwerfen; Sonstiges ohne Fall erlauben
+    if (!docId && art === 'graben') continue;
+    const title = String(v.title).trim();
     out[id] = {
       id,
-      docId: String(v.docId),
-      sterbefallId: String(v.sterbefallId ?? ''),
-      name: String(v.name ?? ''),
+      docId,
+      sterbefallId: String(v.sterbefallId ?? '').trim(),
+      name: String(v.name ?? '').trim() || title,
       art,
-      title: String(v.title).trim(),
+      title,
       dayKey: String(v.dayKey),
       zeit: v.zeit?.trim() || undefined,
       ort: v.ort?.trim() || undefined,

@@ -65,4 +65,22 @@ describe('zusatzTermine im Kalender', () => {
     expect(zusatz?.title).toBe('Sonstiger Termin');
     expect(zusatz?.arts).toEqual(['sonstiges']);
   });
+
+  it('erlaubt Sonstiges ohne Fall', () => {
+    const entry = zusatzTerminToEntry({
+      id: 'z-free',
+      docId: '',
+      sterbefallId: '',
+      name: '',
+      art: 'sonstiges',
+      title: 'Material holen',
+      dayKey: '2026-07-30',
+      zeit: '09:00',
+    });
+    expect(entry).not.toBeNull();
+    expect(entry!.name).toBe('Material holen');
+    expect(entry!.title).toBe('Material holen');
+    expect(entry!.arts).toEqual(['sonstiges']);
+    expect(entry!.zusatzTerminId).toBe('z-free');
+  });
 });

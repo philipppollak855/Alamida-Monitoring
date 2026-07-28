@@ -5213,6 +5213,21 @@ code {
   color: var(--muted);
 }
 
+.personnel-absence-cal-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  margin-right: 0.35rem;
+  font-weight: 650;
+}
+
+.personnel-absence-cal-legend i {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
 .personnel-absence-side {
   min-width: 0;
   display: flex;

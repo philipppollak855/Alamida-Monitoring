@@ -1,13 +1,17 @@
 import type { CalendarTerminArt } from '../board/wallCalendar';
 
-/** Manuell angelegter Zusatztermin zu einem Sterbefall (nicht aus Alamida). */
+/** Manuell angelegter Zusatztermin (optional zu einem Sterbefall). */
 export type ZusatzTerminArt = 'graben' | 'sonstiges';
 
 export type ZusatzTermin = {
   id: string;
-  /** sterbefaelle Doc-ID */
+  /**
+   * sterbefaelle Doc-ID — leer bei freiem „Sonstiges“-Termin ohne Fall.
+   * Graben sollte einen Fall haben.
+   */
   docId: string;
   sterbefallId: string;
+  /** Anzeigename (Fallname oder eigene Bezeichnung). */
   name: string;
   art: ZusatzTerminArt;
   /** Anzeigetitel, z. B. „Graben für Begräbnis“ */
@@ -44,4 +48,9 @@ export function zusatzArtToCalendarArt(art: ZusatzTerminArt): CalendarTerminArt 
 
 export function isZusatzTerminArt(v: unknown): v is ZusatzTerminArt {
   return v === 'graben' || v === 'sonstiges';
+}
+
+/** Sonstiges darf ohne Fall; Graben braucht einen Fall. */
+export function zusatzTerminNeedsFall(art: ZusatzTerminArt): boolean {
+  return art === 'graben';
 }
