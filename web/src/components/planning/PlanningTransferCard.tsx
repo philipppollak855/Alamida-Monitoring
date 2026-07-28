@@ -1,5 +1,9 @@
 import type { PlanningCard } from '../../planning/types';
-import { freigabeLabel, isKremationPlanningCard } from '../../planning/transferPlanning';
+import {
+  freigabeLabel,
+  isKremationPlanningCard,
+  isUeberfuehrungFahrtCard,
+} from '../../planning/transferPlanning';
 import { isKremationTransferCard } from '../../planning/planningPersonnel';
 import { EndzielChip, SchrittBadge, StatusChip } from '../../ui/SchrittBadge';
 import { RouteFlow } from '../../ui/RouteFlow';
@@ -53,13 +57,18 @@ export function PlanningTransferCard({
     : 'Zurück zum Abholort / Ort';
 
   const kremationCompact = isKremationTransferCard(card);
-  const acceptKremationDrop =
-    Boolean(onDropOnCard) && isKremationPlanningCard(card) && !attachedToCeremony;
+  const acceptGroupDrop =
+    Boolean(onDropOnCard) &&
+    !attachedToCeremony &&
+    (isKremationPlanningCard(card) || isUeberfuehrungFahrtCard(card));
   const canBookPersonnel =
     Boolean(onOpenPersonnel) &&
     Boolean(card.plannedDayKey) &&
     !attachedToCeremony &&
     !kremationCompact;
+  const compactTransferSingle =
+    !kremationCompact &&
+    ['abholung', 'ueberfuehrung'].includes(card.schrittTyp.trim().toLowerCase());
 
   return (
     <article
@@ -71,7 +80,9 @@ export function PlanningTransferCard({
         card.leavesEigenerKr && !card.targetsEigenerKr ? ' is-from-kr' : ''
       }${attachedToCeremony ? ' is-attached' : ''}${
         kremationCompact ? ' is-kremation-compact' : ''
-      }${isDropTarget ? ' is-drop-target' : ''}${
+      }${compactTransferSingle ? ' is-transfer-single-compact' : ''}${
+        isDropTarget ? ' is-drop-target' : ''
+      }${
         tapSelect && !card.erledigt ? ' is-tap-select' : ''
       } freigabe-${card.freigabeState ?? 'offen'}`}
       draggable={!card.erledigt && !tapSelect}
@@ -91,7 +102,7 @@ export function PlanningTransferCard({
       }
       onDragEnd={!tapSelect ? onDragEnd : undefined}
       onDragOver={
-        acceptKremationDrop
+        acceptGroupDrop
           ? (e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -100,7 +111,7 @@ export function PlanningTransferCard({
           : undefined
       }
       onDragLeave={
-        acceptKremationDrop
+        acceptGroupDrop
           ? (e) => {
               e.stopPropagation();
               onDragLeaveCard?.();
@@ -108,7 +119,7 @@ export function PlanningTransferCard({
           : undefined
       }
       onDrop={
-        acceptKremationDrop
+        acceptGroupDrop
           ? (e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -135,7 +146,7 @@ export function PlanningTransferCard({
         {kremationCompact && card.plannedZeit && (
           <span className="plan-card-tag plan-card-tag--time">{card.plannedZeit}</span>
         )}
-        {kremationCompact && acceptKremationDrop && (
+        {acceptGroupDrop && (
           <span className="plan-krem-drop-hint">+ Fahrt</span>
         )}
       </div>

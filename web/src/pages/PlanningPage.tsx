@@ -45,6 +45,7 @@ import {
   assignmentSnapshotPayload,
   attachKremationToGroup,
   attachTransferToCeremony,
+  attachUeberfuehrungToFahrtGroup,
   buildCeremoniesForFall,
   buildKuehlraumCapacities,
   buildKuehlraumLocationGroups,
@@ -60,10 +61,12 @@ import {
   defaultTargetKuehlraumId,
   detachKremationFromGroup,
   detachTransferFromCeremony,
+  detachUeberfuehrungFromFahrtGroup,
   dismissPlanEvent,
   formatTerminDisplay,
   isCardAttachedToAnyCeremony,
   isKremationPlanningCard,
+  isUeberfuehrungFahrtCard,
   moveCardAssignment,
   nextOrderInLane,
   poolItemFromKuehlraumOccupant,
@@ -496,6 +499,37 @@ export function PlanningPage() {
         return;
       }
 
+      // Aus gemeinsamer Überführungsfahrt herausziehen → wieder eigene Karte
+      if (card.fahrtGroupId && isUeberfuehrungFahrtCard(card)) {
+        const order = nextOrderInLane(cards, dayKey);
+        const prev = plan.assignments[card.id];
+        const result = detachUeberfuehrungFromFahrtGroup(
+          plan.assignments,
+          card,
+          dayKey,
+          order
+        );
+        clearDrag();
+        setFlashId(result.assignment.id);
+        void savePlan({
+          assignments: result.assignments,
+          publish: {
+            type: prev ? 'ueberfuehrung_umgeplant' : 'ueberfuehrung_geplant',
+            docId: card.docId,
+            sterbefallId: card.sterbefallId,
+            name: card.name,
+            vonOrt: card.vonOrt,
+            nachOrt: card.nachOrt,
+            assignmentId: card.id,
+            plannedDayKey: dayKey,
+            plannedZeit: card.plannedZeit,
+            previousSnapshot: prev ? snapshotFromAssignment(prev) : null,
+            snapshot: assignmentSnapshotPayload(result.assignment),
+          },
+        });
+        return;
+      }
+
       if (card.targetsEigenerKr) {
         const krId = card.kuehlraumId ?? settings.eigeneKuehlraeume[0]?.id;
         if (krId) {
@@ -557,9 +591,8 @@ export function PlanningPage() {
         return;
       }
       const card = drag.card;
-      if (card.docId !== target.docId || !target.ceremony.dayKey) {
-        // Anderer Fall / kein Tag → normaler Tages-Drop
-        handleDropOnDay(target.ceremony.dayKey ?? focusDayKey);
+      if (!target.ceremony.dayKey) {
+        handleDropOnDay(focusDayKey);
         return;
       }
       const order = nextOrderInLane(cards, target.ceremony.dayKey);
@@ -567,7 +600,7 @@ export function PlanningPage() {
       const result = attachTransferToCeremony(
         plan.assignments,
         card,
-        target.ceremony,
+        { ...target.ceremony, hostDocId: target.docId },
         order
       );
       clearDrag();
@@ -630,6 +663,71 @@ export function PlanningPage() {
       const order = nextOrderInLane(cards, dayKey);
       const prev = plan.assignments[card.id];
       const result = attachKremationToGroup(plan.assignments, card, target, order);
+      clearDrag();
+      if (!result) {
+        handleDropOnDay(dayKey);
+        return;
+      }
+      setFocusDayKey(dayKey);
+      setFlashId(card.id);
+      const assignment = result.assignments[card.id];
+      void savePlan({
+        assignments: result.assignments,
+        publish: {
+          type: prev ? 'ueberfuehrung_umgeplant' : 'ueberfuehrung_geplant',
+          docId: card.docId,
+          sterbefallId: card.sterbefallId,
+          name: card.name,
+          vonOrt: card.vonOrt,
+          nachOrt: card.nachOrt,
+          assignmentId: card.id,
+          plannedDayKey: dayKey,
+          plannedZeit: assignment?.plannedZeit ?? card.plannedZeit,
+          previousSnapshot: prev ? snapshotFromAssignment(prev) : null,
+          snapshot: assignment ? assignmentSnapshotPayload(assignment) : null,
+        },
+      });
+    },
+    [
+      drag,
+      saving,
+      clearDrag,
+      cards,
+      plan.assignments,
+      savePlan,
+      handleDropOnDay,
+      focusDayKey,
+    ]
+  );
+
+  const handleDropOnFahrt = useCallback(
+    (target: PlanningCard) => {
+      if (!drag || drag.kind !== 'card' || saving) {
+        clearDrag();
+        return;
+      }
+      const card = drag.card;
+      if (!isUeberfuehrungFahrtCard(card) || !isUeberfuehrungFahrtCard(target)) {
+        clearDrag();
+        return;
+      }
+      if (card.id === target.id) {
+        clearDrag();
+        return;
+      }
+      const dayKey = target.plannedDayKey ?? card.plannedDayKey ?? focusDayKey;
+      if (!dayKey) {
+        clearDrag();
+        return;
+      }
+      const order = nextOrderInLane(cards, dayKey);
+      const prev = plan.assignments[card.id];
+      const result = attachUeberfuehrungToFahrtGroup(
+        plan.assignments,
+        card,
+        target,
+        order
+      );
       clearDrag();
       if (!result) {
         handleDropOnDay(dayKey);
@@ -1048,6 +1146,7 @@ export function PlanningPage() {
           onDropOnKuehlraum={handleDropOnKuehlraum}
           onDropOnCeremony={(c) => handleDropOnCeremony(c)}
           onDropOnKremation={(card) => handleDropOnKremation(card)}
+          onDropOnFahrt={(card) => handleDropOnFahrt(card)}
           onResetCard={(card) => void resetCard(card)}
           onCeremonyClick={(c) => openCeremonyBooking(c)}
           onOpenPersonnel={openTransferPersonnel}
@@ -1123,6 +1222,11 @@ export function PlanningPage() {
                             ? dropTarget.slice('krem:'.length)
                             : null
                         }
+                        fahrtDropKey={
+                          dropTarget?.startsWith('fahrt:')
+                            ? dropTarget.slice('fahrt:'.length)
+                            : null
+                        }
                         draggingId={draggingId}
                         onDragOver={() => setDropTarget(`day:${dayKey}`)}
                         onDragLeave={() =>
@@ -1147,6 +1251,11 @@ export function PlanningPage() {
                           setDropTarget((t) => (t?.startsWith('krem:') ? null : t))
                         }
                         onDropOnKremation={(card) => handleDropOnKremation(card)}
+                        onFahrtDragOver={(card) => setDropTarget(`fahrt:${card.id}`)}
+                        onFahrtDragLeave={() =>
+                          setDropTarget((t) => (t?.startsWith('fahrt:') ? null : t))
+                        }
+                        onDropOnFahrt={(card) => handleDropOnFahrt(card)}
                         onOpenPersonnel={openTransferPersonnel}
                         personnelByCardId={personnelByCardId}
                         onAddZusatz={() => openZusatzDialog(dayKey)}

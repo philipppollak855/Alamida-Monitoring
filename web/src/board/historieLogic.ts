@@ -68,6 +68,14 @@ export function hatFeierterminInDaten(s: Sterbefall): boolean {
   );
 }
 
+function hatRelevantesTerminfenster(s: Sterbefall): boolean {
+  return Boolean(
+    extractDeDatum(s.beisetzungsdatum) ||
+      (sterbefallImAnschluss(s) &&
+        (extractDeDatum(s.trauerfeierdatum) || extractDeDatum(s.trauerfeier2datum)))
+  );
+}
+
 /** Kalender & Planung: Termine bleiben sichtbar; manuell entfernte/Duplikate nicht. */
 export function filterSterbefaelleFuerKalender(sterbefaelle: Sterbefall[]): Sterbefall[] {
   return sterbefaelle.filter((s) => {
@@ -113,9 +121,12 @@ export function istNachBeisetzungOderTrauerfeierAbgelaufenCeremony(
   s: Sterbefall,
   jetzt = Date.now()
 ): boolean {
-  if (sterbefallImAnschluss(s) && hatGueltigesDatum(s.trauerfeierdatum)) {
-    const trauerfeier = parseDatumZeitDe(s.trauerfeierdatum, s.trauerfeierzeit);
-    if (trauerfeier != null && jetzt >= trauerfeier + 2 * 60 * 60 * 1000) return true;
+  if (sterbefallImAnschluss(s)) {
+    const trauerfeierDatum = extractDeDatum(s.trauerfeierdatum) ?? extractDeDatum(s.trauerfeier2datum);
+    if (hatGueltigesDatum(trauerfeierDatum)) {
+      const trauerfeier = parseDatumZeitDe(trauerfeierDatum!, s.trauerfeierzeit);
+      if (trauerfeier != null && jetzt >= trauerfeier + 2 * 60 * 60 * 1000) return true;
+    }
   }
 
   if (hatGueltigesDatum(s.beisetzungsdatum)) {
@@ -169,7 +180,7 @@ export function istInHistory(s: Sterbefall): boolean {
   // Vorzeitiges Agent-Archiv (inHistory oder aktivInDisposition=false):
   // am Feiertag erst nach Trauerfeier/Beisetzung+2h ausblenden.
   if (s.inHistory === true || s.aktivInDisposition === false) {
-    if (hatFeierterminInDaten(s) && !istNachBeisetzungOderTrauerfeierAbgelaufen(s)) {
+    if (hatRelevantesTerminfenster(s) && !istNachBeisetzungOderTrauerfeierAbgelaufen(s)) {
       return false;
     }
     return true;

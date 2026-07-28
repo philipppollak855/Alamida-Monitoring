@@ -61,6 +61,7 @@ export function snapshotFromAssignment(a: PlanAssignment): PlanAssignmentSnapsho
     order: a.order,
     attachedCeremony: a.attachedCeremony ?? null,
     kremationGroupId: a.kremationGroupId ?? null,
+    fahrtGroupId: a.fahrtGroupId ?? null,
   };
 }
 
@@ -224,6 +225,7 @@ function cardFromAssignment(
     attachedCeremony: assignment.attachedCeremony ?? null,
     detachedFromCeremony: assignment.detachedFromCeremony === true,
     kremationGroupId: assignment.kremationGroupId ?? null,
+    fahrtGroupId: assignment.fahrtGroupId ?? null,
     source: 'canvas',
     amSterbeort: isAmKrankenhausOderSterbeort(s),
     ...enrichCardMeta(s, now),
@@ -309,6 +311,7 @@ export function buildPlanningCards(
         attachedCeremony: assignment?.attachedCeremony ?? null,
         detachedFromCeremony: assignment?.detachedFromCeremony === true,
         kremationGroupId: assignment?.kremationGroupId ?? null,
+        fahrtGroupId: assignment?.fahrtGroupId ?? null,
         source: assignment?.source === 'canvas' ? 'canvas' : 'alamida',
         amSterbeort: isAmKrankenhausOderSterbeort(s),
         ...meta,
@@ -736,6 +739,10 @@ export function moveCardAssignment(
     extras && 'kremationGroupId' in extras
       ? extras.kremationGroupId ?? null
       : (prev?.kremationGroupId ?? card.kremationGroupId ?? null);
+  const fahrtGroupId =
+    extras && 'fahrtGroupId' in extras
+      ? extras.fahrtGroupId ?? null
+      : (prev?.fahrtGroupId ?? card.fahrtGroupId ?? null);
   next[card.id] = {
     id: card.id,
     docId: card.docId,
@@ -752,6 +759,7 @@ export function moveCardAssignment(
     attachedCeremony,
     detachedFromCeremony,
     kremationGroupId,
+    fahrtGroupId,
     updatedAtMs: Date.now(),
   };
   return next;
@@ -787,10 +795,10 @@ export function scheduleToKuehlraum(
     source: existingCard?.source === 'alamida' ? 'alamida' : 'canvas',
     order,
     previous: prev ? snapshotFromAssignment(prev) : null,
-    // Tagesplanung löst Feier-Zugehörigkeit (erneut anhängen = auf Termin ziehen)
     attachedCeremony: null,
     detachedFromCeremony: true,
     kremationGroupId: null,
+    fahrtGroupId: null,
     updatedAtMs: Date.now(),
   };
 
@@ -854,6 +862,8 @@ export function clearCardToAbholort(
     previous: previousSnap,
     attachedCeremony: null,
     detachedFromCeremony: true,
+    kremationGroupId: null,
+    fahrtGroupId: null,
     updatedAtMs: Date.now(),
   };
 
@@ -918,17 +928,19 @@ export function isCardAttachedToCeremony(
   ceremony: Pick<CeremonyInfo, 'kind' | 'dayKey'>,
   docId: string
 ): boolean {
-  if (card.docId !== docId) return false;
   if (card.detachedFromCeremony) return false;
   if (!ceremony.dayKey || card.plannedDayKey !== ceremony.dayKey) return false;
   if (!isAttachableCeremonyKind(ceremony.kind)) return false;
   if (card.attachedCeremony) {
+    const hostDocId = card.attachedCeremony.hostDocId?.trim() || card.docId;
+    if (hostDocId !== docId) return false;
     return (
       card.attachedCeremony.kind === ceremony.kind &&
       card.attachedCeremony.dayKey === ceremony.dayKey
     );
   }
-  // Same-Day-Heuristik nur wenn nicht explizit gelöst
+  // Same-Day-Heuristik nur gleicher Fall, wenn nicht explizit gelöst
+  if (card.docId !== docId) return false;
   return true;
 }
 
@@ -972,11 +984,11 @@ export function pickCeremonyHostForCard(
   )[0]!;
 }
 
-/** Überführung manuell an Feiertermin binden (gleicher Fall). */
+/** Überführung manuell an Feiertermin binden (auch anderer Fall). */
 export function attachTransferToCeremony(
   assignments: Record<string, PlanAssignment>,
   card: PlanningCard,
-  ceremony: Pick<CeremonyInfo, 'kind' | 'dayKey' | 'zeit'>,
+  ceremony: Pick<CeremonyInfo, 'kind' | 'dayKey' | 'zeit'> & { hostDocId?: string },
   order: number
 ): {
   assignments: Record<string, PlanAssignment>;
@@ -984,9 +996,11 @@ export function attachTransferToCeremony(
   eventType: 'ueberfuehrung_geplant' | 'ueberfuehrung_umgeplant';
 } | null {
   if (!ceremony.dayKey || !isAttachableCeremonyKind(ceremony.kind)) return null;
+  const hostDocId = ceremony.hostDocId?.trim() || undefined;
   const attached: AttachedCeremonyRef = {
     kind: ceremony.kind,
     dayKey: ceremony.dayKey,
+    ...(hostDocId && hostDocId !== card.docId ? { hostDocId } : {}),
   };
   const next = moveCardAssignment(assignments, card, ceremony.dayKey, order, {
     // Ausbuchung frühestens 1h vor Feier (z. B. TF 14:00 → 13:00)
@@ -997,6 +1011,8 @@ export function attachTransferToCeremony(
       null,
     attachedCeremony: attached,
     detachedFromCeremony: false,
+    kremationGroupId: null,
+    fahrtGroupId: null,
   });
   const assignment = next[card.id]!;
   return {
@@ -1104,6 +1120,7 @@ export function attachKremationToGroup(
       id === dragged.id ? order : id === target.id ? target.order : (existing?.order ?? order);
     next = moveCardAssignment(next, cardLike as PlanningCard, dayKey, memberOrder, {
       kremationGroupId: groupId,
+      fahrtGroupId: null,
       plannedZeit: syncZeit ?? cardLike.plannedZeit ?? null,
       attachedCeremony: null,
       detachedFromCeremony: true,
@@ -1179,6 +1196,177 @@ export function partitionKremationGroups(cards: PlanningCard[]): {
       // Verwaiste Einzel-ID → als Single ohne Gruppe zeigen
       for (const m of members) {
         singles.push({ ...m, kremationGroupId: null });
+      }
+      continue;
+    }
+    const sorted = [...members].sort((a, b) => {
+      if (a.order !== b.order) return a.order - b.order;
+      return a.name.localeCompare(b.name, 'de');
+    });
+    groups.push({ groupId, host: sorted[0]!, members: sorted });
+  }
+
+  groups.sort((a, b) => {
+    if (a.host.order !== b.host.order) return a.host.order - b.host.order;
+    return (a.host.plannedZeit ?? '').localeCompare(b.host.plannedZeit ?? '');
+  });
+
+  return { groups, singles };
+}
+
+/** Nicht-Kremations-Überführung — kann zu einer Fahrt zusammengefasst werden. */
+export function isUeberfuehrungFahrtCard(
+  card: Pick<PlanningCard, 'schrittTyp'>
+): boolean {
+  return !isKremationPlanningCard(card);
+}
+
+export function newFahrtGroupId(): string {
+  return typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `fahrt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/** Überführungen (auch verschiedener Fälle) zu einer Fahrt zusammenfassen. */
+export function attachUeberfuehrungToFahrtGroup(
+  assignments: Record<string, PlanAssignment>,
+  dragged: PlanningCard,
+  target: PlanningCard,
+  order: number
+): {
+  assignments: Record<string, PlanAssignment>;
+  groupId: string;
+} | null {
+  if (!isUeberfuehrungFahrtCard(dragged) || !isUeberfuehrungFahrtCard(target)) {
+    return null;
+  }
+  if (dragged.id === target.id) return null;
+  const dayKey = target.plannedDayKey ?? dragged.plannedDayKey;
+  if (!dayKey) return null;
+
+  const oldDraggedGroup = dragged.fahrtGroupId?.trim() || null;
+  const oldTargetGroup = target.fahrtGroupId?.trim() || null;
+  const groupId = oldTargetGroup || oldDraggedGroup || newFahrtGroupId();
+  const syncZeit = target.plannedZeit ?? dragged.plannedZeit ?? null;
+
+  let next = { ...assignments };
+
+  const memberIds = new Set<string>([dragged.id, target.id]);
+  for (const [id, a] of Object.entries(assignments)) {
+    const gid = a.fahrtGroupId?.trim();
+    if (gid && (gid === oldDraggedGroup || gid === oldTargetGroup)) {
+      memberIds.add(id);
+    }
+  }
+
+  for (const id of memberIds) {
+    const existing = next[id];
+    const cardLike =
+      id === dragged.id
+        ? dragged
+        : id === target.id
+          ? target
+          : existing
+            ? {
+                ...dragged,
+                id,
+                docId: existing.docId,
+                zeile: existing.zeile,
+                order: existing.order,
+                plannedDayKey: existing.plannedDayKey,
+                plannedZeit: existing.plannedZeit,
+                vonOrt: existing.vonOrt ?? dragged.vonOrt,
+                nachOrt: existing.nachOrt ?? dragged.nachOrt,
+                schrittTyp: existing.schrittTyp ?? dragged.schrittTyp,
+                kuehlraumId: existing.plannedKuehlraumId ?? null,
+                source: existing.source === 'canvas' ? 'canvas' : 'alamida',
+                hasManualPlan: true,
+                targetsEigenerKr: false,
+                leavesEigenerKr: true,
+                sterbefallId: '',
+                name: '',
+                terminAm: '',
+                sourceDayKey: null,
+                status: 'geplant',
+              }
+            : null;
+    if (!cardLike) continue;
+    const memberOrder =
+      id === dragged.id ? order : id === target.id ? target.order : (existing?.order ?? order);
+    next = moveCardAssignment(next, cardLike as PlanningCard, dayKey, memberOrder, {
+      fahrtGroupId: groupId,
+      kremationGroupId: null,
+      plannedZeit: syncZeit ?? cardLike.plannedZeit ?? null,
+      attachedCeremony: null,
+      detachedFromCeremony: true,
+    });
+  }
+
+  return { assignments: next, groupId };
+}
+
+/** Eine Überführung aus der gemeinsamen Fahrt lösen. */
+export function detachUeberfuehrungFromFahrtGroup(
+  assignments: Record<string, PlanAssignment>,
+  card: PlanningCard,
+  toDayKey: string | null,
+  order: number
+): {
+  assignments: Record<string, PlanAssignment>;
+  assignment: PlanAssignment;
+} {
+  const oldGroupId = card.fahrtGroupId?.trim() || null;
+  let next = moveCardAssignment(assignments, card, toDayKey, order, {
+    fahrtGroupId: null,
+  });
+
+  if (oldGroupId) {
+    const remaining = Object.values(next).filter((a) => a.fahrtGroupId === oldGroupId);
+    if (remaining.length === 1) {
+      const last = remaining[0]!;
+      next = {
+        ...next,
+        [last.id]: { ...last, fahrtGroupId: null, updatedAtMs: Date.now() },
+      };
+    }
+  }
+
+  return {
+    assignments: next,
+    assignment: next[card.id]!,
+  };
+}
+
+export type FahrtGroupView = {
+  groupId: string;
+  host: PlanningCard;
+  members: PlanningCard[];
+};
+
+/** Lose Karten → Überführungs-Fahrtgruppen + Einzelkarten. */
+export function partitionFahrtGroups(cards: PlanningCard[]): {
+  groups: FahrtGroupView[];
+  singles: PlanningCard[];
+} {
+  const byGroup = new Map<string, PlanningCard[]>();
+  const singles: PlanningCard[] = [];
+
+  for (const card of cards) {
+    const gid = card.fahrtGroupId?.trim();
+    if (gid && isUeberfuehrungFahrtCard(card)) {
+      const list = byGroup.get(gid) ?? [];
+      list.push(card);
+      byGroup.set(gid, list);
+    } else {
+      singles.push(card);
+    }
+  }
+
+  const groups: FahrtGroupView[] = [];
+  for (const [groupId, members] of byGroup) {
+    if (members.length < 2) {
+      for (const m of members) {
+        singles.push({ ...m, fahrtGroupId: null });
       }
       continue;
     }

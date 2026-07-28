@@ -18,11 +18,15 @@ export type PlanAssignmentSnapshot = {
   attachedCeremony?: AttachedCeremonyRef | null;
   /** Gemeinsame Kremationsfahrt (mehrere Fälle). */
   kremationGroupId?: string | null;
+  /** Gemeinsame Überführungsfahrt (mehrere Fälle, nicht Kremation). */
+  fahrtGroupId?: string | null;
 };
 
 export type AttachedCeremonyRef = {
   kind: CeremonyKind;
   dayKey: string;
+  /** Fall des Feiertermins — gesetzt, wenn Überführung zu anderem Fall gehört. */
+  hostDocId?: string;
 };
 
 export type PlanAssignment = {
@@ -52,6 +56,8 @@ export type PlanAssignment = {
   detachedFromCeremony?: boolean;
   /** Gemeinsame Kremationsfahrt — mehrere Fälle unter einer Karte. */
   kremationGroupId?: string | null;
+  /** Gemeinsame Überführungsfahrt — mehrere Fälle unter einer Karte. */
+  fahrtGroupId?: string | null;
   updatedAtMs?: number;
 };
 
@@ -120,6 +126,8 @@ export type PlanningCard = {
   detachedFromCeremony?: boolean;
   /** Gemeinsame Kremationsfahrt. */
   kremationGroupId?: string | null;
+  /** Gemeinsame Überführungsfahrt. */
+  fahrtGroupId?: string | null;
   source: 'alamida' | 'canvas';
   amSterbeort?: boolean;
   freigabeState?: FreigabeState;

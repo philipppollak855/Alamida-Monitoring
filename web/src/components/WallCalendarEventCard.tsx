@@ -5,8 +5,17 @@ import {
 import { WallCalBestattungsBadge } from './WallCalBestattungsBadge';
 import type { KeyboardEvent, MouseEvent } from 'react';
 
-function isKremationGroupEntry(entry: WallCalendarEntry): boolean {
-  return Boolean(entry.kremationGroupId && (entry.kremationMemberNames?.length ?? 0) > 1);
+function isTransferGroupEntry(entry: WallCalendarEntry): {
+  title: string;
+  memberNames: string[];
+} | null {
+  if (entry.kremationGroupId && (entry.kremationMemberNames?.length ?? 0) > 1) {
+    return { title: 'Kremation', memberNames: entry.kremationMemberNames ?? [] };
+  }
+  if (entry.fahrtGroupId && (entry.fahrtMemberNames?.length ?? 0) > 1) {
+    return { title: 'Überführung', memberNames: entry.fahrtMemberNames ?? [] };
+  }
+  return null;
 }
 
 export function WallCalendarEventCard({
@@ -27,8 +36,9 @@ export function WallCalendarEventCard({
 }) {
   const colorClass = `wall-cal-card--color-${calendarColorGroupFromArts(entry.arts)}`;
   const clickable = Boolean(onClick);
-  const kremGroup = isKremationGroupEntry(entry);
-  const memberNames = entry.kremationMemberNames ?? [];
+  const transferGroup = isTransferGroupEntry(entry);
+  const memberNames = transferGroup?.memberNames ?? [];
+  const groupTitle = transferGroup?.title ?? '';
   const bestattungsBadge = entry.bestattungsMarker ? (
     <WallCalBestattungsBadge marker={entry.bestattungsMarker} />
   ) : null;
@@ -49,7 +59,7 @@ export function WallCalendarEventCard({
     compact && !strip && !mobile ? 'wall-cal-card--compact' : '',
     colorClass,
     entry.grouped ? 'is-grouped' : '',
-    kremGroup ? 'is-krem-group' : '',
+    transferGroup ? 'is-krem-group' : '',
     clickable ? 'is-clickable' : '',
   ]
     .filter(Boolean)
@@ -76,13 +86,13 @@ export function WallCalendarEventCard({
         tabIndex: 0,
         onClick: handleClick,
         onKeyDown: handleKeyDown,
-        'aria-label': kremGroup
-          ? `Kombinierte Kremation: ${memberNames.join(', ')}, ${entry.timeLabel}`
+        'aria-label': transferGroup
+          ? `Kombinierte ${groupTitle}: ${memberNames.join(', ')}, ${entry.timeLabel}`
           : `Personal einbuchen: ${entry.name}, ${entry.timeLabel}`,
       }
     : {};
 
-  if (kremGroup) {
+  if (transferGroup) {
     const route = entry.subtitle?.trim() || null;
     return (
       <article className={className} {...interactiveProps}>
@@ -92,7 +102,7 @@ export function WallCalendarEventCard({
             <time className="wall-cal-time">{entry.timeLabel}</time>
           ) : null}
         </div>
-        <span className="wall-cal-krem-title">Kremation</span>
+        <span className="wall-cal-krem-title">{groupTitle}</span>
         <ul className="wall-cal-krem-names">
           {memberNames.map((n) => (
             <li key={n}>{n}</li>
@@ -160,7 +170,7 @@ export function WallCalendarEventCard({
       <span className="wall-cal-name">{entry.name}</span>
       <span className="wall-cal-meta">{entry.subtitle || entry.title}</span>
       {traegerBadge}
-      {!compact && entry.grouped && !entry.kremationGroupId && (
+      {!compact && entry.grouped && !entry.kremationGroupId && !entry.fahrtGroupId && (
         <span className="wall-cal-group-hint">Trauerblock · {entry.sterbefallId}</span>
       )}
     </article>

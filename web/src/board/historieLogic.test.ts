@@ -145,4 +145,23 @@ describe('sichtbarBis / vorzeitiges Archiv', () => {
       Date.now = real;
     }
   });
+
+  it('hält Fall mit nur trauerfeier2datum nicht dauerhaft aktiv', () => {
+    const s: Sterbefall = {
+      id: 'x1',
+      verstorbenerName: 'Berger Test',
+      imAnschluss: true,
+      trauerfeier2datum: '20.07.2026',
+      trauerfeierzeit: '10:00',
+      inHistory: true,
+      aktivInDisposition: false,
+    };
+    const real = Date.now;
+    Date.now = () => new Date(2026, 6, 28, 10, 0).getTime();
+    try {
+      expect(istInHistory(s)).toBe(true);
+    } finally {
+      Date.now = real;
+    }
+  });
 });

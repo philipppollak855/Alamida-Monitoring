@@ -32,7 +32,14 @@ function normalizeAttachedCeremony(raw: unknown): AttachedCeremonyRef | null {
   if (!raw || typeof raw !== 'object') return null;
   const v = raw as Partial<AttachedCeremonyRef>;
   if (!v.dayKey || !v.kind || !CEREMONY_KINDS.includes(v.kind as CeremonyKind)) return null;
-  return { kind: v.kind as CeremonyKind, dayKey: String(v.dayKey) };
+  const out: AttachedCeremonyRef = {
+    kind: v.kind as CeremonyKind,
+    dayKey: String(v.dayKey),
+  };
+  if (typeof v.hostDocId === 'string' && v.hostDocId.trim()) {
+    out.hostDocId = v.hostDocId.trim();
+  }
+  return out;
 }
 
 function normalizeSnapshot(raw: unknown): PlanAssignmentSnapshot | null {
@@ -51,6 +58,10 @@ function normalizeSnapshot(raw: unknown): PlanAssignmentSnapshot | null {
     kremationGroupId:
       typeof v.kremationGroupId === 'string' && v.kremationGroupId.trim()
         ? v.kremationGroupId.trim()
+        : null,
+    fahrtGroupId:
+      typeof v.fahrtGroupId === 'string' && v.fahrtGroupId.trim()
+        ? v.fahrtGroupId.trim()
         : null,
   }) as PlanAssignmentSnapshot;
 }
@@ -98,6 +109,9 @@ function normalizeAssignments(raw: unknown): Record<string, PlanAssignment> {
     if (v.detachedFromCeremony === true) assignment.detachedFromCeremony = true;
     if (typeof v.kremationGroupId === 'string' && v.kremationGroupId.trim()) {
       assignment.kremationGroupId = v.kremationGroupId.trim();
+    }
+    if (typeof v.fahrtGroupId === 'string' && v.fahrtGroupId.trim()) {
+      assignment.fahrtGroupId = v.fahrtGroupId.trim();
     }
     out[id] = omitUndefinedDeep(assignment);
   }

@@ -1,8 +1,10 @@
 import type { PlanningCard } from '../../planning/types';
-import type { KremationGroupView } from '../../planning/transferPlanning';
+import type { FahrtGroupView, KremationGroupView } from '../../planning/transferPlanning';
 
 type Props = {
-  group: KremationGroupView;
+  group: KremationGroupView | FahrtGroupView;
+  label?: string;
+  hint?: string;
   draggingId: string | null;
   isDropTarget?: boolean;
   onCardDragStart: (card: PlanningCard) => void;
@@ -15,6 +17,8 @@ type Props = {
 
 export function PlanningKremationGroupCard({
   group,
+  label = 'Kremation',
+  hint = 'Kremation hierher ziehen zum Zusammenfassen',
   draggingId,
   isDropTarget,
   onCardDragStart,
@@ -60,7 +64,7 @@ export function PlanningKremationGroupCard({
       }
     >
       <header className="plan-krem-group-head">
-        <span className="plan-krem-group-label">Kremation</span>
+        <span className="plan-krem-group-label">{label}</span>
         {zeit && <span className="plan-krem-group-time">{zeit}</span>}
         <span className="plan-krem-group-count">{members.length}</span>
       </header>
@@ -103,9 +107,7 @@ export function PlanningKremationGroupCard({
           </li>
         ))}
       </ul>
-      {onDropOnGroup && (
-        <p className="plan-krem-group-hint">Kremation hierher ziehen zum Zusammenfassen</p>
-      )}
+      {onDropOnGroup && <p className="plan-krem-group-hint">{hint}</p>}
     </article>
   );
 }

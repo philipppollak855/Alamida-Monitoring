@@ -153,6 +153,9 @@ export interface WallCalendarEntry {
   /** Mehrere Fälle in einer kombinierten Kremationsfahrt (wie Planung). */
   kremationGroupId?: string;
   kremationMemberNames?: string[];
+  /** Mehrere Fälle in einer kombinierten Überführungsfahrt (wie Planung). */
+  fahrtGroupId?: string;
+  fahrtMemberNames?: string[];
 }
 
 export interface WallCalendarDay {
@@ -764,7 +767,8 @@ export function mergeZusatzTermineIntoEntries(
 /**
  * Geplante Überführungen aus der Planung in den Kalender mischen.
  * Bestehende Alamida-Überführungen am gleichen Tag/Route werden ersetzt/ergänzt.
- * Kremationen mit gleicher kremationGroupId werden zu einer Karte zusammengefasst.
+ * Kremationen mit gleicher kremationGroupId und Überführungen mit gleicher
+ * fahrtGroupId werden zu einer Karte zusammengefasst.
  */
 export function mergeTransferPlanIntoEntries(
   entries: WallCalendarEntry[],
@@ -779,6 +783,7 @@ export function mergeTransferPlanIntoEntries(
       nachOrt?: string | null;
       schrittTyp?: string | null;
       kremationGroupId?: string | null;
+      fahrtGroupId?: string | null;
     }
   >,
   sterbefaelle: Sterbefall[]
@@ -786,17 +791,16 @@ export function mergeTransferPlanIntoEntries(
   const byId = new Map(sterbefaelle.map((s) => [s.id, s]));
   const planned: WallCalendarEntry[] = [];
   const coveredKeys = new Set<string>();
-  const kremationGroups = new Map<
-    string,
-    {
-      groupId: string;
-      dayKey: string;
-      zeit?: string;
-      von: string;
-      nach: string;
-      members: { assignmentId: string; docId: string; name: string; sortMs: number }[];
-    }
-  >();
+  type GroupBucket = {
+    groupId: string;
+    dayKey: string;
+    zeit?: string;
+    von: string;
+    nach: string;
+    members: { assignmentId: string; docId: string; name: string; sortMs: number }[];
+  };
+  const kremationGroups = new Map<string, GroupBucket>();
+  const fahrtGroups = new Map<string, GroupBucket>();
 
   for (const assignment of Object.values(assignments)) {
     const dayKey = assignment.plannedDayKey;
@@ -815,11 +819,12 @@ export function mergeTransferPlanIntoEntries(
     const title = schrittTypLabel(assignment.schrittTyp ?? 'ueberfuehrung');
     const name = fallName(s);
     const route = `${von} → ${nach}`;
-    const gid = assignment.kremationGroupId?.trim();
+    const kremGid = assignment.kremationGroupId?.trim();
+    const fahrtGid = assignment.fahrtGroupId?.trim();
 
-    if (gid && art === 'ueberfuehrung_kremation') {
+    if (kremGid && art === 'ueberfuehrung_kremation') {
       coveredKeys.add(`${assignment.docId}|${dayKey}`);
-      const existing = kremationGroups.get(gid);
+      const existing = kremationGroups.get(kremGid);
       const member = {
         assignmentId: assignment.id,
         docId: s.id,
@@ -830,8 +835,33 @@ export function mergeTransferPlanIntoEntries(
         existing.members.push(member);
         if (!existing.zeit && zeit) existing.zeit = zeit;
       } else {
-        kremationGroups.set(gid, {
-          groupId: gid,
+        kremationGroups.set(kremGid, {
+          groupId: kremGid,
+          dayKey,
+          zeit,
+          von,
+          nach,
+          members: [member],
+        });
+      }
+      continue;
+    }
+
+    if (fahrtGid && art !== 'ueberfuehrung_kremation') {
+      coveredKeys.add(`${assignment.docId}|${dayKey}`);
+      const existing = fahrtGroups.get(fahrtGid);
+      const member = {
+        assignmentId: assignment.id,
+        docId: s.id,
+        name,
+        sortMs,
+      };
+      if (existing) {
+        existing.members.push(member);
+        if (!existing.zeit && zeit) existing.zeit = zeit;
+      } else {
+        fahrtGroups.set(fahrtGid, {
+          groupId: fahrtGid,
           dayKey,
           zeit,
           von,
@@ -919,6 +949,61 @@ export function mergeTransferPlanIntoEntries(
       bestattungsMarker: 'U',
       kremationGroupId: group.groupId,
       kremationMemberNames: names,
+    });
+  }
+
+  for (const group of fahrtGroups.values()) {
+    if (group.members.length < 2) {
+      const m = group.members[0]!;
+      const s = byId.get(m.docId);
+      if (!s) continue;
+      const route = `${group.von} → ${group.nach}`;
+      planned.push({
+        id: `plan:${m.assignmentId}`,
+        docId: s.id,
+        sterbefallId: s.sterbefallId ?? s.id,
+        dayKey: group.dayKey,
+        dayLabel: formatDayLabelDe(group.dayKey),
+        timeLabel: group.zeit || '—',
+        sortMs: m.sortMs,
+        name: m.name,
+        title: 'Überführung',
+        subtitle: route,
+        badges: ['Überführung', 'Geplant'],
+        grouped: false,
+        arts: ['ueberfuehrung'],
+        searchText: [m.name, 'überführung', route, 'geplant'].join(' ').toLowerCase(),
+        bestattungsMarker: calendarBestattungsMarker(s, ['ueberfuehrung'], 'Überführung'),
+      });
+      continue;
+    }
+
+    const members = [...group.members].sort(
+      (a, b) => a.sortMs - b.sortMs || a.name.localeCompare(b.name, 'de')
+    );
+    const host = byId.get(members[0]!.docId)!;
+    const names = members.map((m) => m.name);
+    const route = `${group.von} → ${group.nach}`;
+    planned.push({
+      id: `plan:fahrt-group:${group.groupId}`,
+      docId: members[0]!.docId,
+      sterbefallId: host.sterbefallId ?? host.id,
+      dayKey: group.dayKey,
+      dayLabel: formatDayLabelDe(group.dayKey),
+      timeLabel: group.zeit || '—',
+      sortMs: members[0]!.sortMs,
+      name: 'Überführung',
+      title: 'Überführung',
+      subtitle: route,
+      badges: ['Überführung', `${members.length}×`, 'Geplant'],
+      grouped: true,
+      arts: ['ueberfuehrung'],
+      searchText: [...names, 'überführung', route, 'geplant', String(members.length)]
+        .join(' ')
+        .toLowerCase(),
+      bestattungsMarker: 'U',
+      fahrtGroupId: group.groupId,
+      fahrtMemberNames: names,
     });
   }
 

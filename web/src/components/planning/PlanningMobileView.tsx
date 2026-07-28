@@ -52,6 +52,7 @@ type Props = {
   onDropOnKuehlraum: (id: string) => void;
   onDropOnCeremony: (c: DayCeremony) => void;
   onDropOnKremation: (card: PlanningCard) => void;
+  onDropOnFahrt: (card: PlanningCard) => void;
   onResetCard: (card: PlanningCard) => void;
   onCeremonyClick: (c: DayCeremony) => void;
   onOpenPersonnel: (card: PlanningCard) => void;
@@ -99,6 +100,7 @@ export function PlanningMobileView({
   onDropOnKuehlraum,
   onDropOnCeremony,
   onDropOnKremation,
+  onDropOnFahrt,
   onResetCard,
   onCeremonyClick,
   onOpenPersonnel,
@@ -224,6 +226,7 @@ export function PlanningMobileView({
             }}
             onDropOnCeremony={onDropOnCeremony}
             onDropOnKremation={onDropOnKremation}
+            onDropOnFahrt={onDropOnFahrt}
             onOpenPersonnel={onOpenPersonnel}
             personnelByCardId={personnelByCardId}
             onZusatzPersonnel={onZusatzPersonnel}

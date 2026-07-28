@@ -7,6 +7,8 @@ import {
   isAttachableCeremonyKind,
   isCardAttachedToAnyCeremony,
   isKremationPlanningCard,
+  isUeberfuehrungFahrtCard,
+  partitionFahrtGroups,
   partitionKremationGroups,
   pickCeremonyHostForCard,
 } from '../../planning/transferPlanning';
@@ -44,6 +46,7 @@ type Props = {
   isDropTarget: boolean;
   ceremonyDropKey?: string | null;
   kremationDropKey?: string | null;
+  fahrtDropKey?: string | null;
   draggingId: string | null;
   onDragOver: () => void;
   onDragLeave: () => void;
@@ -58,6 +61,9 @@ type Props = {
   onKremationDragOver?: (card: PlanningCard) => void;
   onKremationDragLeave?: () => void;
   onDropOnKremation?: (card: PlanningCard) => void;
+  onFahrtDragOver?: (card: PlanningCard) => void;
+  onFahrtDragLeave?: () => void;
+  onDropOnFahrt?: (card: PlanningCard) => void;
   onOpenPersonnel?: (card: PlanningCard) => void;
   personnelByCardId?: Record<string, string | null>;
   onAddZusatz?: () => void;
@@ -109,6 +115,7 @@ export function PlanningCenterDay({
   isDropTarget,
   ceremonyDropKey,
   kremationDropKey,
+  fahrtDropKey,
   draggingId,
   onDragOver,
   onDragLeave,
@@ -123,6 +130,9 @@ export function PlanningCenterDay({
   onKremationDragOver,
   onKremationDragLeave,
   onDropOnKremation,
+  onFahrtDragOver,
+  onFahrtDragLeave,
+  onDropOnFahrt,
   onOpenPersonnel,
   personnelByCardId,
   onAddZusatz,
@@ -154,17 +164,20 @@ export function PlanningCenterDay({
     attachedByHost.set(key, list);
   }
 
-  const { groups: kremationGroups, singles: looseSinglesRaw } =
+  const { groups: kremationGroups, singles: afterKremation } =
     partitionKremationGroups(looseTransfers);
+  const { groups: fahrtGroups, singles: looseSinglesRaw } =
+    partitionFahrtGroups(afterKremation);
 
-  const groupedMemberIds = new Set(
-    kremationGroups.flatMap((g) => g.members.map((m) => m.id))
-  );
+  const groupedMemberIds = new Set([
+    ...kremationGroups.flatMap((g) => g.members.map((m) => m.id)),
+    ...fahrtGroups.flatMap((g) => g.members.map((m) => m.id)),
+  ]);
   const groupedDocIds = new Set(
     kremationGroups.flatMap((g) => g.members.map((m) => m.docId))
   );
 
-  // Mitglieder einer Kremationsfahrt nie zusätzlich als Einzelkarte
+  // Mitglieder einer Fahrtgruppe nie zusätzlich als Einzelkarte
   const looseSingles = looseSinglesRaw.filter((c) => !groupedMemberIds.has(c.id));
 
   // Kremations-Termine der zusammengefassten Fälle ausblenden — nur die Gruppenkarte bleibt
@@ -173,7 +186,9 @@ export function PlanningCenterDay({
   );
 
   const looseCount =
-    kremationGroups.reduce((n, g) => n + g.members.length, 0) + looseSingles.length;
+    kremationGroups.reduce((n, g) => n + g.members.length, 0) +
+    fahrtGroups.reduce((n, g) => n + g.members.length, 0) +
+    looseSingles.length;
 
   return (
     <section
@@ -509,35 +524,68 @@ export function PlanningCenterDay({
                   onResetCard={onResetCard}
                 />
               ))}
-              {looseSingles.map((card) => (
-                <PlanningTransferCard
-                  key={card.id}
-                  card={card}
-                  dragging={draggingId === card.id}
-                  personnelLine={personnelByCardId?.[card.id]}
-                  tapSelect={tapSelect}
-                  isDropTarget={
-                    Boolean(onDropOnKremation) &&
-                    isKremationPlanningCard(card) &&
-                    kremationDropKey === card.id
+              {fahrtGroups.map((group) => (
+                <PlanningKremationGroupCard
+                  key={group.groupId}
+                  group={group}
+                  label="Überführung"
+                  hint="Überführung hierher ziehen zum Zusammenfassen"
+                  draggingId={draggingId}
+                  isDropTarget={fahrtDropKey === group.host.id}
+                  onCardDragStart={onCardDragStart}
+                  onCardDragEnd={onCardDragEnd}
+                  onDragOverGroup={() => onFahrtDragOver?.(group.host)}
+                  onDragLeaveGroup={onFahrtDragLeave}
+                  onDropOnGroup={
+                    onDropOnFahrt ? () => onDropOnFahrt(group.host) : undefined
                   }
-                  onDragStart={onCardDragStart}
-                  onDragEnd={onCardDragEnd}
-                  onReset={onResetCard}
-                  onOpenPersonnel={onOpenPersonnel}
-                  onDragOverCard={
-                    onDropOnKremation && isKremationPlanningCard(card)
-                      ? () => onKremationDragOver?.(card)
-                      : undefined
-                  }
-                  onDragLeaveCard={onKremationDragLeave}
-                  onDropOnCard={
-                    onDropOnKremation && isKremationPlanningCard(card)
-                      ? () => onDropOnKremation(card)
-                      : undefined
-                  }
+                  onResetCard={onResetCard}
                 />
               ))}
+              {looseSingles.map((card) => {
+                const acceptKremation =
+                  Boolean(onDropOnKremation) && isKremationPlanningCard(card);
+                const acceptFahrt =
+                  Boolean(onDropOnFahrt) && isUeberfuehrungFahrtCard(card);
+                return (
+                  <PlanningTransferCard
+                    key={card.id}
+                    card={card}
+                    dragging={draggingId === card.id}
+                    personnelLine={personnelByCardId?.[card.id]}
+                    tapSelect={tapSelect}
+                    isDropTarget={
+                      (acceptKremation && kremationDropKey === card.id) ||
+                      (acceptFahrt && fahrtDropKey === card.id)
+                    }
+                    onDragStart={onCardDragStart}
+                    onDragEnd={onCardDragEnd}
+                    onReset={onResetCard}
+                    onOpenPersonnel={onOpenPersonnel}
+                    onDragOverCard={
+                      acceptKremation
+                        ? () => onKremationDragOver?.(card)
+                        : acceptFahrt
+                          ? () => onFahrtDragOver?.(card)
+                          : undefined
+                    }
+                    onDragLeaveCard={
+                      acceptKremation
+                        ? onKremationDragLeave
+                        : acceptFahrt
+                          ? onFahrtDragLeave
+                          : undefined
+                    }
+                    onDropOnCard={
+                      acceptKremation
+                        ? () => onDropOnKremation?.(card)
+                        : acceptFahrt
+                          ? () => onDropOnFahrt?.(card)
+                          : undefined
+                    }
+                  />
+                );
+              })}
             </>
           )}
         </div>

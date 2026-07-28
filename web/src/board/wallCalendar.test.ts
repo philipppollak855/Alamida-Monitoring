@@ -269,6 +269,52 @@ describe('mergeTransferPlanIntoEntries', () => {
     expect(groups[0]?.badges).toContain('2×');
     expect(merged.filter((e) => e.arts.includes('ueberfuehrung_kremation'))).toHaveLength(1);
   });
+
+  it('fasst kombinierte Überführungen zu einer Kalenderkarte zusammen', () => {
+    const sterbefaelle = [
+      {
+        id: 'u1',
+        sterbefallId: '1',
+        verstorbenerName: 'Alpha',
+      },
+      {
+        id: 'u2',
+        sterbefallId: '2',
+        verstorbenerName: 'Beta',
+      },
+    ];
+    const merged = mergeTransferPlanIntoEntries(
+      [],
+      {
+        a: {
+          id: 'a',
+          docId: 'u1',
+          plannedDayKey: '2026-07-30',
+          plannedZeit: '10:00',
+          vonOrt: 'Grafenbach',
+          nachOrt: 'Ternitz',
+          schrittTyp: 'ueberfuehrung',
+          fahrtGroupId: 'f1',
+        },
+        b: {
+          id: 'b',
+          docId: 'u2',
+          plannedDayKey: '2026-07-30',
+          plannedZeit: '10:00',
+          vonOrt: 'Grafenbach',
+          nachOrt: 'Ternitz',
+          schrittTyp: 'ueberfuehrung',
+          fahrtGroupId: 'f1',
+        },
+      },
+      sterbefaelle
+    );
+    const groups = merged.filter((e) => e.fahrtGroupId === 'f1');
+    expect(groups).toHaveLength(1);
+    expect(groups[0]?.name).toBe('Überführung');
+    expect(groups[0]?.fahrtMemberNames).toEqual(['Alpha', 'Beta']);
+    expect(groups[0]?.badges).toContain('2×');
+  });
 });
 
 describe('Schantl Begräbnis-Überführung', () => {

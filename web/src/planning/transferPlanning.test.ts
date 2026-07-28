@@ -6,6 +6,7 @@ import { setDispositionSettings } from '../settings/dispositionSettingsStore';
 import {
   attachKremationToGroup,
   attachTransferToCeremony,
+  attachUeberfuehrungToFahrtGroup,
   buildKuehlraumCapacities,
   buildKuehlraumLocationGroups,
   buildKuehlraumRailStates,
@@ -20,10 +21,13 @@ import {
   defaultTargetKuehlraumId,
   detachKremationFromGroup,
   detachTransferFromCeremony,
+  detachUeberfuehrungFromFahrtGroup,
   dismissPlanEvent,
   isCardAttachedToAnyCeremony,
+  isCardAttachedToCeremony,
   moveCardAssignment,
   nextOrderInLane,
+  partitionFahrtGroups,
   partitionKremationGroups,
   pickCeremonyHostForCard,
   planningCardId,
@@ -638,5 +642,125 @@ describe('transferPlanning board', () => {
 
     const detached = detachKremationFromGroup(attached!.assignments, a, '2026-07-30', 40);
     expect(detached.assignment.kremationGroupId).toBeNull();
+  });
+
+  it('attachUeberfuehrungToFahrtGroup fasst Überführungen verschiedener Fälle zusammen', () => {
+    const a = {
+      id: 'a:1',
+      docId: 'fallA',
+      zeile: 1,
+      sterbefallId: 'A',
+      name: 'Alpha',
+      schrittTyp: 'ueberfuehrung',
+      vonOrt: 'KR',
+      nachOrt: 'Friedhof',
+      terminAm: '30.07.2026',
+      sourceDayKey: null,
+      plannedDayKey: '2026-07-30',
+      plannedZeit: '10:00',
+      status: 'geplant',
+      targetsEigenerKr: false,
+      leavesEigenerKr: true,
+      kuehlraumId: null,
+      order: 10,
+      hasManualPlan: true,
+      source: 'alamida' as const,
+    };
+    const b = {
+      ...a,
+      id: 'b:1',
+      docId: 'fallB',
+      sterbefallId: 'B',
+      name: 'Beta',
+      order: 20,
+      plannedZeit: null as string | null,
+    };
+    const attached = attachUeberfuehrungToFahrtGroup({}, a, b, 30);
+    expect(attached).not.toBeNull();
+    const gid = attached!.groupId;
+    expect(attached!.assignments['a:1']!.fahrtGroupId).toBe(gid);
+    expect(attached!.assignments['b:1']!.fahrtGroupId).toBe(gid);
+    expect(attached!.assignments['a:1']!.plannedZeit).toBe('10:00');
+
+    const cards = [
+      { ...a, fahrtGroupId: gid },
+      { ...b, fahrtGroupId: gid, plannedZeit: '10:00' as string | null },
+    ];
+    const parts = partitionFahrtGroups(cards);
+    expect(parts.groups).toHaveLength(1);
+    expect(parts.groups[0]!.members.map((m) => m.name)).toEqual(['Alpha', 'Beta']);
+    expect(parts.singles).toHaveLength(0);
+
+    const detached = detachUeberfuehrungFromFahrtGroup(
+      attached!.assignments,
+      a,
+      '2026-07-30',
+      40
+    );
+    expect(detached.assignment.fahrtGroupId).toBeNull();
+  });
+
+  it('attachTransferToCeremony erlaubt anderen Fall mit hostDocId', () => {
+    const card = {
+      id: 'a:1',
+      docId: 'fallA',
+      zeile: 1,
+      sterbefallId: 'A',
+      name: 'Alpha',
+      schrittTyp: 'ueberfuehrung',
+      vonOrt: 'KR',
+      nachOrt: 'Friedhof',
+      terminAm: '30.07.2026',
+      sourceDayKey: null,
+      plannedDayKey: '2026-07-29',
+      plannedZeit: null as string | null,
+      status: 'geplant',
+      targetsEigenerKr: false,
+      leavesEigenerKr: true,
+      kuehlraumId: null,
+      order: 10,
+      hasManualPlan: true,
+      source: 'alamida' as const,
+    };
+    const result = attachTransferToCeremony(
+      {},
+      card,
+      {
+        kind: 'beisetzung',
+        dayKey: '2026-07-30',
+        zeit: '14:00',
+        hostDocId: 'fallB',
+      },
+      5
+    );
+    expect(result).not.toBeNull();
+    expect(result!.assignment.attachedCeremony).toEqual({
+      kind: 'beisetzung',
+      dayKey: '2026-07-30',
+      hostDocId: 'fallB',
+    });
+    expect(result!.assignment.plannedDayKey).toBe('2026-07-30');
+    expect(
+      isCardAttachedToCeremony(
+        {
+          ...card,
+          plannedDayKey: '2026-07-30',
+          attachedCeremony: result!.assignment.attachedCeremony,
+        },
+        { kind: 'beisetzung', dayKey: '2026-07-30' },
+        'fallB'
+      )
+    ).toBe(true);
+    expect(
+      isCardAttachedToCeremony(
+        {
+          ...card,
+          plannedDayKey: '2026-07-30',
+          attachedCeremony: result!.assignment.attachedCeremony,
+        },
+        { kind: 'beisetzung', dayKey: '2026-07-30' },
+        'fallA'
+      )
+    ).toBe(false);
   });
 });
