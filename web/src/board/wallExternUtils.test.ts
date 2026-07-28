@@ -167,4 +167,22 @@ describe('buildExternGruppen', () => {
     expect(kr?.faelle.some((f) => f.name.includes('Muster Wien'))).toBe(true);
     expect(kr?.faelle[0]?.hinweis).toContain('Platz 2');
   });
+
+  it('blendet Fälle aus, die durch Planung explizit ausgeschlossen sind', () => {
+    const gruppen = buildExternGruppen(
+      [
+        baseFall({
+          id: 'x1',
+          verstorbenerName: 'Friedrich Berger',
+          abholort: 'UK - Wiener Neustadt',
+          abholortIstKrankenhaus: true,
+          naechsterSchrittVon: 'UK - Wiener Neustadt',
+          naechsterSchrittNach: 'Kühl. Grafenbach',
+          naechsterSchrittTyp: 'abholung',
+        }),
+      ],
+      { excludeDocIds: new Set(['x1']) }
+    );
+    expect(gruppen).toHaveLength(0);
+  });
 });

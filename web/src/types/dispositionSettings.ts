@@ -13,6 +13,10 @@ export interface DispositionPerson {
   active?: boolean;
   /** Externe Person (z. B. Träger von außerhalb) — eigener Tab in der Einbuchung. */
   extern?: boolean;
+  /** Firebase Auth UID des verknüpften Benutzerkontos. */
+  linkedUserId?: string;
+  /** Denormalisierte E-Mail zur Anzeige in den Einstellungen. */
+  linkedUserEmail?: string;
 }
 
 export interface EigenerKuehlraumConfig {

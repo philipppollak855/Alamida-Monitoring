@@ -228,8 +228,9 @@ type BookingTimeSlice = Pick<
   'dayKey' | 'arrangeurId' | 'traegerIds' | 'timeLabel'
 >;
 
-/** Ob Person in einer Buchung vorkommt (Arrangeur oder Träger). */
-function personInBooking(personId: string, booking: BookingTimeSlice): boolean {
+/** Ob Person in einer Buchung vorkommt (Arrangeur, Träger oder Fahrer). */
+export function personInBooking(personId: string, booking: BookingTimeSlice): boolean {
+  if (!personId) return false;
   if (booking.arrangeurId === personId) return true;
   return (booking.traegerIds ?? []).includes(personId);
 }

@@ -33,6 +33,7 @@ import { useSterbefaelle } from '../hooks/useSterbefaelle';
 import { useTransferPlan } from '../hooks/useTransferPlan';
 import { useZusatzTermine } from '../hooks/useZusatzTermine';
 import { useDispositionSettings } from '../settings/SettingsProvider';
+import { useAccessPermissions, useLinkedPersonId } from '../auth/useAccessPermissions';
 import type { ZusatzTermin } from '../types/zusatzTermin';
 import {
   enrichPlanningCeremonies,
@@ -113,6 +114,8 @@ export function PlanningPage() {
   const [rangeStart, setRangeStart] = useState(() => startOfWeekMonday(new Date()));
   const [focusDayKey, setFocusDayKey] = useState<string>(() => calendarDay);
   const { settings, saveSettings } = useDispositionSettings();
+  const access = useAccessPermissions();
+  const linkedPersonId = useLinkedPersonId();
   const { items: sterbefaelleRaw, loading: casesLoading, error: casesError } = useSterbefaelle();
   const { plan, loading: planLoading, saving, error: planError, savePlan, setError } =
     useTransferPlan();
@@ -1482,6 +1485,14 @@ export function PlanningPage() {
           personnelPool={settings.personnelPool ?? []}
           allBookings={bookings}
           absences={absences}
+          accessMode={
+            access.canBookPersonnel
+              ? 'full'
+              : access.canSelfConfirm && linkedPersonId
+                ? 'selfConfirm'
+                : 'readOnly'
+          }
+          linkedPersonId={linkedPersonId}
           existing={bookings[bookingEntry.id] ?? null}
           pending={bookingSaving}
           markerPending={markerPending}
@@ -1546,6 +1557,9 @@ export function PlanningPage() {
         standbys={standbys}
         absences={absences}
         holidayRegion={settings.holidayRegion === 'DE' ? 'DE' : 'AT'}
+        selfOnlyPersonId={
+          !access.canBookPersonnel && access.canSelfStandby ? linkedPersonId : null
+        }
         pending={bookingSaving}
         error={bookingError}
         onClose={() => {

@@ -40,6 +40,9 @@ type Props = {
   pending?: boolean;
   markerPending?: boolean;
   error?: string | null;
+  /** full = Personal wählen; selfConfirm = nur eigene Bestätigung; readOnly = nur ansehen */
+  accessMode?: 'full' | 'selfConfirm' | 'readOnly';
+  linkedPersonId?: string | null;
   onClose: () => void;
   onSave: (booking: PersonnelBooking) => void;
   onClear?: () => void;
@@ -56,6 +59,8 @@ export function PersonnelBookingDialog({
   pending,
   markerPending,
   error,
+  accessMode = 'full',
+  linkedPersonId = null,
   onClose,
   onSave,
   onClear,
@@ -63,6 +68,9 @@ export function PersonnelBookingDialog({
 }: Props) {
   const titleId = useId();
   const closeOnBackdrop = useRef(false);
+  const selfOnly = accessMode === 'selfConfirm';
+  const readOnly = accessMode === 'readOnly';
+  const fieldsLocked = selfOnly || readOnly;
   const [arrangeurId, setArrangeurId] = useState<string>('');
   const [traegerIds, setTraegerIds] = useState<string[]>([]);
   const [traegerVonFamilie, setTraegerVonFamilie] = useState(false);
@@ -393,7 +401,9 @@ export function PersonnelBookingDialog({
       >
         <header className="personnel-booking-head">
           <div>
-            <p className="personnel-booking-kicker">Personal einbuchen</p>
+            <p className="personnel-booking-kicker">
+              {selfOnly ? 'Einbuchung bestätigen' : readOnly ? 'Personal' : 'Personal einbuchen'}
+            </p>
             <h2 id={titleId}>
               {effectiveMarker && <WallCalBestattungsBadge marker={effectiveMarker} />}{' '}
               {entry.name}
@@ -412,12 +422,22 @@ export function PersonnelBookingDialog({
           </button>
         </header>
 
+        {selfOnly && (
+          <p className="personnel-booking-rule">
+            Sie sind nur für Ihre eigene Bestätigung freigeschaltet — Personalauswahl ist gesperrt.
+          </p>
+        )}
+        {readOnly && (
+          <p className="personnel-booking-rule">Keine Bearbeitungsrechte für Personalbuchungen.</p>
+        )}
+
+        <div className={fieldsLocked ? 'personnel-booking-locked' : undefined}>
         {onMarkerOverrideChange && !isFahrerMode && !isKremationTransfer && (
           <BestattungsMarkerSwitch
             override={markerOverride}
             effective={effectiveMarker ?? 'S'}
             pending={markerPending}
-            disabled={pending}
+            disabled={pending || fieldsLocked}
             onChange={(next) => void handleMarkerChange(next)}
           />
         )}
@@ -701,27 +721,45 @@ export function PersonnelBookingDialog({
             {msg}
           </p>
         ))}
+        </div>
         {error && (
           <p className="board-inline-error" role="alert">
             {error}
           </p>
         )}
-        {selectedExternIds.length > 0 && !isKremationTransfer && (
+        {((selectedExternIds.length > 0 && !isKremationTransfer) ||
+          (selfOnly &&
+            linkedPersonId &&
+            existing &&
+            (existing.arrangeurId === linkedPersonId ||
+              existing.traegerIds.includes(linkedPersonId)))) && (
           <div className="personnel-booking-extern-confirm">
             <p className="personnel-booking-rule">
-              Externes Personal: Einbuchung vorhanden, Status pro Person als bestätigt markieren.
+              {selfOnly
+                ? 'Eigene Einbuchung als bestätigt markieren.'
+                : 'Externes Personal: Einbuchung vorhanden, Status pro Person als bestätigt markieren.'}
             </p>
             <div className="personnel-booking-pool-list">
-              {selectedExternIds.map((id) => (
+              {(selfOnly && linkedPersonId
+                ? [linkedPersonId]
+                : selectedExternIds
+              ).map((id) => (
                 <label key={id} className="personnel-booking-pool-item is-extern">
                   <input
                     type="checkbox"
                     checked={confirmedPersonIds.includes(id)}
                     onChange={() => toggleConfirmed(id)}
-                    disabled={pending || markerPending}
+                    disabled={
+                      pending ||
+                      markerPending ||
+                      readOnly ||
+                      (selfOnly && id !== linkedPersonId)
+                    }
                   />
                   <span>
-                    {selectedExternMap.get(id)?.name ?? id}
+                    {personnelPool.find((p) => p.id === id)?.name ??
+                      selectedExternMap.get(id)?.name ??
+                      id}
                     <em className="personnel-booking-extern-badge"> bestätigt</em>
                   </span>
                 </label>
@@ -731,7 +769,7 @@ export function PersonnelBookingDialog({
         )}
 
         <footer className="personnel-booking-actions">
-          {existing && onClear && (
+          {existing && onClear && !fieldsLocked && (
             <button
               type="button"
               className="btn-ghost"
@@ -741,14 +779,16 @@ export function PersonnelBookingDialog({
               Einbuchung löschen
             </button>
           )}
-          <button
-            type="button"
-            className="btn-ghost"
-            onClick={shareBookingViaWhatsApp}
-            disabled={pending || markerPending}
-          >
-            WhatsApp teilen
-          </button>
+          {!readOnly && (
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={shareBookingViaWhatsApp}
+              disabled={pending || markerPending}
+            >
+              WhatsApp teilen
+            </button>
+          )}
           <button
             type="button"
             className="btn-ghost"
@@ -757,12 +797,27 @@ export function PersonnelBookingDialog({
           >
             {isKremationTransfer && !existing ? 'Schließen' : 'Abbrechen'}
           </button>
-          {!isKremationTransfer && (
+          {!isKremationTransfer && !readOnly && (
             <button
               type="button"
               className="btn-primary"
-              disabled={pending || markerPending || !validation.ok}
+              disabled={
+                pending ||
+                markerPending ||
+                (selfOnly ? !existing || !linkedPersonId : !validation.ok)
+              }
               onClick={() => {
+                if (selfOnly && existing && linkedPersonId) {
+                  const nextConfirmed = confirmedPersonIds.includes(linkedPersonId)
+                    ? [...new Set([...confirmedPersonIds, linkedPersonId])]
+                    : confirmedPersonIds.filter((id) => id !== linkedPersonId);
+                  onSave({
+                    ...existing,
+                    confirmedPersonIds: nextConfirmed,
+                    updatedAtMs: Date.now(),
+                  });
+                  return;
+                }
                 const cleanTraeger = traegerIds.filter((id) => id !== arrangeurId);
                 onSave({
                   id: entry.id,
@@ -788,7 +843,7 @@ export function PersonnelBookingDialog({
                 });
               }}
             >
-              {pending ? 'Speichert…' : 'Einbuchen'}
+              {pending ? 'Speichert…' : selfOnly ? 'Bestätigung speichern' : 'Einbuchen'}
             </button>
           )}
         </footer>

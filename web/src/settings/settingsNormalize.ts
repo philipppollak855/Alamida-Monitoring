@@ -27,12 +27,16 @@ function normalizePersonnelPool(raw: unknown): DispositionPerson[] {
           r === 'arrangeur' || r === 'traeger' || r === 'fahrer'
       );
     if (roles.length === 0) return;
+    const linkedUserId = String(p.linkedUserId ?? '').trim() || undefined;
+    const linkedUserEmail = String(p.linkedUserEmail ?? '').trim() || undefined;
     out.push({
       id: String(p.id || `person-${i}`).trim() || `person-${i}`,
       name,
       roles: [...new Set(roles)],
       active: p.active !== false,
       extern: p.extern === true,
+      ...(linkedUserId ? { linkedUserId } : {}),
+      ...(linkedUserEmail ? { linkedUserEmail } : {}),
     });
   });
   return out;

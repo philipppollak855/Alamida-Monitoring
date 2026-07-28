@@ -40,6 +40,8 @@ import { countEmpfohleneDuplikatEntfernungen, findFallDuplikatGruppen, keepIdFor
 import { toggleUeberfuehrungErledigt } from '../services/ueberfuehrungErledigt';
 import { clearSterbefallUrnenRetour, markSterbefallUrnenRetour } from '../services/urnenRetour';
 import { DispositionSettingsPanel } from '../components/DispositionSettingsPanel';
+import { UserAccessPanel } from '../components/UserAccessPanel';
+import { useAccessPermissions } from '../auth/useAccessPermissions';
 import { EndzielChip, SchrittBadge } from '../ui/SchrittBadge';
 import { StatCard } from '../ui/StatCard';
 import { useDispositionSettings } from '../settings/SettingsProvider';
@@ -75,8 +77,17 @@ function sectionBadge(
 
 export function BoardPage() {
   const isNarrow = useNarrowViewport();
+  const access = useAccessPermissions();
   const [searchParams, setSearchParams] = useSearchParams();
-  const section = parseBoardSection(searchParams.get('tab'));
+  const sectionRaw = parseBoardSection(searchParams.get('tab'));
+  const canOpenSettings = access.canManageSettings || access.canManageUsers;
+  const section =
+    sectionRaw === 'einstellungen' && !canOpenSettings ? 'uebersicht' : sectionRaw;
+  const visibleSections = useMemo(
+    () =>
+      BOARD_SECTIONS.filter((item) => item.id !== 'einstellungen' || canOpenSettings),
+    [canOpenSettings]
+  );
   const calendarDay = useCalendarDay();
   const calendarNow = useMemo(() => {
     const [y, m, d] = calendarDay.split('-').map(Number);
@@ -419,17 +430,21 @@ export function BoardPage() {
         </div>
         <div className="board-hero-actions">
           <LiveDataBar compact={isNarrow} />
-          <Link to="/planung" className="board-wall-link board-wall-link--visible">
-            Planung
-          </Link>
-          <Link to="/wall" className="board-wall-link board-wall-link--visible">
-            Wand
-          </Link>
+          {access.canPlan && (
+            <Link to="/planung" className="board-wall-link board-wall-link--visible">
+              Planung
+            </Link>
+          )}
+          {access.canWall && (
+            <Link to="/wall" className="board-wall-link board-wall-link--visible">
+              Wand
+            </Link>
+          )}
         </div>
       </header>
 
       <nav className="board-section-nav" aria-label="Disposition-Bereiche">
-        {BOARD_SECTIONS.map((item) => {
+        {visibleSections.map((item) => {
           const badge = sectionBadge(item.id, badgeStats);
           return (
             <button
@@ -682,16 +697,20 @@ export function BoardPage() {
                   >
                     Alle Fälle
                   </button>
-                  <button
-                    type="button"
-                    className="btn-ghost btn-small"
-                    onClick={() => goToSection('einstellungen')}
-                  >
-                    Erkennung & Kühlraum
-                  </button>
-                  <Link to="/wall" className="btn-ghost btn-small">
-                    Wandmonitor
-                  </Link>
+                  {canOpenSettings && (
+                    <button
+                      type="button"
+                      className="btn-ghost btn-small"
+                      onClick={() => goToSection('einstellungen')}
+                    >
+                      Erkennung & Kühlraum
+                    </button>
+                  )}
+                  {access.canWall && (
+                    <Link to="/wall" className="btn-ghost btn-small">
+                      Wandmonitor
+                    </Link>
+                  )}
                 </div>
               </section>
             </div>
@@ -799,7 +818,9 @@ export function BoardPage() {
                       onToggleExpand={(key) =>
                         setExpandedKrKey((prev) => (prev === key ? null : key))
                       }
-                      onAbschliessen={(fall) => abschluss.open(fall)}
+                      onAbschliessen={(fall) => {
+                        if (access.canDeleteCases) abschluss.open(fall);
+                      }}
                       onAlsUrne={(fall) => void handleAlsUrne(fall)}
                     />
                   </section>
@@ -851,17 +872,19 @@ export function BoardPage() {
                   <p>Verlauf und Endziel — Erde: Beisetzung · Urne: Krematorium</p>
                 )}
               </div>
-              <button
-                type="button"
-                className="btn-ghost"
-                onClick={() => {
-                  setDuplikateError(null);
-                  setDuplikateOpen(true);
-                }}
-              >
-                Duplikatsprüfung
-                {duplikatCount > 0 ? ` (${duplikatCount})` : ''}
-              </button>
+              {access.canDeleteCases && (
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  onClick={() => {
+                    setDuplikateError(null);
+                    setDuplikateOpen(true);
+                  }}
+                >
+                  Duplikatsprüfung
+                  {duplikatCount > 0 ? ` (${duplikatCount})` : ''}
+                </button>
+              )}
             </div>
             {removeError && (
               <p className="board-remove-error" role="alert">
@@ -924,7 +947,7 @@ export function BoardPage() {
                           </div>
                           <span className="case-chevron" aria-hidden />
                         </button>
-                        {!abgeschlossen && (
+                        {!abgeschlossen && access.canDeleteCases && (
                           <button
                             type="button"
                             className="case-abschluss-btn"
@@ -955,18 +978,20 @@ export function BoardPage() {
                               </div>
                             </div>
                           ))}
-                          <div className="case-timeline-foot">
-                            <button
-                              type="button"
-                              className="case-remove-link"
-                              disabled={removePending === s.id}
-                              onClick={() => void handleRemoveFromDisposition(s)}
-                            >
-                              {removePending === s.id
-                                ? 'Entfernen…'
-                                : 'Als Testfall aus Disposition entfernen'}
-                            </button>
-                          </div>
+                          {access.canDeleteCases && (
+                            <div className="case-timeline-foot">
+                              <button
+                                type="button"
+                                className="case-remove-link"
+                                disabled={removePending === s.id}
+                                onClick={() => void handleRemoveFromDisposition(s)}
+                              >
+                                {removePending === s.id
+                                  ? 'Entfernen…'
+                                  : 'Als Testfall aus Disposition entfernen'}
+                              </button>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -977,9 +1002,10 @@ export function BoardPage() {
           </section>
         )}
 
-        {section === 'einstellungen' && (
+        {section === 'einstellungen' && canOpenSettings && (
           <section className="board-settings-section">
-            <DispositionSettingsPanel defaultOpen />
+            {access.canManageUsers && <UserAccessPanel defaultOpen />}
+            {access.canManageSettings && <DispositionSettingsPanel defaultOpen />}
           </section>
         )}
       </main>

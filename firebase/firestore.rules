@@ -14,20 +14,40 @@ service cloud.firestore {
         && userDoc().data.activated == true;
     }
 
+    function isUserManager() {
+      return isActivatedUser()
+        && 'permissions' in userDoc().data
+        && userDoc().data.permissions.keys().hasAll(['canManageUsers'])
+        && userDoc().data.permissions.canManageUsers == true;
+    }
+
     // Öffentlicher Wandmonitor-Link ohne Login.
     function isPublicWallRead() {
       return true;
     }
 
     match /users/{userId} {
-      allow read: if isSignedIn() && request.auth.uid == userId;
+      allow read: if isSignedIn()
+        && (request.auth.uid == userId || isUserManager());
+
       allow create: if isSignedIn()
         && request.auth.uid == userId
         && request.resource.data.activated == false
-        && request.resource.data.email is string;
+        && request.resource.data.email is string
+        && !('permissions' in request.resource.data)
+        && !('linkedPersonId' in request.resource.data);
+
+      // Eigenes Profil: Stammdaten, aber keine Freischaltung/Rechte/Verknüpfung ändern.
       allow update: if isSignedIn()
         && request.auth.uid == userId
-        && request.resource.data.activated == resource.data.activated;
+        && request.resource.data.activated == resource.data.activated
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['email', 'displayName', 'photoURL']);
+
+      // Admin: Freischaltung, Rechte, Personal-Verknüpfung.
+      allow update: if isUserManager()
+        && request.resource.data.email == resource.data.email;
+
       allow delete: if false;
     }
 

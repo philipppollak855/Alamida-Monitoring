@@ -28,6 +28,8 @@ type Props = {
   standbys: Record<string, PersonnelStandby>;
   absences?: Record<string, PersonnelAbsence>;
   holidayRegion: HolidayRegion;
+  /** Nur diese Person darf sich ein-/austragen (kein volles Bereitschafts-Management). */
+  selfOnlyPersonId?: string | null;
   pending?: boolean;
   error?: string | null;
   onClose: () => void;
@@ -79,6 +81,7 @@ export function PersonnelStandbyDialog({
   personnelPool,
   standbys,
   holidayRegion,
+  selfOnlyPersonId = null,
   pending,
   error,
   onClose,
@@ -88,14 +91,15 @@ export function PersonnelStandbyDialog({
 }: Props) {
   const titleId = useId();
   const closeOnBackdrop = useRef(false);
-  const people = useMemo(
-    () =>
-      [...personnelPool.filter((p) => p.active !== false)].sort((a, b) =>
-        a.name.localeCompare(b.name, 'de')
-      ),
-    [personnelPool]
-  );
-  const byId = useMemo(() => new Map(people.map((p) => [p.id, p])), [people]);
+  const selfOnly = Boolean(selfOnlyPersonId);
+  const people = useMemo(() => {
+    const active = [...personnelPool.filter((p) => p.active !== false)].sort((a, b) =>
+      a.name.localeCompare(b.name, 'de')
+    );
+    if (!selfOnlyPersonId) return active;
+    return active.filter((p) => p.id === selfOnlyPersonId);
+  }, [personnelPool, selfOnlyPersonId]);
+  const byId = useMemo(() => new Map(personnelPool.map((p) => [p.id, p])), [personnelPool]);
 
   const defaultDay = initialDayKey || dayKeys[0] || dayKeyFromDate(new Date());
   const [fromDayKey, setFromDayKey] = useState(defaultDay);
@@ -241,10 +245,16 @@ export function PersonnelStandbyDialog({
     setEditingId(s.id);
     setFromDayKey(s.fromDayKey);
     setToDayKey(s.toDayKey);
-    setSelectedIds([...s.personIds]);
+    setSelectedIds(
+      selfOnlyPersonId
+        ? s.personIds.includes(selfOnlyPersonId)
+          ? [selfOnlyPersonId]
+          : []
+        : [...s.personIds]
+    );
     setNote(s.note ?? '');
     setExclusions(s.exclusions ? s.exclusions.map((e) => ({ ...e })) : []);
-    setExPersonId(s.personIds[0] || people[0]?.id || '');
+    setExPersonId(selfOnlyPersonId || s.personIds[0] || people[0]?.id || '');
     setExDayKey(s.fromDayKey);
     setRangeAnchor(null);
     setCalFilterActive(true);
@@ -661,20 +671,62 @@ export function PersonnelStandbyDialog({
                     toDayKey < fromDayKey
                   }
                   onClick={() => {
-                    const id = editingId ?? newId('stb');
-                    void onSave({
-                      id,
-                      fromDayKey,
-                      toDayKey,
-                      personIds: selectedIds,
-                      exclusions: exclusions.length > 0 ? exclusions : undefined,
-                      note: note.trim() || undefined,
-                      updatedAtMs: Date.now(),
-                    });
-                    resetForm(fromDayKey);
+                    void (async () => {
+                      if (selfOnly && selfOnlyPersonId) {
+                        if (editingId) {
+                          const existing = standbys[editingId];
+                          if (!existing) return;
+                          const others = existing.personIds.filter(
+                            (id) => id !== selfOnlyPersonId
+                          );
+                          const includeSelf = selectedIds.includes(selfOnlyPersonId);
+                          const personIds = includeSelf
+                            ? [...others, selfOnlyPersonId]
+                            : others;
+                          if (personIds.length === 0) {
+                            await onDelete(editingId);
+                          } else {
+                            await onSave({
+                              ...existing,
+                              personIds,
+                              exclusions: exclusions.length > 0 ? exclusions : undefined,
+                              note: note.trim() || undefined,
+                              updatedAtMs: Date.now(),
+                            });
+                          }
+                        } else {
+                          await onSave({
+                            id: newId('stb'),
+                            fromDayKey,
+                            toDayKey,
+                            personIds: [selfOnlyPersonId],
+                            exclusions: exclusions.length > 0 ? exclusions : undefined,
+                            note: note.trim() || undefined,
+                            updatedAtMs: Date.now(),
+                          });
+                        }
+                        resetForm(fromDayKey);
+                        return;
+                      }
+                      const id = editingId ?? newId('stb');
+                      await onSave({
+                        id,
+                        fromDayKey,
+                        toDayKey,
+                        personIds: selectedIds,
+                        exclusions: exclusions.length > 0 ? exclusions : undefined,
+                        note: note.trim() || undefined,
+                        updatedAtMs: Date.now(),
+                      });
+                      resetForm(fromDayKey);
+                    })();
                   }}
                 >
-                  {editingId ? 'Änderungen speichern' : 'Eintragen'}
+                  {editingId
+                    ? 'Änderungen speichern'
+                    : selfOnly
+                      ? 'Mich eintragen'
+                      : 'Eintragen'}
                 </button>
               </div>
             </div>
@@ -740,10 +792,36 @@ export function PersonnelStandbyDialog({
                             disabled={pending || deletingId === s.id}
                             onClick={() => {
                               if (editingId === s.id) resetForm(fromDayKey);
+                              if (selfOnly && selfOnlyPersonId) {
+                                const others = s.personIds.filter(
+                                  (id) => id !== selfOnlyPersonId
+                                );
+                                void (async () => {
+                                  setDeletingId(s.id);
+                                  try {
+                                    if (others.length === 0) {
+                                      await onDelete(s.id);
+                                    } else if (s.personIds.includes(selfOnlyPersonId)) {
+                                      await onSave({
+                                        ...s,
+                                        personIds: others,
+                                        updatedAtMs: Date.now(),
+                                      });
+                                    }
+                                  } finally {
+                                    setDeletingId(null);
+                                  }
+                                })();
+                                return;
+                              }
                               void handleDelete(s.id);
                             }}
                           >
-                            {deletingId === s.id ? 'Löscht…' : 'Löschen'}
+                            {deletingId === s.id
+                              ? '…'
+                              : selfOnly
+                                ? 'Mich austragen'
+                                : 'Löschen'}
                           </button>
                         </div>
                       </li>

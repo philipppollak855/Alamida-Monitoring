@@ -638,6 +638,7 @@ export function DispositionSettingsPanel({ defaultOpen = false }: { defaultOpen?
                     <span role="columnheader">Fahrer</span>
                     <span role="columnheader">Extern</span>
                     <span role="columnheader">Aktiv</span>
+                    <span role="columnheader">Konto</span>
                     <span role="columnheader" className="sr-only">
                       Entfernen
                     </span>
@@ -688,6 +689,17 @@ export function DispositionSettingsPanel({ defaultOpen = false }: { defaultOpen?
                           onChange={(e) => updatePerson(index, { active: e.target.checked })}
                         />
                       </label>
+                      <span
+                        className="settings-person-link"
+                        role="cell"
+                        title={person.linkedUserEmail || person.linkedUserId || 'Nicht verknüpft'}
+                      >
+                        {person.linkedUserEmail
+                          ? person.linkedUserEmail
+                          : person.linkedUserId
+                            ? 'verknüpft'
+                            : '—'}
+                      </span>
                       <button
                         type="button"
                         className="btn-ghost btn-small settings-person-remove"

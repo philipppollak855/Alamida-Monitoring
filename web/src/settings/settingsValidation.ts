@@ -118,6 +118,8 @@ function normalizeForCompare(s: DispositionSettings) {
         roles: [...p.roles].sort(),
         active: p.active !== false,
         extern: p.extern === true,
+        linkedUserId: p.linkedUserId ?? '',
+        linkedUserEmail: p.linkedUserEmail ?? '',
       }))
       .sort((a, b) => a.name.localeCompare(b.name, 'de')),
     holidayRegion: s.holidayRegion === 'DE' ? 'DE' : 'AT',

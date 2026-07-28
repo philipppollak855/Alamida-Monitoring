@@ -584,13 +584,15 @@ function buildWandExternKuehlraumGruppen(
 
 export function buildExternGruppen(
   sterbefaelle: Sterbefall[],
-  options?: { settings?: DispositionSettings }
+  options?: { settings?: DispositionSettings; excludeDocIds?: Iterable<string> }
 ): ExternOrtGruppe[] {
   const settings = options?.settings ?? getDispositionSettings();
+  const excluded = new Set(options?.excludeDocIds ?? []);
 
   const map = new Map<string, ExternOrtGruppe>();
 
   for (const s of sterbefaelle) {
+    if (excluded.has(s.id)) continue;
     const standorte = resolveExternStandorteWithAlle(s, sterbefaelle);
     if (standorte.length === 0) continue;
 

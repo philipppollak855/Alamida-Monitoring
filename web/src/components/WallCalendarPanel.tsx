@@ -69,6 +69,8 @@ import { WallCalendarMonthOverview } from './WallCalendarMonthOverview';
 import { WallCalendarPeriodOverview } from './WallCalendarPeriodOverview';
 import { PersonnelBookingDialog } from './PersonnelBookingDialog';
 import { PersonnelStandbyDialog } from './PersonnelStandbyDialog';
+import { useAccessPermissions, useLinkedPersonId } from '../auth/useAccessPermissions';
+import { personInBooking } from '../board/personnelBookingRules';
 import { BereitschaftChips } from './BereitschaftChips';
 import { ZusatzTerminDialog } from './ZusatzTerminDialog';
 import type { ZusatzTermin } from '../types/zusatzTermin';
@@ -131,6 +133,8 @@ function monthEntryGridColumns(gridWidth: number, isNarrow: boolean): number {
 export function WallCalendarPanel({ sterbefaelle, now }: Props) {
 
   const isNarrow = useNarrowViewport();
+  const access = useAccessPermissions();
+  const linkedPersonId = useLinkedPersonId();
 
   const { range, setRange, search, setSearch, focusDayKey, setFocusDayKey, todayKey } =
     useWallCalendarViewState(now);
@@ -304,10 +308,16 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
   );
   const scoped = useMemo(() => {
     let list = allEntries;
+    if (access.calendarScope === 'own' && linkedPersonId) {
+      list = list.filter((entry) => {
+        const booking = findBookingForWallEntry(bookings, entry) ?? bookings[entry.id];
+        return booking ? personInBooking(linkedPersonId, booking) : false;
+      });
+    }
     const q = search.trim().toLowerCase();
     if (q) list = list.filter((e) => e.searchText.includes(q));
     return filterEntriesByArts(list, activeArts);
-  }, [allEntries, search, activeArts]);
+  }, [allEntries, search, activeArts, access.calendarScope, linkedPersonId, bookings]);
 
   const filtered = useMemo(() => {
     if (range === 'month') {
@@ -1005,6 +1015,14 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
           personnelPool={settings.personnelPool ?? []}
           allBookings={bookings}
           absences={absences}
+          accessMode={
+            access.canBookPersonnel
+              ? 'full'
+              : access.canSelfConfirm && linkedPersonId
+                ? 'selfConfirm'
+                : 'readOnly'
+          }
+          linkedPersonId={linkedPersonId}
           existing={
             findBookingForWallEntry(bookings, bookingEntry) ??
             bookings[bookingEntry.id] ??
@@ -1102,6 +1120,9 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
         standbys={standbys}
         absences={absences}
         holidayRegion={holidayRegion}
+        selfOnlyPersonId={
+          !access.canBookPersonnel && access.canSelfStandby ? linkedPersonId : null
+        }
         pending={bookingSaving}
         error={bookingError}
         onClose={() => {

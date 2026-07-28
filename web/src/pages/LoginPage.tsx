@@ -54,9 +54,10 @@ export function LoginPage() {
           <p className="auth-error">{localError ?? error}</p>
         )}
         <p className="auth-hint small muted">
-          Neues Konto: Nach der ersten Anmeldung muss ein Administrator Sie in der
-          Firebase Console unter <strong>users</strong> aktivieren (
-          <code>activated: true</code>).
+          Neues Konto: Nach der ersten Anmeldung muss ein Administrator Sie unter Disposition →
+          Einstellungen → Benutzer &amp; Rechte freischalten. (Ersteinrichtung: einmalig in der
+          Firebase Console <code>activated: true</code> und{' '}
+          <code>permissions.canManageUsers: true</code> setzen.)
         </p>
       </div>
     </div>

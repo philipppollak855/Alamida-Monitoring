@@ -27,8 +27,10 @@ export function PendingPage() {
           noch keinen Zugriff auf Sterbefall-Daten.
         </p>
         <ol className="auth-steps">
-          <li>Administrator öffnet Firebase Console → Firestore → Collection <code>users</code></li>
-          <li>Dokument mit Ihrer UID: Feld <code>activated</code> auf <code>true</code> setzen</li>
+          <li>
+            Administrator öffnet Disposition → Einstellungen → <strong>Benutzer &amp; Rechte</strong>
+          </li>
+          <li>Ihr Konto freischalten, ggf. Personal verknüpfen und Rechte setzen</li>
           <li>Hier auf „Status prüfen“ klicken oder Seite neu laden</li>
         </ol>
         <div className="auth-actions">

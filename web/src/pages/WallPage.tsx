@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { wallViewsAllowed } from '../auth/permissions';
+import { useAccessPermissions } from '../auth/useAccessPermissions';
 import { LiveIndicator } from '../components/LiveIndicator';
 import { ThemeSwitch } from '../components/ThemeSwitch';
 import { useCalendarDay } from '../hooks/useCalendarDay';
@@ -53,6 +55,7 @@ import { useScreenWakeLock } from '../hooks/useScreenWakeLock';
 import { useWallClock } from '../hooks/useWallClock';
 import { useWallEdgeSwipe } from '../hooks/useWallEdgeSwipe';
 import { useWallFreezeGuard } from '../hooks/useWallFreezeGuard';
+import { useTransferPlan } from '../hooks/useTransferPlan';
 import type { Sterbefall } from '../types';
 
 const WALL_TAB_LABELS: Record<WallView, string> = {
@@ -143,7 +146,11 @@ export function WallPage({
 }) {
   const { settings } = useDispositionSettings();
   const { signOut, status: authStatus } = useAuth();
-  const canDispositionWrite = !publicAccess && authStatus === 'activated';
+  const access = useAccessPermissions();
+  const canDispositionWrite =
+    !publicAccess && authStatus === 'activated' && access.canDisposition;
+  const canDeleteCases =
+    !publicAccess && authStatus === 'activated' && access.canDeleteCases;
   const abschluss = useFallAbschluss();
   const isNarrow = useNarrowViewport();
   useScreenWakeLock(!isNarrow);
@@ -159,9 +166,13 @@ export function WallPage({
   );
   const activeViews = useMemo(() => {
     const enabled = settings.wallTabRotationEnabled;
-    const selected = WALL_VIEWS.filter((v) => enabled?.[v] ?? true);
-    return selected.length > 0 ? selected : [WALL_VIEWS[0]];
-  }, [settings.wallTabRotationEnabled]);
+    if (publicAccess) {
+      const selected = WALL_VIEWS.filter((v) => enabled?.[v] ?? true);
+      return selected.length > 0 ? selected : [WALL_VIEWS[0]];
+    }
+    const allowed = wallViewsAllowed(access, enabled);
+    return allowed.length > 0 ? allowed : [WALL_VIEWS[0]];
+  }, [settings.wallTabRotationEnabled, access, publicAccess]);
   const { slide, view, secondsLeft, goToSlide, rotationOff } = useWallTabRotation(
     tabDurations,
     rotationPaused,
@@ -171,6 +182,7 @@ export function WallPage({
   const edgeSwipe = useWallEdgeSwipe(isNarrow, slide, goToSlide);
 
   const { items: sterbefaelleRaw, lastSyncAt, isLive, loading } = useSterbefaelle();
+  const { plan: transferPlan } = useTransferPlan();
   useWallFreezeGuard({
     enabled: true,
     heartbeatValues: [now.getTime(), secondsLeft, lastSyncAt?.getTime() ?? 0, loading ? 1 : 0],
@@ -226,9 +238,25 @@ export function WallPage({
     const idx = Math.max(0, kuehlraumGrids.findIndex((g) => g.cfg.id === kuehlraumSub.activeId));
     return kuehlraumGrids[idx >= 0 ? idx : 0] ?? kuehlraumGrids[0];
   }, [kuehlraumGrids, kuehlraumSub.activeId]);
+  const externExcludedDocIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const assignment of Object.values(transferPlan.assignments)) {
+      if (!assignment.docId) continue;
+      if (!assignment.plannedDayKey) continue;
+      if (!assignment.plannedKuehlraumId) continue;
+      if (assignment.plannedDayKey <= calendarDay) {
+        ids.add(assignment.docId);
+      }
+    }
+    return ids;
+  }, [transferPlan.assignments, calendarDay]);
   const externGruppen = useMemo(
-    () => buildExternGruppen(sterbefaelle, { settings }),
-    [sterbefaelle, settings]
+    () =>
+      buildExternGruppen(sterbefaelle, {
+        settings,
+        excludeDocIds: externExcludedDocIds,
+      }),
+    [sterbefaelle, settings, externExcludedDocIds]
   );
   const externTotal = useMemo(() => externGesamt(externGruppen), [externGruppen]);
   const offene = useMemo(() => flattenOffene(sterbefaelle), [sterbefaelle, calendarDay]);
@@ -505,7 +533,7 @@ export function WallPage({
                                   {urnenPending === fall.id ? '…' : 'als Urne'}
                                 </button>
                               )}
-                              {canDispositionWrite && (
+                              {canDeleteCases && (
                                 <WallFallAbschlussBtn
                                   pending={abschluss.pendingId === fall.id}
                                   disabled={freigabePending === fall.id}
