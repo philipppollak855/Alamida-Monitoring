@@ -52,6 +52,7 @@ import { useNarrowViewport } from '../hooks/useNarrowViewport';
 import { useScreenWakeLock } from '../hooks/useScreenWakeLock';
 import { useWallClock } from '../hooks/useWallClock';
 import { useWallEdgeSwipe } from '../hooks/useWallEdgeSwipe';
+import { useWallFreezeGuard } from '../hooks/useWallFreezeGuard';
 import type { Sterbefall } from '../types';
 
 const WALL_TAB_LABELS: Record<WallView, string> = {
@@ -170,6 +171,13 @@ export function WallPage({
   const edgeSwipe = useWallEdgeSwipe(isNarrow, slide, goToSlide);
 
   const { items: sterbefaelleRaw, lastSyncAt, isLive, loading } = useSterbefaelle();
+  useWallFreezeGuard({
+    enabled: true,
+    heartbeatValues: [now.getTime(), secondsLeft, lastSyncAt?.getTime() ?? 0, loading ? 1 : 0],
+    staleAfterMs: 90_000,
+    checkEveryMs: 15_000,
+    minReloadGapMs: 3 * 60_000,
+  });
   const calendarDay = useCalendarDay();
   const calendarAnchorDate = useMemo(() => {
     const [y, m, d] = calendarDay.split('-').map(Number);
