@@ -17,6 +17,8 @@ export type PersonnelBooking = {
   traegerVonFamilie: boolean;
   /** Gewünschte Trägeranzahl (Firma); bei Familie irrelevant. */
   requiredTraegerCount: number;
+  /** Externe, die die Einbuchung bereits bestätigt haben. */
+  confirmedPersonIds?: string[];
   note?: string;
   updatedAtMs?: number;
 };

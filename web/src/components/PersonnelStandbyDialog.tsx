@@ -68,6 +68,10 @@ function standbyOverlapsRange(
   return s.fromDayKey <= toDayKey && s.toDayKey >= fromDayKey;
 }
 
+function shareWhatsApp(text: string) {
+  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer');
+}
+
 export function PersonnelStandbyDialog({
   open,
   dayKeys,
@@ -310,6 +314,29 @@ export function PersonnelStandbyDialog({
   async function handleRegionChange(next: HolidayRegion) {
     setRegionLocal(next);
     await onHolidayRegionChange(next);
+  }
+
+  function shareStandby(s: PersonnelStandby) {
+    const names = s.personIds.map((id) => byId.get(id)?.name ?? id).join(', ');
+    const exclusions =
+      s.exclusions && s.exclusions.length > 0
+        ? s.exclusions
+            .map(
+              (ex) =>
+                `${byId.get(ex.personId)?.name ?? ex.personId} ${formatDayLabelDe(ex.dayKey)} ${ex.fromTime}-${ex.toTime}`
+            )
+            .join('; ')
+        : null;
+    const text = [
+      'Bereitschaft',
+      `Zeitraum: ${formatRangeLabel(s.fromDayKey, s.toDayKey)}`,
+      `Personal: ${names}`,
+      exclusions ? `Ausnahmen: ${exclusions}` : null,
+      s.note ? `Notiz: ${s.note}` : null,
+    ]
+      .filter(Boolean)
+      .join('\n');
+    shareWhatsApp(text);
   }
 
   if (!open) return null;
@@ -691,6 +718,14 @@ export function PersonnelStandbyDialog({
                           </span>
                         </div>
                         <div className="personnel-standby-list-actions">
+                          <button
+                            type="button"
+                            className="btn-ghost btn-small"
+                            disabled={pending || deletingId === s.id}
+                            onClick={() => shareStandby(s)}
+                          >
+                            WhatsApp
+                          </button>
                           <button
                             type="button"
                             className="btn-ghost btn-small"

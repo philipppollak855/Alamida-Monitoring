@@ -67,6 +67,7 @@ export function PersonnelBookingDialog({
   const [traegerIds, setTraegerIds] = useState<string[]>([]);
   const [traegerVonFamilie, setTraegerVonFamilie] = useState(false);
   const [requiredTraegerCount, setRequiredTraegerCount] = useState(0);
+  const [confirmedPersonIds, setConfirmedPersonIds] = useState<string[]>([]);
   const [note, setNote] = useState('');
   const [markerOverride, setMarkerOverride] = useState<BestattungsMarker | null>(null);
   const [traegerTab, setTraegerTab] = useState<'firma' | 'extern'>('firma');
@@ -95,6 +96,7 @@ export function PersonnelBookingDialog({
     setArrangeurId(nextArrangeur);
     setTraegerIds(nextTraeger);
     setTraegerVonFamilie(family);
+    setConfirmedPersonIds(existing?.confirmedPersonIds ?? []);
     setRequiredTraegerCount(
       existing?.requiredTraegerCount ?? defaultRequiredTraegerCount(entryForRules, family)
     );
@@ -268,9 +270,52 @@ export function PersonnelBookingDialog({
     personnelPool,
   ]);
 
+  const selectedExternIds = useMemo(() => {
+    const byId = new Map(personnelPool.map((p) => [p.id, p]));
+    const ids = new Set<string>();
+    if (arrangeurId && byId.get(arrangeurId)?.extern === true) ids.add(arrangeurId);
+    for (const id of traegerIds) {
+      if (byId.get(id)?.extern === true) ids.add(id);
+    }
+    return [...ids];
+  }, [personnelPool, arrangeurId, traegerIds]);
+  const selectedExternMap = useMemo(
+    () => new Map(selectedExternIds.map((id) => [id, personnelPool.find((p) => p.id === id)])),
+    [selectedExternIds, personnelPool]
+  );
   if (!entry || !entryForValidation) return null;
 
   const begraebnis = isBegraebnisEntry(entry);
+
+  function toggleConfirmed(personId: string) {
+    if (!selectedExternIds.includes(personId)) return;
+    setConfirmedPersonIds((prev) =>
+      prev.includes(personId) ? prev.filter((id) => id !== personId) : [...prev, personId]
+    );
+  }
+
+  function shareBookingViaWhatsApp() {
+    const selectedExternNames = selectedExternIds
+      .map((id) => selectedExternMap.get(id)?.name || id)
+      .filter(Boolean);
+    const confirmedNames = confirmedPersonIds
+      .filter((id) => selectedExternIds.includes(id))
+      .map((id) => selectedExternMap.get(id)?.name || id);
+    const text = [
+      `Termin: ${entry.name}`,
+      `${entry.dayLabel} ${entry.timeLabel}`,
+      `Art: ${entry.badges.join(' · ') || entry.title}`,
+      entry.subtitle ? `Ort/Route: ${entry.subtitle}` : null,
+      selectedExternNames.length > 0
+        ? `Extern eingebucht: ${selectedExternNames.join(', ')}`
+        : null,
+      confirmedNames.length > 0 ? `Extern bestätigt: ${confirmedNames.join(', ')}` : null,
+      note.trim() ? `Notiz: ${note.trim()}` : null,
+    ]
+      .filter(Boolean)
+      .join('\n');
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer');
+  }
 
   function selectArrangeur(nextId: string) {
     if (nextId) {
@@ -281,23 +326,28 @@ export function PersonnelBookingDialog({
     if (nextId) {
       setTraegerIds((prev) => prev.filter((id) => id !== nextId));
     }
+    setConfirmedPersonIds((prev) => prev.filter((id) => id !== arrangeurId && id !== nextId));
   }
 
   function toggleTraeger(id: string) {
     const person = traeger.find((p) => p.id === id);
     if (person?.unavailable) return;
     if (id === arrangeurId) return;
+    const wasSelected = traegerIds.includes(id);
     setTraegerIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
+    if (wasSelected) setConfirmedPersonIds((prev) => prev.filter((x) => x !== id));
   }
 
   function toggleFahrer(id: string) {
     const person = fahrer.find((p) => p.id === id);
     if (person?.unavailable) return;
+    const wasSelected = traegerIds.includes(id);
     setTraegerIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
+    if (wasSelected) setConfirmedPersonIds((prev) => prev.filter((x) => x !== id));
   }
 
   function handleFamilyToggle(next: boolean) {
@@ -651,6 +701,29 @@ export function PersonnelBookingDialog({
             {error}
           </p>
         )}
+        {selectedExternIds.length > 0 && !isKremationTransfer && (
+          <div className="personnel-booking-extern-confirm">
+            <p className="personnel-booking-rule">
+              Externes Personal: Einbuchung vorhanden, Status pro Person als bestätigt markieren.
+            </p>
+            <div className="personnel-booking-pool-list">
+              {selectedExternIds.map((id) => (
+                <label key={id} className="personnel-booking-pool-item is-extern">
+                  <input
+                    type="checkbox"
+                    checked={confirmedPersonIds.includes(id)}
+                    onChange={() => toggleConfirmed(id)}
+                    disabled={pending || markerPending}
+                  />
+                  <span>
+                    {selectedExternMap.get(id)?.name ?? id}
+                    <em className="personnel-booking-extern-badge"> bestätigt</em>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
 
         <footer className="personnel-booking-actions">
           {existing && onClear && (
@@ -663,6 +736,14 @@ export function PersonnelBookingDialog({
               Einbuchung löschen
             </button>
           )}
+          <button
+            type="button"
+            className="btn-ghost"
+            onClick={shareBookingViaWhatsApp}
+            disabled={pending || markerPending}
+          >
+            WhatsApp teilen
+          </button>
           <button
             type="button"
             className="btn-ghost"
@@ -692,6 +773,11 @@ export function PersonnelBookingDialog({
                   traegerIds: cleanTraeger,
                   traegerVonFamilie: isFahrerMode ? false : traegerVonFamilie,
                   requiredTraegerCount: isFahrerMode ? 0 : requiredTraegerCount,
+                  confirmedPersonIds: confirmedPersonIds.filter(
+                    (id) =>
+                      cleanTraeger.includes(id) ||
+                      (!isFahrerMode && arrangeurId === id)
+                  ),
                   note: note.trim() || undefined,
                   updatedAtMs: Date.now(),
                 });
