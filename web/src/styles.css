@@ -4855,7 +4855,8 @@ code {
 .personnel-booking-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 130;
+  /* Über Tagesdialog (1200), sonst blockiert der Tag-Overlay die Personalbearbeitung */
+  z-index: 1300;
   display: grid;
   place-items: center;
   padding: 1rem;
@@ -5594,7 +5595,8 @@ code {
 .zusatz-termin-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 135;
+  /* Über Tagesdialog (1200), analog Personal-Dialog */
+  z-index: 1300;
   display: grid;
   place-items: center;
   padding: 1rem;

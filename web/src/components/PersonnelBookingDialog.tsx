@@ -820,7 +820,9 @@ export function PersonnelBookingDialog({
                 }
                 const cleanTraeger = traegerIds.filter((id) => id !== arrangeurId);
                 onSave({
-                  id: entry.id,
+                  // Bestehende Buchungs-ID behalten (Planung vs. Wandkalender können
+                  // unterschiedliche Entry-IDs haben, dieselbe Buchung referenzieren).
+                  id: existing?.id ?? entry.id,
                   docId: entry.docId,
                   sterbefallId: entry.sterbefallId,
                   dayKey: entry.dayKey,

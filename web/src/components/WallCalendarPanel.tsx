@@ -227,6 +227,8 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
 
   const handleEntryClick = useCallback(
     (entry: WallCalendarEntry) => {
+      // Tagesdialog schließen, damit Personal-/Zusatz-Dialog bedienbar ist
+      setDialogDayKey(null);
       if (entry.zusatzTerminId) {
         const existing = zusatzTermine[entry.zusatzTerminId] ?? null;
         setZusatzError(null);
@@ -1064,7 +1066,11 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
           onClear={() => {
             void (async () => {
               try {
-                await clearBooking(bookingEntry.id);
+                const existing =
+                  findBookingForWallEntry(bookings, bookingEntry) ??
+                  bookings[bookingEntry.id] ??
+                  null;
+                await clearBooking(existing?.id ?? bookingEntry.id);
                 setBookingEntry(null);
               } catch {
                 /* Fehler im Hook */

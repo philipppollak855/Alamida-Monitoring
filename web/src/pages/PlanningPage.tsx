@@ -1493,7 +1493,11 @@ export function PlanningPage() {
                 : 'readOnly'
           }
           linkedPersonId={linkedPersonId}
-          existing={bookings[bookingEntry.id] ?? null}
+          existing={
+            findBookingForWallEntry(bookings, bookingEntry) ??
+            bookings[bookingEntry.id] ??
+            null
+          }
           pending={bookingSaving}
           markerPending={markerPending}
           error={bookingError}
@@ -1521,7 +1525,11 @@ export function PlanningPage() {
           onClear={() => {
             void (async () => {
               try {
-                await clearBooking(bookingEntry.id);
+                const existing =
+                  findBookingForWallEntry(bookings, bookingEntry) ??
+                  bookings[bookingEntry.id] ??
+                  null;
+                await clearBooking(existing?.id ?? bookingEntry.id);
                 setBookingEntry(null);
               } catch {
                 /* Fehler im Hook */
