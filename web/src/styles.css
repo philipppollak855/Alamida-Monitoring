@@ -5426,6 +5426,84 @@ code {
   text-align: left;
 }
 
+.wall-cal-day-staff {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.12rem;
+  margin-top: 0.15rem;
+  max-width: 100%;
+}
+
+.wall-cal-day-staff .bereitschaft-chips,
+.wall-cal-day-staff .absence-chips {
+  margin-top: 0;
+}
+
+.wall-cal-day-staff--period {
+  gap: 0.08rem;
+}
+
+.absence-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem;
+  max-width: 100%;
+  font-size: 0.68rem;
+  line-height: 1.2;
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+}
+
+.absence-chips.is-clickable {
+  cursor: pointer;
+}
+
+.absence-chips-label {
+  font-weight: 600;
+  color: #b85a68;
+  margin-right: 0.15rem;
+  letter-spacing: 0.02em;
+}
+
+.absence-chips.is-compact .absence-chips-label {
+  font-size: 0.62rem;
+}
+
+.absence-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.55rem;
+  padding: 0.08rem 0.28rem;
+  border-radius: 0.25rem;
+  background: rgba(184, 90, 104, 0.22);
+  color: inherit;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.absence-chip.is-partial {
+  background: rgba(184, 90, 104, 0.12);
+  outline: 1px dashed rgba(184, 90, 104, 0.55);
+  outline-offset: -1px;
+}
+
+.absence-chips--period .absence-chips-label {
+  font-size: 0.55rem;
+}
+
+.wall-cal-period-cell .absence-chip {
+  min-width: 1.2rem;
+  padding: 0.04rem 0.18rem;
+  font-size: 0.55rem;
+}
+
 .bereitschaft-chips.is-clickable {
   cursor: pointer;
 }

@@ -245,4 +245,55 @@ export function isPersonOnStandbyDay(
   return expandStandbyForDay(standbys, dayKey).some((p) => p.personId === personId);
 }
 
+export type DayAbsencePerson = {
+  personId: string;
+  absenceId: string;
+  fromTime?: string;
+  toTime?: string;
+  note?: string;
+  /** Stundenweise (nicht ganztägig). */
+  partial: boolean;
+};
+
+/** Abwesende Personen an einem Kalendertag (eine Zeile pro Person). */
+export function listAbsencesForDay(
+  absences: Record<string, PersonnelAbsence>,
+  dayKey: string
+): DayAbsencePerson[] {
+  const byPerson = new Map<string, DayAbsencePerson>();
+  for (const a of Object.values(absences)) {
+    if (dayKey < a.fromDayKey || dayKey > a.toDayKey) continue;
+    const partial = Boolean(a.fromTime?.trim() || a.toTime?.trim());
+    const prev = byPerson.get(a.personId);
+    // Ganztägig hat Vorrang vor stundenweise
+    if (prev && !prev.partial) continue;
+    byPerson.set(a.personId, {
+      personId: a.personId,
+      absenceId: a.id,
+      fromTime: a.fromTime,
+      toTime: a.toTime,
+      note: a.note,
+      partial,
+    });
+  }
+  return [...byPerson.values()].sort((a, b) => a.personId.localeCompare(b.personId));
+}
+
+/** Tooltip-Text für Abwesenheitschip. */
+export function absenceTooltip(
+  name: string,
+  entry: Pick<DayAbsencePerson, 'partial' | 'fromTime' | 'toTime' | 'note'>
+): string {
+  const parts = [name];
+  if (entry.partial) {
+    const from = entry.fromTime?.trim() || '…';
+    const to = entry.toTime?.trim() || '…';
+    parts.push(`${from}–${to}`);
+  } else {
+    parts.push('ganztägig');
+  }
+  if (entry.note?.trim()) parts.push(entry.note.trim());
+  return parts.join(' · ');
+}
+
 export { isPersonAbsentOnDay };

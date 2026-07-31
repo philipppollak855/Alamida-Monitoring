@@ -4,6 +4,8 @@ import {
   exclusionTooltip,
   expandStandbyForDay,
   isBereitschaftRelevantDay,
+  listAbsencesForDay,
+  absenceTooltip,
   personAbbrev,
   relevantDayKeysInRange,
   standbyStaffingWarning,
@@ -84,5 +86,38 @@ describe('bereitschaftRules', () => {
     expect(at13.map((p) => p.personId).sort()).toEqual(['p2']);
     const at15 = effectiveStandbyPeople('2026-07-26', standbys, {}, '15:00');
     expect(at15.map((p) => p.personId).sort()).toEqual(['p1', 'p2']);
+  });
+
+  it('listAbsencesForDay zeigt ganztägig und teilweise', () => {
+    const absences = {
+      a1: {
+        id: 'a1',
+        personId: 'p1',
+        fromDayKey: '2026-07-25',
+        toDayKey: '2026-07-26',
+      },
+      a2: {
+        id: 'a2',
+        personId: 'p2',
+        fromDayKey: '2026-07-25',
+        toDayKey: '2026-07-25',
+        fromTime: '08:00',
+        toTime: '12:00',
+      },
+      a3: {
+        id: 'a3',
+        personId: 'p3',
+        fromDayKey: '2026-07-28',
+        toDayKey: '2026-07-28',
+      },
+    };
+    const sat = listAbsencesForDay(absences, '2026-07-25');
+    expect(sat.map((p) => p.personId).sort()).toEqual(['p1', 'p2']);
+    expect(sat.find((p) => p.personId === 'p1')?.partial).toBe(false);
+    expect(sat.find((p) => p.personId === 'p2')?.partial).toBe(true);
+    expect(listAbsencesForDay(absences, '2026-07-27')).toEqual([]);
+    expect(absenceTooltip('Max Mustermann', sat.find((p) => p.personId === 'p2')!)).toContain(
+      '08:00–12:00'
+    );
   });
 });

@@ -78,7 +78,9 @@ import { PersonnelStandbyDialog } from './PersonnelStandbyDialog';
 import { useAccessPermissions, useLinkedPersonId } from '../auth/useAccessPermissions';
 import { personInBooking } from '../board/personnelBookingRules';
 import { BereitschaftChips } from './BereitschaftChips';
+import { AbsenceChips } from './AbsenceChips';
 import { ZusatzTerminDialog } from './ZusatzTerminDialog';
+import { PersonnelAbsenceDialog } from './PersonnelAbsenceDialog';
 import type { ZusatzTermin } from '../types/zusatzTermin';
 import { setSterbefallBestattungsMarkerOverride } from '../services/bestattungsMarkerOverride';
 import type { BestattungsMarker } from '../board/feierterminLogic';
@@ -91,6 +93,7 @@ type BereitschaftUiCtx = {
   personnelById: Map<string, DispositionPerson>;
   region: HolidayRegion;
   onOpen: (dayKey: string) => void;
+  onOpenAbsence: () => void;
 };
 
 const BereitschaftUiContext = createContext<BereitschaftUiCtx | null>(null);
@@ -157,6 +160,8 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
     clearBooking,
     saveStandby,
     clearStandby,
+    saveAbsence,
+    clearAbsence,
     setError: setBookingError,
   } = usePersonnelBookings();
   const {
@@ -173,6 +178,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
   const [bookingEntry, setBookingEntry] = useState<WallCalendarEntry | null>(null);
   const [standbyOpen, setStandbyOpen] = useState(false);
   const [standbyInitialDay, setStandbyInitialDay] = useState<string | null>(null);
+  const [absenceOpen, setAbsenceOpen] = useState(false);
   const [markerPending, setMarkerPending] = useState(false);
   const [markerError, setMarkerError] = useState<string | null>(null);
   const [zusatzDialog, setZusatzDialog] = useState<{
@@ -217,6 +223,10 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
   const openStandbyDialog = useCallback((dayKey?: string) => {
     setStandbyInitialDay(dayKey ?? null);
     setStandbyOpen(true);
+  }, []);
+
+  const openAbsenceDialog = useCallback(() => {
+    setAbsenceOpen(true);
   }, []);
 
   const openDayDialog = useCallback(
@@ -329,8 +339,9 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
       personnelById,
       region: holidayRegion,
       onOpen: openStandbyDialog,
+      onOpenAbsence: openAbsenceDialog,
     }),
-    [standbys, absences, personnelById, holidayRegion, openStandbyDialog]
+    [standbys, absences, personnelById, holidayRegion, openStandbyDialog, openAbsenceDialog]
   );
   const scoped = useMemo(() => {
     let list = allEntries;
@@ -788,6 +799,14 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
           <button
             type="button"
             className="wall-cal-add-termin"
+            title="Abwesenheiten planen"
+            onClick={openAbsenceDialog}
+          >
+            {isNarrow ? 'Abw.' : 'Abwesenheiten'}
+          </button>
+          <button
+            type="button"
+            className="wall-cal-add-termin"
             title="Bereitschaft planen"
             onClick={() => openStandbyDialog(focusDayKey ?? todayKey)}
           >
@@ -1042,17 +1061,28 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
               : undefined
           }
           headerExtra={
-            <BereitschaftChips
-              dayKey={dialogDay.dayKey}
-              standbys={standbys}
-              absences={absences}
-              personnelById={personnelById}
-              region={holidayRegion}
-              onClick={() => {
-                setDialogDayKey(null);
-                openStandbyDialog(dialogDay.dayKey);
-              }}
-            />
+            <div className="wall-cal-day-staff">
+              <AbsenceChips
+                dayKey={dialogDay.dayKey}
+                absences={absences}
+                personnelById={personnelById}
+                onClick={() => {
+                  setDialogDayKey(null);
+                  openAbsenceDialog();
+                }}
+              />
+              <BereitschaftChips
+                dayKey={dialogDay.dayKey}
+                standbys={standbys}
+                absences={absences}
+                personnelById={personnelById}
+                region={holidayRegion}
+                onClick={() => {
+                  setDialogDayKey(null);
+                  openStandbyDialog(dialogDay.dayKey);
+                }}
+              />
+            </div>
           }
           onClose={() => setDialogDayKey(null)}
         />
@@ -1196,6 +1226,24 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
         }}
       />
 
+      <PersonnelAbsenceDialog
+        open={absenceOpen}
+        dayKeys={days.map((d) => d.dayKey)}
+        personnelPool={settings.personnelPool ?? []}
+        absences={absences}
+        pending={bookingSaving}
+        error={bookingError}
+        onClose={() => {
+          if (!bookingSaving) setAbsenceOpen(false);
+        }}
+        onSave={async (absence) => {
+          await saveAbsence(absence);
+        }}
+        onDelete={async (id) => {
+          await clearAbsence(id);
+        }}
+      />
+
     </div>
     </BereitschaftUiContext.Provider>
   );
@@ -1263,15 +1311,25 @@ function WallCalendarPeriodRow({
   const ber = useBereitschaftUi();
   const dayExtra = ber
     ? (day: WallCalendarDay) => (
-        <BereitschaftChips
-          dayKey={day.dayKey}
-          standbys={ber.standbys}
-          absences={ber.absences}
-          personnelById={ber.personnelById}
-          region={ber.region}
-          compact
-          className="bereitschaft-chips--period"
-        />
+        <div className="wall-cal-day-staff wall-cal-day-staff--period">
+          <AbsenceChips
+            dayKey={day.dayKey}
+            absences={ber.absences}
+            personnelById={ber.personnelById}
+            compact
+            className="absence-chips--period"
+            onClick={ber.onOpenAbsence}
+          />
+          <BereitschaftChips
+            dayKey={day.dayKey}
+            standbys={ber.standbys}
+            absences={ber.absences}
+            personnelById={ber.personnelById}
+            region={ber.region}
+            compact
+            className="bereitschaft-chips--period"
+          />
+        </div>
       )
     : undefined;
 
@@ -1344,15 +1402,24 @@ function WallCalendarMobileAgenda({
               <span className="wall-cal-agenda-count">{day.entries.length}</span>
             )}
             {ber && (
-              <BereitschaftChips
-                dayKey={day.dayKey}
-                standbys={ber.standbys}
-                absences={ber.absences}
-                personnelById={ber.personnelById}
-                region={ber.region}
-                compact
-                onClick={() => ber.onOpen(day.dayKey)}
-              />
+              <div className="wall-cal-day-staff">
+                <AbsenceChips
+                  dayKey={day.dayKey}
+                  absences={ber.absences}
+                  personnelById={ber.personnelById}
+                  compact
+                  onClick={ber.onOpenAbsence}
+                />
+                <BereitschaftChips
+                  dayKey={day.dayKey}
+                  standbys={ber.standbys}
+                  absences={ber.absences}
+                  personnelById={ber.personnelById}
+                  region={ber.region}
+                  compact
+                  onClick={() => ber.onOpen(day.dayKey)}
+                />
+              </div>
             )}
           </header>
           {day.entries.length === 0 ? (
@@ -1504,15 +1571,24 @@ function WallCalendarDaySection({
 
   const bereitschaftRow =
     ber != null ? (
-      <BereitschaftChips
-        dayKey={day.dayKey}
-        standbys={ber.standbys}
-        absences={ber.absences}
-        personnelById={ber.personnelById}
-        region={ber.region}
-        compact={compact || strip || summaryOnly}
-        onClick={() => ber.onOpen(day.dayKey)}
-      />
+      <div className="wall-cal-day-staff">
+        <AbsenceChips
+          dayKey={day.dayKey}
+          absences={ber.absences}
+          personnelById={ber.personnelById}
+          compact={compact || strip || summaryOnly}
+          onClick={ber.onOpenAbsence}
+        />
+        <BereitschaftChips
+          dayKey={day.dayKey}
+          standbys={ber.standbys}
+          absences={ber.absences}
+          personnelById={ber.personnelById}
+          region={ber.region}
+          compact={compact || strip || summaryOnly}
+          onClick={() => ber.onOpen(day.dayKey)}
+        />
+      </div>
     ) : null;
 
   if (!clickable) {
