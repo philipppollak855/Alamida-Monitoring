@@ -1,5 +1,5 @@
 import type { WallCalendarEntry } from '../board/wallCalendar';
-import { isPureTransferEntry } from '../board/wallCalendar';
+import { isFahrerTransferEntry, isKremationTransferEntry, isPureTransferEntry } from '../board/wallCalendar';
 import type {
   PersonnelAbsence,
   PersonnelBooking,
@@ -342,6 +342,67 @@ export function isPersonnelBookingIncomplete(
   return false;
 }
 
+/** Feier/Überführung, für die Personal erwartet wird (nicht Kremationsfahrt). */
+export function entryExpectsPersonnelBooking(
+  entry: Pick<WallCalendarEntry, 'arts' | 'title'>
+): boolean {
+  if (isKremationTransferEntry(entry)) return false;
+  if (isFahrerTransferEntry(entry)) return true;
+  if (isBegraebnisEntry(entry)) return true;
+  return entry.arts.some(
+    (a) =>
+      a === 'trauerfeier' ||
+      a === 'trauerfeier2' ||
+      a === 'verabschiedung' ||
+      a === 'beisetzung'
+  );
+}
+
+/** Eingebuchte Externe ohne Bestätigung. */
+export function hasUnconfirmedExternPersonnel(
+  booking: PersonnelBooking | null | undefined,
+  pool: { id: string; extern?: boolean }[]
+): boolean {
+  if (!booking) return false;
+  const confirmed = new Set(booking.confirmedPersonIds ?? []);
+  const byId = new Map(pool.map((p) => [p.id, p]));
+  const ids = new Set<string>([
+    ...(booking.arrangeurId ? [booking.arrangeurId] : []),
+    ...booking.traegerIds,
+  ]);
+  for (const id of ids) {
+    if (byId.get(id)?.extern === true && !confirmed.has(id)) return true;
+  }
+  return false;
+}
+
+export type PersonnelAttention = 'open' | 'confirm';
+
+/**
+ * Kalender-Marker: Personal unvollständig (`open`) oder externe Bestätigung fehlt (`confirm`).
+ */
+export function personnelAttentionForEntry(
+  entry: Pick<WallCalendarEntry, 'arts' | 'title' | 'bestattungsMarker'>,
+  booking: PersonnelBooking | null | undefined,
+  pool: { id: string; extern?: boolean }[]
+): PersonnelAttention | null {
+  if (isKremationTransferEntry(entry)) return null;
+  if (hasUnconfirmedExternPersonnel(booking, pool)) return 'confirm';
+  if (
+    entryExpectsPersonnelBooking(entry) &&
+    isPersonnelBookingIncomplete(entry, booking)
+  ) {
+    return 'open';
+  }
+  return null;
+}
+
+export function personnelAttentionTitle(kind: PersonnelAttention): string {
+  return kind === 'confirm'
+    ? 'Externe Bestätigung ausstehend'
+    : 'Personal noch nicht vollständig eingebucht';
+}
+
 export function findBookingForCeremony(
   bookings: Record<string, PersonnelBooking>,
   docId: string,
@@ -423,11 +484,30 @@ export function personnelBookingDisplayLine(
   if (!booking) return null;
   if (isTransferPersonnelBooking(booking)) {
     const fahrer = personnelBookingTraegerLine(booking, pool);
+    const parts: string[] = [];
     if (fahrer) {
-      return booking.traegerIds.length === 1 ? `Fahrer ${fahrer}` : `Fahrer: ${fahrer}`;
+      parts.push(
+        booking.traegerIds.length === 1 ? `Fahrer ${fahrer}` : `Fahrer: ${fahrer}`
+      );
+    } else if (booking.note?.trim()) {
+      parts.push(booking.note.trim());
     }
-    if (booking.note?.trim()) return booking.note.trim();
-    return null;
+    if (
+      isPersonnelBookingIncomplete(
+        {
+          arts: booking.entryArts,
+          title: booking.entryTitle,
+          bestattungsMarker: booking.bestattungsMarker,
+        },
+        booking
+      )
+    ) {
+      parts.push('Personal offen');
+    }
+    if (hasUnconfirmedExternPersonnel(booking, pool)) {
+      parts.push('Bestätigung offen');
+    }
+    return parts.length > 0 ? parts.join(' · ') : null;
   }
   const byId = new Map(pool.map((p) => [p.id, p]));
   const parts: string[] = [];
@@ -448,6 +528,9 @@ export function personnelBookingDisplayLine(
   };
   if (isPersonnelBookingIncomplete(entryLike, booking)) {
     parts.push('Personal offen');
+  }
+  if (hasUnconfirmedExternPersonnel(booking, pool)) {
+    parts.push('Bestätigung offen');
   }
   if (parts.length === 0 && booking.note?.trim()) return booking.note.trim();
   return parts.length > 0 ? parts.join(' · ') : null;

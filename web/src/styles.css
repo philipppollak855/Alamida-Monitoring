@@ -4852,6 +4852,33 @@ code {
   font-weight: 700;
 }
 
+.wall-cal-personnel-marker {
+  flex: 0 0 auto;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  margin-left: 0.15rem;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.65);
+}
+
+.wall-cal-personnel-marker--open {
+  background: #ef4444;
+}
+
+.wall-cal-personnel-marker--confirm {
+  background: #f59e0b;
+}
+
+.wall-cal-card.has-personnel-open,
+.wall-cal-card.has-personnel-confirm {
+  position: relative;
+}
+
+.wall-cal-strip-top .wall-cal-personnel-marker,
+.wall-cal-card-headline .wall-cal-personnel-marker {
+  align-self: center;
+}
+
 .wall-cal-day-open--head,
 .wall-cal-day-head-btn {
   /* Nur Tageskopf — darf die Spalte nicht strecken (kein flex:1 von .wall-cal-day-open). */

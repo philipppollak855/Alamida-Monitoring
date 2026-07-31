@@ -2,6 +2,10 @@ import {
   calendarColorGroupFromArts,
   type WallCalendarEntry,
 } from '../board/wallCalendar';
+import {
+  personnelAttentionTitle,
+  type PersonnelAttention,
+} from '../board/personnelBookingRules';
 import { WallCalBestattungsBadge } from './WallCalBestattungsBadge';
 import type { KeyboardEvent, MouseEvent } from 'react';
 
@@ -18,12 +22,23 @@ function isTransferGroupEntry(entry: WallCalendarEntry): {
   return null;
 }
 
+function PersonnelAttentionMarker({ kind }: { kind: PersonnelAttention }) {
+  return (
+    <span
+      className={`wall-cal-personnel-marker wall-cal-personnel-marker--${kind}`}
+      title={personnelAttentionTitle(kind)}
+      aria-label={personnelAttentionTitle(kind)}
+    />
+  );
+}
+
 export function WallCalendarEventCard({
   entry,
   compact = false,
   strip = false,
   mobile = false,
   traegerLine,
+  personnelAttention = null,
   onClick,
 }: {
   entry: WallCalendarEntry;
@@ -32,6 +47,8 @@ export function WallCalendarEventCard({
   mobile?: boolean;
   /** Trägernamen klein unter dem Termin */
   traegerLine?: string | null;
+  /** Kleiner Status-Marker: Personal offen / Bestätigung ausstehend */
+  personnelAttention?: PersonnelAttention | null;
   onClick?: (entry: WallCalendarEntry) => void;
 }) {
   const colorClass = `wall-cal-card--color-${calendarColorGroupFromArts(entry.arts)}`;
@@ -39,14 +56,25 @@ export function WallCalendarEventCard({
   const transferGroup = isTransferGroupEntry(entry);
   const memberNames = transferGroup?.memberNames ?? [];
   const groupTitle = transferGroup?.title ?? '';
+  const attentionMarker = personnelAttention ? (
+    <PersonnelAttentionMarker kind={personnelAttention} />
+  ) : null;
   const bestattungsBadge = entry.bestattungsMarker ? (
     <WallCalBestattungsBadge marker={entry.bestattungsMarker} />
   ) : null;
-  const traegerOpen = Boolean(traegerLine?.includes('Personal offen'));
+  const traegerOpen = Boolean(
+    traegerLine?.includes('Personal offen') || traegerLine?.includes('Bestätigung offen')
+  );
   const traegerBadge = traegerLine ? (
     <span
       className={`wall-cal-traeger-line${traegerOpen ? ' is-open' : ''}`}
-      title={traegerOpen ? 'Personal noch nicht vollständig' : undefined}
+      title={
+        traegerLine.includes('Bestätigung offen')
+          ? personnelAttentionTitle('confirm')
+          : traegerLine.includes('Personal offen')
+            ? personnelAttentionTitle('open')
+            : undefined
+      }
     >
       {traegerLine}
     </span>
@@ -61,6 +89,7 @@ export function WallCalendarEventCard({
     entry.grouped ? 'is-grouped' : '',
     transferGroup ? 'is-krem-group' : '',
     clickable ? 'is-clickable' : '',
+    personnelAttention ? `has-personnel-${personnelAttention}` : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -101,6 +130,7 @@ export function WallCalendarEventCard({
           {entry.timeLabel && entry.timeLabel !== '—' ? (
             <time className="wall-cal-time">{entry.timeLabel}</time>
           ) : null}
+          {attentionMarker}
         </div>
         <span className="wall-cal-krem-title">{groupTitle}</span>
         <ul className="wall-cal-krem-names">
@@ -120,6 +150,7 @@ export function WallCalendarEventCard({
         <div className="wall-cal-card-headline">
           {bestattungsBadge}
           <time className="wall-cal-time">{entry.timeLabel}</time>
+          {attentionMarker}
         </div>
         <div className="wall-cal-mobile-body">
           <span className="wall-cal-name">{entry.name}</span>
@@ -143,6 +174,7 @@ export function WallCalendarEventCard({
         <div className="wall-cal-strip-top">
           {bestattungsBadge}
           <time className="wall-cal-time">{entry.timeLabel}</time>
+          {attentionMarker}
           {stripTypes && <span className="wall-cal-strip-types">{stripTypes}</span>}
         </div>
         <span className="wall-cal-name">{entry.name}</span>
@@ -158,6 +190,7 @@ export function WallCalendarEventCard({
         <div className="wall-cal-card-headline">
           {bestattungsBadge}
           <time className="wall-cal-time">{entry.timeLabel}</time>
+          {attentionMarker}
         </div>
         <div className="wall-cal-badges">
           {entry.badges.map((b) => (

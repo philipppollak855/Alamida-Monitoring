@@ -1,12 +1,14 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import type { WallCalendarDay, WallCalendarEntry } from '../board/wallCalendar';
 import { summarizeWallCalendarDay } from '../board/wallCalendar';
+import type { PersonnelAttention } from '../board/personnelBookingRules';
 import { WallCalendarEventCard } from './WallCalendarEventCard';
 
 interface Props {
   day: WallCalendarDay;
   mobile?: boolean;
   traegerLines?: Record<string, string | null | undefined>;
+  personnelAttentionById?: Record<string, PersonnelAttention>;
   onEntryClick?: (entry: WallCalendarEntry) => void;
   onAddTermin?: () => void;
   onOpenStandby?: () => void;
@@ -18,6 +20,7 @@ export function WallCalendarDayDialog({
   day,
   mobile = false,
   traegerLines,
+  personnelAttentionById,
   onEntryClick,
   onAddTermin,
   onOpenStandby,
@@ -108,6 +111,7 @@ export function WallCalendarDayDialog({
                   mobile={mobile}
                   compact={!mobile}
                   traegerLine={traegerLines?.[e.id]}
+                  personnelAttention={personnelAttentionById?.[e.id] ?? null}
                   onClick={onEntryClick}
                 />
               </li>

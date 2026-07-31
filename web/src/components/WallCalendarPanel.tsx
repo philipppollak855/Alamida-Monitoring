@@ -62,7 +62,9 @@ import {
 } from '../board/wallCalendarLayout';
 import {
   findBookingForWallEntry,
+  personnelAttentionForEntry,
   personnelBookingDisplayLine,
+  type PersonnelAttention,
 } from '../board/personnelBookingRules';
 import { usePersonnelBookings } from '../hooks/usePersonnelBookings';
 import { useTransferPlan } from '../hooks/useTransferPlan';
@@ -322,6 +324,17 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
     for (const entry of allEntries) {
       const booking = findBookingForWallEntry(bookings, entry);
       out[entry.id] = personnelBookingDisplayLine(booking, pool);
+    }
+    return out;
+  }, [bookings, settings.personnelPool, allEntries]);
+
+  const personnelAttentionById = useMemo(() => {
+    const pool = settings.personnelPool ?? [];
+    const out: Record<string, PersonnelAttention> = {};
+    for (const entry of allEntries) {
+      const booking = findBookingForWallEntry(bookings, entry);
+      const kind = personnelAttentionForEntry(entry, booking, pool);
+      if (kind) out[entry.id] = kind;
     }
     return out;
   }, [bookings, settings.personnelPool, allEntries]);
@@ -945,7 +958,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
             days={days}
             range={range}
             scrollToDayKey={focusDayKey}
-            traegerLines={traegerLines}
+            traegerLines={traegerLines} personnelAttentionById={personnelAttentionById}
             onEntryClick={handleEntryClick}
           />
 
@@ -991,7 +1004,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
                   active={focusDayKey === day.dayKey}
                   onOpenDay={openDayDialog}
                   summaryOnly={monthSummaryOnly}
-                  traegerLines={traegerLines}
+                  traegerLines={traegerLines} personnelAttentionById={personnelAttentionById}
                   onEntryClick={handleEntryClick}
                 />
 
@@ -1018,7 +1031,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
                   days={days.slice(weekIdx * 7, weekIdx * 7 + 7)}
                   focusDayKey={focusDayKey}
                   weeksStack
-                  traegerLines={traegerLines}
+                  traegerLines={traegerLines} personnelAttentionById={personnelAttentionById}
                   onEntryClick={handleEntryClick}
                   onOpenDay={openDayDialog}
                 />
@@ -1032,7 +1045,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
             <WallCalendarWeekStrip
               days={days}
               focusDayKey={focusDayKey}
-              traegerLines={traegerLines}
+              traegerLines={traegerLines} personnelAttentionById={personnelAttentionById}
               onEntryClick={handleEntryClick}
               onOpenDay={openDayDialog}
             />
@@ -1047,7 +1060,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
         <WallCalendarDayDialog
           day={dialogDay}
           mobile={isNarrow}
-          traegerLines={traegerLines}
+          traegerLines={traegerLines} personnelAttentionById={personnelAttentionById}
           onEntryClick={handleEntryClick}
           onAddTermin={() => {
             openZusatzDialog(dialogDay.dayKey);
@@ -1257,6 +1270,7 @@ function WallCalendarWeekStrip({
   focusDayKey,
   weeksStack = false,
   traegerLines,
+  personnelAttentionById,
   onEntryClick,
   onOpenDay,
 }: {
@@ -1264,6 +1278,7 @@ function WallCalendarWeekStrip({
   focusDayKey: string | null;
   weeksStack?: boolean;
   traegerLines?: Record<string, string | null>;
+  personnelAttentionById?: Record<string, PersonnelAttention>;
   onEntryClick?: (entry: WallCalendarEntry) => void;
   onOpenDay?: (dayKey: string) => void;
 }) {
@@ -1279,6 +1294,7 @@ function WallCalendarWeekStrip({
           scrollId={day.dayKey}
           active={focusDayKey === day.dayKey}
           traegerLines={traegerLines}
+          personnelAttentionById={personnelAttentionById}
           onEntryClick={onEntryClick}
           onOpenDay={onOpenDay}
         />
@@ -1372,12 +1388,14 @@ function WallCalendarMobileAgenda({
   range,
   scrollToDayKey,
   traegerLines,
+  personnelAttentionById,
   onEntryClick,
 }: {
   days: WallCalendarDay[];
   range: WallCalendarRange;
   scrollToDayKey?: string | null;
   traegerLines?: Record<string, string | null>;
+  personnelAttentionById?: Record<string, PersonnelAttention>;
   onEntryClick?: (entry: WallCalendarEntry) => void;
 }) {
   const ber = useBereitschaftUi();
@@ -1432,6 +1450,7 @@ function WallCalendarMobileAgenda({
                     entry={e}
                     mobile
                     traegerLine={traegerLines?.[e.id]}
+                    personnelAttention={personnelAttentionById?.[e.id] ?? null}
                     onClick={onEntryClick}
                   />
                 </li>
@@ -1460,6 +1479,7 @@ function WallCalendarDaySection({
   onOpenDay,
   summaryOnly = false,
   traegerLines,
+  personnelAttentionById,
   onEntryClick,
 
 }: {
@@ -1476,6 +1496,7 @@ function WallCalendarDaySection({
   onOpenDay?: (dayKey: string) => void;
   summaryOnly?: boolean;
   traegerLines?: Record<string, string | null>;
+  personnelAttentionById?: Record<string, PersonnelAttention>;
   onEntryClick?: (entry: WallCalendarEntry) => void;
 
 }) {
@@ -1524,6 +1545,7 @@ function WallCalendarDaySection({
               compact={compact || strip}
               strip={strip}
               traegerLine={traegerLines?.[e.id]}
+              personnelAttention={personnelAttentionById?.[e.id] ?? null}
               onClick={onEntryClick}
             />
           </li>

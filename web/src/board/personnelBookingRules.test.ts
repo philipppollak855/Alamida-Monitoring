@@ -8,6 +8,7 @@ import {
   isPersonAbsentOnDay,
   minTraegerForEntry,
   parseTimeLabelMinutes,
+  personnelAttentionForEntry,
   personnelBookingDisplayLine,
   personnelBookingSummary,
   personnelBookingTraegerLine,
@@ -443,5 +444,51 @@ describe('validatePersonnelBooking Warnung ohne Arrangeur-Rolle', () => {
     );
     expect(v.ok).toBe(true);
     expect(v.warnings.some((w) => w.includes('kein Arrangeur'))).toBe(true);
+  });
+});
+
+describe('personnelAttentionForEntry', () => {
+  it('offen ohne Buchung, Bestätigung bei Extern', () => {
+    expect(personnelAttentionForEntry(sargBegraebnis, null, [])).toBe('open');
+    expect(personnelAttentionForEntry(trauerfeier, null, [])).toBe('open');
+    expect(
+      personnelAttentionForEntry(
+        { arts: ['aufnahme'] as CalendarTerminArt[], title: 'Aufnahme' },
+        null,
+        []
+      )
+    ).toBeNull();
+
+    const booking: PersonnelBooking = {
+      id: 'b1',
+      docId: 'd1',
+      sterbefallId: 's1',
+      dayKey: '2026-07-31',
+      entryTitle: 'Beisetzung',
+      entryArts: ['beisetzung'],
+      timeLabel: '14:00',
+      name: 'Test',
+      bestattungsMarker: 'S',
+      arrangeurId: 'arr-1',
+      traegerIds: ['ext-1', 't2', 't3', 't4'],
+      traegerVonFamilie: false,
+      requiredTraegerCount: 4,
+      confirmedPersonIds: [],
+    };
+    const pool = [
+      { id: 'arr-1', name: 'Arr', extern: false },
+      { id: 'ext-1', name: 'Extern', extern: true },
+      { id: 't2', name: 'T2' },
+      { id: 't3', name: 'T3' },
+      { id: 't4', name: 'T4' },
+    ];
+    expect(personnelAttentionForEntry(sargBegraebnis, booking, pool)).toBe('confirm');
+    expect(
+      personnelAttentionForEntry(
+        sargBegraebnis,
+        { ...booking, confirmedPersonIds: ['ext-1'] },
+        pool
+      )
+    ).toBeNull();
   });
 });
