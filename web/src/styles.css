@@ -4104,6 +4104,7 @@ code {
 
 .wall-cal-day--strip > .wall-cal-day-head-btn,
 .wall-cal-day--strip > .wall-cal-day-head,
+.wall-cal-day--strip > .wall-cal-day-staff,
 .wall-cal-day--strip > .bereitschaft-chips {
   flex: 0 0 auto;
 }
@@ -4586,6 +4587,7 @@ code {
 /* Monatsansicht: gleiche Dichte-Logik */
 .wall-cal-day--month > .wall-cal-day-head-btn,
 .wall-cal-day--month > .wall-cal-day-head,
+.wall-cal-day--month > .wall-cal-day-staff,
 .wall-cal-day--month > .bereitschaft-chips {
   flex: 0 0 auto;
 }
@@ -5433,6 +5435,19 @@ code {
   gap: 0.12rem;
   margin-top: 0.15rem;
   max-width: 100%;
+  /* Gleicher Innenabstand wie Tageskopf / Terminliste */
+  padding: 0 0.4rem 0.15rem;
+  box-sizing: border-box;
+}
+
+.wall-cal-day--month > .wall-cal-day-staff {
+  padding-left: 0.55rem;
+  padding-right: 0.55rem;
+}
+
+.wall-cal-day--strip.is-strip-compact > .wall-cal-day-staff {
+  padding-left: 0.32rem;
+  padding-right: 0.32rem;
 }
 
 .wall-cal-day-staff .bereitschaft-chips,
@@ -5442,6 +5457,14 @@ code {
 
 .wall-cal-day-staff--period {
   gap: 0.08rem;
+  padding: 0;
+  margin-top: 0.1rem;
+}
+
+.wall-cal-agenda-day-head .wall-cal-day-staff {
+  flex-basis: 100%;
+  padding: 0.1rem 0 0;
+  margin-top: 0.1rem;
 }
 
 .absence-chips {
