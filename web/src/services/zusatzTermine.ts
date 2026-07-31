@@ -53,6 +53,34 @@ export function parseZusatzTermineDocument(data: unknown): ZusatzTermineDocument
   };
 }
 
+/** Firestore verbietet `undefined` — optionale Felder weglassen. */
+export function serializeZusatzTermin(termin: ZusatzTermin): Record<string, string | number> {
+  const out: Record<string, string | number> = {
+    id: termin.id,
+    docId: termin.docId ?? '',
+    sterbefallId: termin.sterbefallId ?? '',
+    name: termin.name ?? '',
+    art: termin.art,
+    title: termin.title,
+    dayKey: termin.dayKey,
+  };
+  if (termin.zeit?.trim()) out.zeit = termin.zeit.trim();
+  if (termin.ort?.trim()) out.ort = termin.ort.trim();
+  if (termin.note?.trim()) out.note = termin.note.trim();
+  if (typeof termin.updatedAtMs === 'number') out.updatedAtMs = termin.updatedAtMs;
+  return out;
+}
+
+function serializeTermineMap(
+  termine: Record<string, ZusatzTermin>
+): Record<string, Record<string, string | number>> {
+  const out: Record<string, Record<string, string | number>> = {};
+  for (const [id, t] of Object.entries(termine)) {
+    out[id] = serializeZusatzTermin(t);
+  }
+  return out;
+}
+
 export async function loadZusatzTermine(): Promise<ZusatzTermineDocument> {
   if (!db) return { termine: {} };
   const snap = await getDoc(doc(db, PLAN_DOC[0], PLAN_DOC[1]));
@@ -81,7 +109,7 @@ export async function saveZusatzTermin(termin: ZusatzTermin): Promise<void> {
   if (!db) throw new Error('Firebase nicht konfiguriert');
   const ref = doc(db, PLAN_DOC[0], PLAN_DOC[1]);
   const current = await loadZusatzTermine();
-  const termine = {
+  const next: Record<string, ZusatzTermin> = {
     ...current.termine,
     [termin.id]: {
       ...termin,
@@ -89,7 +117,7 @@ export async function saveZusatzTermin(termin: ZusatzTermin): Promise<void> {
     },
   };
   const data = {
-    termine,
+    termine: serializeTermineMap(next),
     updatedAtMs: Date.now(),
     updatedAt: serverTimestamp(),
   };
