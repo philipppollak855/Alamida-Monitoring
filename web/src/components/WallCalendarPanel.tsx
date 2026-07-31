@@ -47,7 +47,13 @@ import {
   expandMonthWindowForward,
   type WallCalendarDayRange,
 } from '../board/monthScrollWindow';
-import { dayOfMonthFromDayKey } from '../board/dateUtils';
+import {
+  addDays,
+  dayKeyFromDate,
+  dayOfMonthFromDayKey,
+  formatDayLabelDe,
+  startOfWeekMonday,
+} from '../board/dateUtils';
 import { isBereitschaftRelevantDay } from '../board/bereitschaftRules';
 import {
   calendarDayLayout,
@@ -180,6 +186,8 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
   const monthLastScrollTop = useRef(0);
   const monthPendingScrollAdjustPx = useRef(0);
   const monthGridRef = useRef<HTMLDivElement | null>(null);
+  /** Anker für 7-/14-Tage-Ansicht (Wochen durchschalten). */
+  const [viewAnchor, setViewAnchor] = useState(() => now);
   const [monthScrollWindow, setMonthScrollWindow] = useState<WallCalendarDayRange>(() =>
     currentWeekDayRange(now)
   );
@@ -268,11 +276,27 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
       // Beim Umschalten (z. B. auf Monat) den Fokus aktiv auf heute setzen
       // und Scroll in der Eintragsansicht erzwingen.
       scrollToFocusPending.current = true;
+      setViewAnchor(now);
       setFocusDayKey(todayKey);
       setRange(next);
     },
-    [setFocusDayKey, setRange, todayKey]
+    [setFocusDayKey, setRange, todayKey, now]
   );
+
+  const shiftWeek = useCallback(
+    (deltaWeeks: number) => {
+      setViewAnchor((prev) => addDays(prev, deltaWeeks * 7));
+      scrollToFocusPending.current = true;
+      const base = focusDayKey ? new Date(`${focusDayKey}T12:00:00`) : now;
+      setFocusDayKey(dayKeyFromDate(addDays(base, deltaWeeks * 7)));
+    },
+    [now, focusDayKey, setFocusDayKey]
+  );
+
+  const jumpToToday = useCallback(() => {
+    setViewAnchor(now);
+    selectFocusDay(todayKey);
+  }, [now, selectFocusDay, todayKey]);
 
   const allEntries = useMemo(() => {
     const base = mergeZusatzTermineIntoEntries(
@@ -330,8 +354,8 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
         monthScrollWindow.toKey
       );
     }
-    return filterCalendarEntries(scoped, range, now, '');
-  }, [scoped, range, now, monthScrollWindow]);
+    return filterCalendarEntries(scoped, range, viewAnchor, '');
+  }, [scoped, range, now, viewAnchor, monthScrollWindow]);
 
   const days = useMemo(() => {
     if (range === 'month') {
@@ -342,8 +366,8 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
         monthScrollWindow.toKey
       );
     }
-    return buildWallCalendarDays(filtered, range, now);
-  }, [filtered, range, now, monthScrollWindow]);
+    return buildWallCalendarDays(filtered, range, viewAnchor, now);
+  }, [filtered, range, now, viewAnchor, monthScrollWindow]);
 
   const overviewDays = useMemo(() => {
     if (range === 'month') {
@@ -370,13 +394,20 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
 
       ? now.toLocaleDateString('de-AT', { month: 'long', year: 'numeric' })
 
-      : range === 14
+      : days.length > 0
 
-        ? '14 Tage'
+        ? `${formatDayLabelDe(days[0].dayKey)} – ${formatDayLabelDe(days[days.length - 1].dayKey)}`
 
-        : '7 Tage';
+        : range === 14
 
+          ? '14 Tage'
 
+          : '7 Tage';
+
+  const showWeekNav = range === 7 || range === 14;
+  const viewWeekMondayKey = dayKeyFromDate(startOfWeekMonday(viewAnchor));
+  const todayWeekMondayKey = dayKeyFromDate(startOfWeekMonday(now));
+  const viewingCurrentWeek = viewWeekMondayKey === todayWeekMondayKey;
 
   const showPeriodOverview = range === 'month' || range === 7 || range === 14;
 
@@ -718,10 +749,27 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
 
           {!isNarrow && <h2 className="wall-stage-title wall-cal-title">Kalender</h2>}
 
-          {(range === 'month' || isNarrow) && (
+          <span className="wall-cal-month">{monthLabel}</span>
 
-            <span className="wall-cal-month">{monthLabel}</span>
-
+          {showWeekNav && (
+            <div className="wall-cal-week-nav" role="group" aria-label="Woche wechseln">
+              <button
+                type="button"
+                className="wall-cal-week-nav-btn"
+                onClick={() => shiftWeek(-1)}
+                aria-label="Vorherige Woche"
+              >
+                ←
+              </button>
+              <button
+                type="button"
+                className="wall-cal-week-nav-btn"
+                onClick={() => shiftWeek(1)}
+                aria-label="Nächste Woche"
+              >
+                →
+              </button>
+            </div>
           )}
 
           <span className="wall-cal-count">
@@ -869,8 +917,8 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
               todayKey={todayKey}
               selectedDayKey={focusDayKey}
               onDaySelect={handleDaySelect}
-              onToday={() => selectFocusDay(onToday)}
-              todayDisabled={focusIsToday}
+              onToday={jumpToToday}
+              todayDisabled={focusIsToday && viewingCurrentWeek}
             />
           )}
 
@@ -897,8 +945,8 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
               todayKey={todayKey}
               selectedDayKey={focusDayKey}
               onDaySelect={handleDaySelect}
-              onToday={() => selectFocusDay(onToday)}
-              todayDisabled={focusIsToday}
+              onToday={jumpToToday}
+              todayDisabled={focusIsToday && viewingCurrentWeek}
             />
           )}
 

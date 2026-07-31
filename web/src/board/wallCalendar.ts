@@ -1204,9 +1204,11 @@ export function filterCalendarEntries(
 export function buildWallCalendarDays(
   entries: WallCalendarEntry[],
   range: WallCalendarRange,
-  anchor: Date
+  anchor: Date,
+  /** Echtes „heute“ — unabhängig vom Wochen-/Monatsanker (Navigation). */
+  today: Date = anchor
 ): WallCalendarDay[] {
-  const todayKey = dayKeyFromDate(anchor);
+  const todayKey = dayKeyFromDate(today);
   const days: WallCalendarDay[] = [];
   const entriesByDay = new Map<string, WallCalendarEntry[]>();
 
@@ -1229,7 +1231,7 @@ export function buildWallCalendarDays(
   if (range === 'month') {
     const fromKey = monthRangeFromKey(anchor);
     const toKey = monthRangeToKey(anchor);
-    return buildWallCalendarDaysInRange(entries, anchor, fromKey, toKey);
+    return buildWallCalendarDaysInRange(entries, today, fromKey, toKey);
   }
 
   const weeks = range === 14 ? 2 : 1;

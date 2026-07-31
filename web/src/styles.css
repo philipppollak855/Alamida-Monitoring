@@ -3693,6 +3693,32 @@ code {
   flex-shrink: 0;
 }
 
+.wall-cal-week-nav {
+  display: inline-flex;
+  gap: 0.25rem;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.wall-cal-week-nav-btn {
+  min-width: 2rem;
+  height: 1.9rem;
+  padding: 0 0.45rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.wall-cal-week-nav-btn:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+}
+
 .wall-cal-range-btn {
   font-size: 0.82rem;
   font-weight: 600;
