@@ -239,6 +239,63 @@ describe('transferPlanning board', () => {
     expect(day.free).toBe(settings.eigeneKuehlraeume[0].plaetze - 1);
   });
 
+  it('projiziert Kapazitaet ab heute — vergangene Plan-Ankuenfte nicht rueckwirkend', () => {
+    // Aktuell 1 belegt; alte Plan-Ankunft (Mo) einer anderen Person, die schon wieder weg ist
+    const occupied = fall({
+      id: 'still-here',
+      verstorbenerName: 'Noch da',
+      aktuellePosition: 'Kühlr. Grafenbach',
+      aktuellePositionTyp: 'kuehlraum',
+      kuehlraumId: 'Kühlr. Grafenbach',
+      kuehlplatz: '1',
+      status: 'im_kuehlraum',
+    });
+    const leftAlready = fall({
+      id: 'already-left',
+      verstorbenerName: 'Schon weg',
+      aktuellePosition: 'Friedhof',
+      aktuellePositionTyp: 'sterbeort',
+    });
+    const draft = buildScheduleDraftFromSterbeort({
+      item: {
+        docId: leftAlready.id,
+        sterbefallId: leftAlready.id,
+        name: 'Schon weg',
+        vonOrt: 'UK',
+        suggestedKuehlraumId: 'grafenbach',
+        freigabeState: 'frei',
+      },
+      dayKey: '2026-07-27', // Mo (vor „heute“ Di 28.07. in diesem Testkontext — siehe unten)
+      kuehlraum: settings.eigeneKuehlraeume[0],
+      defaultZeit: '09:00',
+    });
+    // Systemzeit im Suite-beforeEach: 27.07.2026 — wir setzen lokal Freitag
+    vi.setSystemTime(new Date(2026, 6, 31, 12, 0, 0));
+    const scheduled = scheduleToKuehlraum({}, draft, 1, null);
+    // Plan-Tag auf Montag der Woche
+    const assignment = {
+      ...scheduled.assignments[Object.keys(scheduled.assignments)[0]!],
+      plannedDayKey: '2026-07-27',
+    };
+    const assignments = { [assignment.id]: assignment };
+    const cards = buildPlanningCards([occupied, leftAlready], assignments, settings);
+
+    const caps = buildKuehlraumCapacities(
+      [occupied, leftAlready],
+      cards,
+      settings,
+      ['2026-07-27', '2026-07-28', '2026-07-29', '2026-07-30', '2026-07-31'],
+      new Date(2026, 6, 31, 12, 0, 0)
+    );
+    const fri = caps.find(
+      (c) => c.kuehlraumId === 'grafenbach' && c.dayKey === '2026-07-31'
+    )!;
+    expect(fri.baseOccupied).toBe(1);
+    expect(fri.projectedOccupied).toBe(1);
+    expect(fri.arrivals).toBe(0);
+    expect(fri.free).toBe(settings.eigeneKuehlraeume[0].plaetze - 1);
+  });
+
   it('meldet Platz frei bei Beisetzung aus dem Kühlraum', () => {
     const occupied = fall({
       id: 'occ',

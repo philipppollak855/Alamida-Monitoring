@@ -665,6 +665,7 @@ export function buildKuehlraumCapacities(
 ): KuehlraumDayCapacity[] {
   const result: KuehlraumDayCapacity[] = [];
   const slotFrees = buildSlotFreeEvents(sterbefaelle, cards, settings, now);
+  const todayKey = dayKeyFromDate(now);
 
   for (const cfg of settings.eigeneKuehlraeume) {
     const slots = belegeKuehlraumSlots(sterbefaelle, cfg);
@@ -676,6 +677,24 @@ export function buildKuehlraumCapacities(
     const presentIds = new Set(occupiedIds);
 
     for (const dayKey of dayKeys) {
+      // Ausgangslage ist die aktuelle Belegung — vergangene Plan-Tage nicht rückwirkend
+      // aufaddieren (sonst bleiben z. B. schon abgereiste Ankünfte fälschlich „drin“).
+      if (dayKey < todayKey) {
+        result.push({
+          dayKey,
+          kuehlraumId: cfg.id,
+          label: cfg.label,
+          plaetze: cfg.plaetze,
+          baseOccupied,
+          projectedOccupied: baseOccupied,
+          arrivals: 0,
+          departures: 0,
+          free: cfg.plaetze - baseOccupied,
+          overbooked: baseOccupied > cfg.plaetze,
+        });
+        continue;
+      }
+
       const arrivalCards = cards.filter(
         (c) =>
           c.plannedDayKey === dayKey &&
@@ -691,21 +710,34 @@ export function buildKuehlraumCapacities(
         const fromId = matchEigenerKuehlraum(c.vonOrt, settings)?.id;
         return fromId === cfg.id;
       });
-      const transferDeps = transferDepCards.filter((c) => presentIds.has(c.docId)).length;
-      for (const c of transferDepCards) presentIds.delete(c.docId);
+      let transferDeps = 0;
+      for (const c of transferDepCards) {
+        if (!presentIds.has(c.docId)) continue;
+        // Heute: Abgang erst ab Ausbuchungszeit
+        if (dayKey === todayKey) {
+          const freeEv = slotFrees.find(
+            (e) => e.docId === c.docId && e.dayKey === dayKey && e.reason === 'ueberfuehrung'
+          );
+          if (freeEv && !isSlotFreeEffectiveForNow(freeEv, now)) continue;
+        }
+        transferDeps += 1;
+        presentIds.delete(c.docId);
+      }
 
-      const beisetzungDeps = slotFrees.filter((e) => {
-        if (e.dayKey !== dayKey || e.reason !== 'beisetzung') return false;
-        if (!presentIds.has(e.docId)) return false;
-        const fall = sterbefaelle.find((s) => s.id === e.docId);
-        if (!fall) return false;
-        return (
-          resolveSlotKuehlraumId(fall) === cfg.id ||
-          resolveFallKuehlraumId(fall, settings) === cfg.id
-        );
-      }).length;
+      let beisetzungDeps = 0;
       for (const e of slotFrees) {
         if (e.dayKey !== dayKey || e.reason !== 'beisetzung') continue;
+        if (!presentIds.has(e.docId)) continue;
+        const fall = sterbefaelle.find((s) => s.id === e.docId);
+        if (!fall) continue;
+        if (
+          resolveSlotKuehlraumId(fall) !== cfg.id &&
+          resolveFallKuehlraumId(fall, settings) !== cfg.id
+        ) {
+          continue;
+        }
+        if (dayKey === todayKey && !isSlotFreeEffectiveForNow(e, now)) continue;
+        beisetzungDeps += 1;
         presentIds.delete(e.docId);
       }
       const departures = transferDeps + beisetzungDeps;
