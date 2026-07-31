@@ -602,15 +602,20 @@ export function buildKuehlraumRailStates(
       });
     });
 
+    const occupiedIds = new Set(occupants.map((o) => o.docId));
+
+    // Ankunft nur, wenn Person noch nicht in diesem KR belegt ist (sonst Doppelzählung)
     const plannedArrivals = cards.filter(
       (c) =>
         c.targetsEigenerKr &&
         !c.erledigt &&
         c.kuehlraumId === cfg.id &&
+        !occupiedIds.has(c.docId) &&
         (focusDayKey ? c.plannedDayKey === focusDayKey : c.plannedDayKey != null)
     ).length;
 
     const plannedDepartures = slotFrees.filter((e) => {
+      if (!occupiedIds.has(e.docId)) return false;
       if (focusDayKey && e.dayKey !== focusDayKey) return false;
       // Heute: erst ab frühester Ausbuchungszeit (Feier − 1h) als Abgang zählen
       if (!isSlotFreeEffectiveForNow(e, now)) return false;
@@ -663,24 +668,35 @@ export function buildKuehlraumCapacities(
 
   for (const cfg of settings.eigeneKuehlraeume) {
     const slots = belegeKuehlraumSlots(sterbefaelle, cfg);
-    let running = slots.filter(Boolean).length;
+    const occupiedIds = new Set(
+      slots.filter((s): s is Sterbefall => Boolean(s)).map((s) => s.id)
+    );
+    let running = occupiedIds.size;
     const baseOccupied = running;
+    const presentIds = new Set(occupiedIds);
 
     for (const dayKey of dayKeys) {
-      const arrivals = cards.filter(
+      const arrivalCards = cards.filter(
         (c) =>
           c.plannedDayKey === dayKey &&
           !c.erledigt &&
           c.targetsEigenerKr &&
           c.kuehlraumId === cfg.id
-      ).length;
-      const transferDeps = cards.filter((c) => {
+      );
+      const arrivals = arrivalCards.filter((c) => !presentIds.has(c.docId)).length;
+      for (const c of arrivalCards) presentIds.add(c.docId);
+
+      const transferDepCards = cards.filter((c) => {
         if (c.plannedDayKey !== dayKey || c.erledigt || !c.leavesEigenerKr) return false;
         const fromId = matchEigenerKuehlraum(c.vonOrt, settings)?.id;
         return fromId === cfg.id;
-      }).length;
+      });
+      const transferDeps = transferDepCards.filter((c) => presentIds.has(c.docId)).length;
+      for (const c of transferDepCards) presentIds.delete(c.docId);
+
       const beisetzungDeps = slotFrees.filter((e) => {
         if (e.dayKey !== dayKey || e.reason !== 'beisetzung') return false;
+        if (!presentIds.has(e.docId)) return false;
         const fall = sterbefaelle.find((s) => s.id === e.docId);
         if (!fall) return false;
         return (
@@ -688,6 +704,10 @@ export function buildKuehlraumCapacities(
           resolveFallKuehlraumId(fall, settings) === cfg.id
         );
       }).length;
+      for (const e of slotFrees) {
+        if (e.dayKey !== dayKey || e.reason !== 'beisetzung') continue;
+        presentIds.delete(e.docId);
+      }
       const departures = transferDeps + beisetzungDeps;
 
       running = Math.max(0, running + arrivals - departures);

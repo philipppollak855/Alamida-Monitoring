@@ -5,6 +5,7 @@ import { PersonnelAbsenceDialog } from '../components/PersonnelAbsenceDialog';
 import { PersonnelBookingDialog } from '../components/PersonnelBookingDialog';
 import { PersonnelStandbyDialog } from '../components/PersonnelStandbyDialog';
 import { BereitschaftChips } from '../components/BereitschaftChips';
+import { AbsenceChips } from '../components/AbsenceChips';
 import { PlanningCenterDay } from '../components/planning/PlanningCenterDay';
 import { PlanningKuehlraumRail } from '../components/planning/PlanningKuehlraumRail';
 import { PlanningLocationRail } from '../components/planning/PlanningLocationRail';
@@ -359,25 +360,30 @@ export function PlanningPage() {
       ceremony: ReturnType<typeof buildCeremoniesForFall>[number];
     }) => {
       if (c.ceremony.kind === 'kremation') return;
-      const fall = sterbefaelle.find((s) => s.id === c.docId);
+      // Auch abgeschlossene Fälle (nachträgliche Personal-Einbuchung)
+      const fall =
+        sterbefaelleTermine.find((s) => s.id === c.docId) ??
+        sterbefaelle.find((s) => s.id === c.docId);
       if (!fall || !c.ceremony.dayKey) return;
       setBookingError(null);
       setBookingEntry(wallEntryFromPlanningCeremony(fall, c.ceremony, c.name));
     },
-    [sterbefaelle, setBookingError]
+    [sterbefaelle, sterbefaelleTermine, setBookingError]
   );
 
   const openTransferPersonnel = useCallback(
     (card: PlanningCard) => {
       if (card.schrittTyp.trim().toLowerCase() === 'kremation') return;
-      const fall = sterbefaelle.find((s) => s.id === card.docId);
+      const fall =
+        sterbefaelleTermine.find((s) => s.id === card.docId) ??
+        sterbefaelle.find((s) => s.id === card.docId);
       if (!fall) return;
       const entry = wallEntryFromPlanningTransfer(fall, card);
       if (!entry) return;
       setBookingError(null);
       setBookingEntry(entry);
     },
-    [sterbefaelle, setBookingError]
+    [sterbefaelle, sterbefaelleTermine, setBookingError]
   );
 
   const openSchedule = useCallback(
@@ -1252,7 +1258,13 @@ export function PlanningPage() {
             setFocusDayKey(calendarDay);
           }}
           dayHeaderExtra={
-            <div className="plan-day-bereitschaft">
+            <div className="plan-day-bereitschaft plan-day-staff">
+              <AbsenceChips
+                dayKey={focusDayKey}
+                absences={absences}
+                personnelById={personnelById}
+                onClick={() => setAbsenceOpen(true)}
+              />
               <BereitschaftChips
                 dayKey={focusDayKey}
                 standbys={standbys}
@@ -1354,7 +1366,13 @@ export function PlanningPage() {
                         onZusatzPersonnel={openZusatzPersonnel}
                         onZusatzEdit={(termin) => openZusatzDialog(termin.dayKey, termin)}
                         headerExtra={
-                          <div className="plan-day-bereitschaft">
+                          <div className="plan-day-bereitschaft plan-day-staff">
+                            <AbsenceChips
+                              dayKey={dayKey}
+                              absences={absences}
+                              personnelById={personnelById}
+                              onClick={() => setAbsenceOpen(true)}
+                            />
                             <BereitschaftChips
                               dayKey={dayKey}
                               standbys={standbys}
@@ -1481,7 +1499,11 @@ export function PlanningPage() {
       {bookingEntry && (
         <PersonnelBookingDialog
           entry={bookingEntry}
-          sterbefall={sterbefaelle.find((s) => s.id === bookingEntry.docId) ?? null}
+          sterbefall={
+            sterbefaelleTermine.find((s) => s.id === bookingEntry.docId) ??
+            sterbefaelle.find((s) => s.id === bookingEntry.docId) ??
+            null
+          }
           personnelPool={settings.personnelPool ?? []}
           allBookings={bookings}
           absences={absences}

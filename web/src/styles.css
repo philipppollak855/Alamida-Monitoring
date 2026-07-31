@@ -8479,6 +8479,20 @@ code {
   flex-shrink: 0;
 }
 
+.plan-day-bereitschaft,
+.plan-day-staff {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.12rem;
+  max-width: 100%;
+}
+
+.plan-day-staff .bereitschaft-chips,
+.plan-day-staff .absence-chips {
+  margin-top: 0;
+}
+
 .plan-day-add-termin {
   appearance: none;
   border: 1px solid var(--border);

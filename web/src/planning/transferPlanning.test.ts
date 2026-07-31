@@ -196,6 +196,49 @@ describe('transferPlanning board', () => {
     expect(dst.departures).toBe(0);
   });
 
+  it('zaehlt geplante Ankunft nicht doppelt wenn Person schon im Ziel-KR liegt', () => {
+    const occupied = fall({
+      id: 'already',
+      verstorbenerName: 'Schon da',
+      aktuellePosition: 'Kühlr. Grafenbach',
+      aktuellePositionTyp: 'kuehlraum',
+      kuehlraumId: 'Kühlr. Grafenbach',
+      kuehlplatz: '1',
+      status: 'im_kuehlraum',
+      freigabeFrei: true,
+      freigabeDatum: '20.07.2026',
+    });
+    const draft = buildScheduleDraftFromSterbeort({
+      item: {
+        docId: occupied.id,
+        sterbefallId: occupied.id,
+        name: 'Schon da',
+        vonOrt: 'UK',
+        suggestedKuehlraumId: 'grafenbach',
+        freigabeState: 'frei',
+      },
+      dayKey: '2026-07-28',
+      kuehlraum: settings.eigeneKuehlraeume[0],
+      defaultZeit: '09:00',
+    });
+    const scheduled = scheduleToKuehlraum({}, draft, 1, null);
+    const cards = buildPlanningCards([occupied], scheduled.assignments, settings);
+    expect(cards).toHaveLength(1);
+    expect(cards[0].targetsEigenerKr).toBe(true);
+
+    const rails = buildKuehlraumRailStates([occupied], cards, settings, '2026-07-28');
+    const gb = rails.find((r) => r.id === 'grafenbach')!;
+    expect(gb.occupiedNow).toBe(1);
+    expect(gb.plannedArrivals).toBe(0);
+    expect(gb.free).toBe(gb.plaetze - 1);
+
+    const caps = buildKuehlraumCapacities([occupied], cards, settings, ['2026-07-28']);
+    const day = caps.find((c) => c.kuehlraumId === 'grafenbach')!;
+    expect(day.arrivals).toBe(0);
+    expect(day.projectedOccupied).toBe(1);
+    expect(day.free).toBe(settings.eigeneKuehlraeume[0].plaetze - 1);
+  });
+
   it('meldet Platz frei bei Beisetzung aus dem Kühlraum', () => {
     const occupied = fall({
       id: 'occ',

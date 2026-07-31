@@ -5,6 +5,7 @@ import {
   isFahrerTransferEntry,
   isKremationTransferEntry,
 } from '../board/wallCalendar';
+import { dayKeyFromDate } from '../board/dateUtils';
 import {
   calendarBestattungsMarker,
   resolveBestattungsMarkerOverride,
@@ -71,6 +72,8 @@ export function PersonnelBookingDialog({
   const selfOnly = accessMode === 'selfConfirm';
   const readOnly = accessMode === 'readOnly';
   const fieldsLocked = selfOnly || readOnly;
+  /** Vergangene Termine: Personal nachträglich einbuchbar (Sperren nur Hinweis). */
+  const pastDayOverride = Boolean(entry && entry.dayKey < dayKeyFromDate(new Date()));
   const [arrangeurId, setArrangeurId] = useState<string>('');
   const [traegerIds, setTraegerIds] = useState<string[]>([]);
   const [traegerVonFamilie, setTraegerVonFamilie] = useState(false);
@@ -162,6 +165,7 @@ export function PersonnelBookingDialog({
 
   const isKremationTransfer = Boolean(entry && isKremationTransferEntry(entry));
   const isFahrerMode = Boolean(entry && isFahrerTransferEntry(entry) && !entry.attachedTransfer);
+  const blockUnavailable = !pastDayOverride;
 
   const traeger = useMemo(() => {
     const pool = personnelPool.filter(
@@ -333,7 +337,7 @@ export function PersonnelBookingDialog({
   function selectArrangeur(nextId: string) {
     if (nextId) {
       const person = arrangeure.find((p) => p.id === nextId);
-      if (person?.unavailable) return;
+      if (person?.unavailable && blockUnavailable) return;
     }
     setArrangeurId(nextId);
     if (nextId) {
@@ -344,7 +348,7 @@ export function PersonnelBookingDialog({
 
   function toggleTraeger(id: string) {
     const person = traeger.find((p) => p.id === id);
-    if (person?.unavailable) return;
+    if (person?.unavailable && blockUnavailable) return;
     if (id === arrangeurId) return;
     const wasSelected = traegerIds.includes(id);
     setTraegerIds((prev) =>
@@ -355,7 +359,7 @@ export function PersonnelBookingDialog({
 
   function toggleFahrer(id: string) {
     const person = fahrer.find((p) => p.id === id);
-    if (person?.unavailable) return;
+    if (person?.unavailable && blockUnavailable) return;
     const wasSelected = traegerIds.includes(id);
     setTraegerIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
@@ -425,6 +429,11 @@ export function PersonnelBookingDialog({
         {selfOnly && (
           <p className="personnel-booking-rule">
             Sie sind nur für Ihre eigene Bestätigung freigeschaltet — Personalauswahl ist gesperrt.
+          </p>
+        )}
+        {pastDayOverride && !readOnly && !selfOnly && (
+          <p className="personnel-booking-rule">
+            Vergangener Termin — Personal kann nachträglich eingetragen werden.
           </p>
         )}
         {readOnly && (
@@ -510,7 +519,7 @@ export function PersonnelBookingDialog({
                           type="checkbox"
                           checked={traegerIds.includes(p.id)}
                           onChange={() => toggleFahrer(p.id)}
-                          disabled={pending || unavailable}
+                          disabled={pending || (blockUnavailable && unavailable)}
                         />
                         <span>
                           {p.name}
@@ -559,7 +568,7 @@ export function PersonnelBookingDialog({
                     <option
                       key={p.id}
                       value={p.id}
-                      disabled={Boolean(p.unavailable)}
+                      disabled={Boolean(p.unavailable) && blockUnavailable}
                       className="is-arrangeur-option"
                     >
                       {p.name}
@@ -572,7 +581,11 @@ export function PersonnelBookingDialog({
               {arrangeureOhneRolle.length > 0 && (
                 <optgroup label="Weitere (kein Arrangeur)">
                   {arrangeureOhneRolle.map((p) => (
-                    <option key={p.id} value={p.id} disabled={Boolean(p.unavailable)}>
+                    <option
+                      key={p.id}
+                      value={p.id}
+                      disabled={Boolean(p.unavailable) && blockUnavailable}
+                    >
                       {p.name}
                       {p.roles.length ? ` · ${p.roles.join(', ')}` : ''}
                       {p.extern ? ' (extern)' : ''}
@@ -675,7 +688,7 @@ export function PersonnelBookingDialog({
                             type="checkbox"
                             checked={traegerIds.includes(p.id)}
                             onChange={() => toggleTraeger(p.id)}
-                            disabled={pending || unavailable}
+                            disabled={pending || (blockUnavailable && unavailable)}
                           />
                           <span>
                             {p.name}
