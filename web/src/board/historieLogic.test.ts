@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   filterAktiveSterbefaelle,
   filterSterbefaelleFuerKalender,
+  filterSterbefaelleFuerPlanungTermine,
   istFehlerhafterPlatzhalterFall,
   istInHistory,
   istNachBeisetzungOderTrauerfeierAbgelaufenCeremony,
@@ -163,5 +164,28 @@ describe('sichtbarBis / vorzeitiges Archiv', () => {
     } finally {
       Date.now = real;
     }
+  });
+});
+
+describe('filterSterbefaelleFuerPlanungTermine', () => {
+  it('behält History-Fall mit ausstehender Kremation ohne Feiertermin', () => {
+    const s: Sterbefall = {
+      id: 'h1',
+      verstorbenerName: 'Ohne Feier',
+      inHistory: true,
+      aktivInDisposition: false,
+      ausstehend: [
+        {
+          zeile: 1,
+          schrittTyp: 'kremation',
+          vonOrt: 'KR',
+          nachOrt: 'Feba',
+          terminAm: '10.08.2026 09:00',
+          status: 'geplant',
+        },
+      ],
+    };
+    expect(filterSterbefaelleFuerKalender([s])).toHaveLength(0);
+    expect(filterSterbefaelleFuerPlanungTermine([s])).toHaveLength(1);
   });
 });

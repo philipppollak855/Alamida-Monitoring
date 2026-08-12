@@ -316,10 +316,81 @@ export function buildPlanningCards(
         ...meta,
       });
     }
+
+    // Verlauf-Überführungen/Kremationen (Kalender zeigt sie; ohne ausstehend[] sonst unsichtbar)
+    for (const v of s.verlauf ?? []) {
+      const typ = (v.typ ?? '').trim().toLowerCase();
+      if (
+        !typ ||
+        !(
+          typ === 'kremation' ||
+          typ === 'ueberfuehrung' ||
+          typ === 'abholung' ||
+          typ === 'retour' ||
+          typ.includes('ueberfuehrung')
+        )
+      ) {
+        continue;
+      }
+      const terminAmRaw = v.terminAm ?? v.abholungAm;
+      if (!terminAmRaw?.trim()) continue;
+      const sourceDayKey = dayKeyFromDeDatum(terminAmRaw);
+      const dup = cards.some(
+        (c) =>
+          c.docId === s.id &&
+          c.schrittTyp.trim().toLowerCase() === typ &&
+          (c.sourceDayKey === sourceDayKey || c.plannedDayKey === sourceDayKey)
+      );
+      if (dup) continue;
+
+      zeilenFallback += 1;
+      const zeile = 9000 + zeilenFallback;
+      const id = planningCardId(s.id, zeile);
+      if (covered.has(id)) continue;
+      covered.add(id);
+      const assignment = assignments[id];
+      const nachOrt = nachOrtAusSchritt(v.vonOrt ?? v.ort, v.nachOrt) ?? v.nachOrt ?? '—';
+      const vonOrt = (v.vonOrt ?? v.ort)?.trim() || '—';
+      const status = resolveAusstehendStatus(terminAmRaw, 'geplant');
+      const plannedDayKey =
+        assignment?.plannedDayKey !== undefined ? assignment.plannedDayKey : sourceDayKey;
+      cards.push({
+        id,
+        docId: s.id,
+        zeile,
+        sterbefallId,
+        name,
+        schrittTyp: typ,
+        vonOrt: assignment?.vonOrt?.trim() || vonOrt,
+        nachOrt: assignment?.nachOrt?.trim() || nachOrt,
+        terminAm: terminAmRaw,
+        plannedZeit: assignment?.plannedZeit ?? null,
+        sourceDayKey,
+        plannedDayKey,
+        status,
+        erledigt: false,
+        targetsEigenerKr: schrittZielIstEigeneKr({ vonOrt, nachOrt }),
+        leavesEigenerKr: schrittStartIstEigeneKr({ vonOrt, nachOrt }),
+        kuehlraumId:
+          assignment?.plannedKuehlraumId?.trim() ||
+          matchEigenerKuehlraum(nachOrt, settings)?.id ||
+          matchEigenerKuehlraum(vonOrt, settings)?.id ||
+          null,
+        order: assignment?.order ?? zeile,
+        hasManualPlan: assignment != null,
+        canUndoUmplanung: Boolean(assignment?.previous),
+        attachedCeremony: assignment?.attachedCeremony ?? null,
+        detachedFromCeremony: assignment?.detachedFromCeremony === true,
+        kremationGroupId: assignment?.kremationGroupId ?? null,
+        fahrtGroupId: assignment?.fahrtGroupId ?? null,
+        source: assignment?.source === 'canvas' ? 'canvas' : 'alamida',
+        amSterbeort: isAmKrankenhausOderSterbeort(s),
+        ...meta,
+      });
+    }
   }
 
   for (const assignment of Object.values(assignments)) {
-    if (assignment.source !== 'canvas') continue;
     if (covered.has(assignment.id)) continue;
     const s = byId.get(assignment.docId);
     if (!s) continue;
@@ -651,8 +722,27 @@ export function buildKuehlraumRailStates(
   });
 }
 
-export function cardsForLane(cards: PlanningCard[], dayKey: string | null): PlanningCard[] {
-  return cards.filter((c) => c.plannedDayKey === dayKey);
+export function cardsForLane(
+  cards: PlanningCard[],
+  dayKey: string | null,
+  /** yyyy-MM-dd — überfällige Karten zusätzlich in der Heute-Spalte. */
+  todayKey?: string
+): PlanningCard[] {
+  if (dayKey == null) {
+    return cards.filter((c) => c.plannedDayKey == null);
+  }
+  return cards.filter((c) => {
+    if (c.plannedDayKey === dayKey) return true;
+    if (
+      todayKey &&
+      dayKey === todayKey &&
+      c.plannedDayKey &&
+      c.plannedDayKey < todayKey
+    ) {
+      return true;
+    }
+    return false;
+  });
 }
 
 export function buildKuehlraumCapacities(
@@ -1107,14 +1197,16 @@ export function attachKremationToGroup(
   assignments: Record<string, PlanAssignment>,
   dragged: PlanningCard,
   target: PlanningCard,
-  order: number
+  order: number,
+  dayKeyHint?: string | null
 ): {
   assignments: Record<string, PlanAssignment>;
   groupId: string;
 } | null {
   if (!isKremationPlanningCard(dragged) || !isKremationPlanningCard(target)) return null;
   if (dragged.id === target.id) return null;
-  const dayKey = target.plannedDayKey ?? dragged.plannedDayKey;
+  const dayKey =
+    target.plannedDayKey ?? dragged.plannedDayKey ?? (dayKeyHint?.trim() || null);
   if (!dayKey) return null;
 
   const oldDraggedGroup = dragged.kremationGroupId?.trim() || null;
@@ -1299,7 +1391,11 @@ export function resolveKremationCardForCalendarEntry(
       c.docId === entry.docId &&
       (c.plannedDayKey === entry.dayKey || c.sourceDayKey === entry.dayKey)
   );
-  return candidates[0] ?? null;
+  if (candidates.length > 0) return candidates[0]!;
+  // Fallback: jede Kremation des Falls (z. B. Tag umgeplant / ohne sourceDayKey)
+  return (
+    cards.find((c) => isKremationPlanningCard(c) && c.docId === entry.docId) ?? null
+  );
 }
 
 /** Nicht-Kremations-Überführung — kann zu einer Fahrt zusammengefasst werden. */
@@ -1320,7 +1416,8 @@ export function attachUeberfuehrungToFahrtGroup(
   assignments: Record<string, PlanAssignment>,
   dragged: PlanningCard,
   target: PlanningCard,
-  order: number
+  order: number,
+  dayKeyHint?: string | null
 ): {
   assignments: Record<string, PlanAssignment>;
   groupId: string;
@@ -1329,7 +1426,8 @@ export function attachUeberfuehrungToFahrtGroup(
     return null;
   }
   if (dragged.id === target.id) return null;
-  const dayKey = target.plannedDayKey ?? dragged.plannedDayKey;
+  const dayKey =
+    target.plannedDayKey ?? dragged.plannedDayKey ?? (dayKeyHint?.trim() || null);
   if (!dayKey) return null;
 
   const oldDraggedGroup = dragged.fahrtGroupId?.trim() || null;

@@ -379,7 +379,8 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
         transferPlan.assignments,
         dragged,
         target,
-        order
+        order,
+        dayKey
       );
       if (!result) return;
       const assignment = result.assignments[dragged.id];
@@ -411,7 +412,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
   );
 
   const kremationDnD = useMemo((): WallCalendarKremationDnD | null => {
-    if (!access.canPlan) return null;
+    if (!access.canPlan && !access.canWall) return null;
     return {
       enabled: true,
       draggingId: kremationDragEntry?.id ?? null,
@@ -437,6 +438,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
     };
   }, [
     access.canPlan,
+    access.canWall,
     kremationDragEntry,
     kremationDropTargetId,
     clearKremationDrag,

@@ -1,6 +1,7 @@
 import type { Sterbefall } from '../types';
 import { istManuellAusgeschlossen } from './fallAbschluss';
 import { extractDeDatum } from './dateUtils';
+import { getEffectiveAusstehend } from './ausstehendEffective';
 
 function hatGueltigesDatum(raw?: string): boolean {
   return !!raw?.trim() && /\d{1,2}\.\d{1,2}\.\d{4}/.test(raw.trim());
@@ -76,7 +77,7 @@ function hatRelevantesTerminfenster(s: Sterbefall): boolean {
   );
 }
 
-/** Kalender & Planung: Termine bleiben sichtbar; manuell entfernte/Duplikate nicht. */
+/** Kalender: Termine bleiben sichtbar; manuell entfernte/Duplikate nicht. */
 export function filterSterbefaelleFuerKalender(sterbefaelle: Sterbefall[]): Sterbefall[] {
   return sterbefaelle.filter((s) => {
     if (istFehlerhafterPlatzhalterFall(s)) return false;
@@ -86,11 +87,20 @@ export function filterSterbefaelleFuerKalender(sterbefaelle: Sterbefall[]): Ster
   });
 }
 
-/** Alias: Feier-/Beisetzungstermine in Planung nach Abschluss behalten. */
+/**
+ * Planung: wie Kalender, plus abgeschlossene Fälle mit noch offenen/vergangenen
+ * Überführungen oder Kremationen (auch ohne Feiertermin).
+ */
 export function filterSterbefaelleFuerPlanungTermine(
   sterbefaelle: Sterbefall[]
 ): Sterbefall[] {
-  return filterSterbefaelleFuerKalender(sterbefaelle);
+  return sterbefaelle.filter((s) => {
+    if (istFehlerhafterPlatzhalterFall(s)) return false;
+    if (istManuellAusgeschlossen(s.historieGrund ?? s.abschlussGrund)) return false;
+    if (!istInHistory(s)) return true;
+    if (hatFeierterminInDaten(s)) return true;
+    return getEffectiveAusstehend(s).length > 0;
+  });
 }
 
 function parseDatumZeitDe(datum?: string, zeit?: string, endOfDayIfNoTime = false): number | null {

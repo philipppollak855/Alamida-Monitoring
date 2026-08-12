@@ -3,6 +3,7 @@ import type { Sterbefall } from '../types';
 import type { DispositionSettings } from '../types/dispositionSettings';
 import { DEFAULT_DISPOSITION_SETTINGS } from '../config/defaultDispositionSettings';
 import { setDispositionSettings } from '../settings/dispositionSettingsStore';
+import { dayKeyFromDate } from '../board/dateUtils';
 import {
   attachKremationToGroup,
   attachTransferToCeremony,
@@ -17,6 +18,7 @@ import {
   buildSterbeortPool,
   canUndoPlanEvent,
   canvasPlanningId,
+  cardsForLane,
   clearCardToAbholort,
   defaultTargetKuehlraumId,
   detachKremationFromGroup,
@@ -902,6 +904,8 @@ describe('transferPlanning board', () => {
     expect(cards[0]?.status).toBe('vergangen');
     expect(cards[0]?.sourceDayKey).toBe(dayKey);
     expect(isCardAttachedToAnyCeremony(cards[0]!)).toBe(false);
+    const todayKey = dayKeyFromDate(new Date());
+    expect(cardsForLane(cards, todayKey, todayKey).map((c) => c.id)).toContain(cards[0]!.id);
   });
 
   it('resolveKremationCardForCalendarEntry findet Plan- und Gruppenkarten', () => {

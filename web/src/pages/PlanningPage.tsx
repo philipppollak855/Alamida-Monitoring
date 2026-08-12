@@ -24,8 +24,8 @@ import {
   personnelBookingDisplayLine,
 } from '../board/personnelBookingRules';
 import { zusatzTerminToEntry } from '../board/wallCalendar';
-import { filterAktiveSterbefaelle, filterSterbefaelleFuerPlanungTermine } from '../board/historieLogic';
-import { getEffectiveAusstehend } from '../board/ausstehendEffective';
+import { filterAktiveSterbefaelle, filterSterbefaelleFuerPlanungTermine, istFehlerhafterPlatzhalterFall } from '../board/historieLogic';
+import { istManuellAusgeschlossen } from '../board/fallAbschluss';
 import { useCalendarDay } from '../hooks/useCalendarDay';
 import { useNarrowViewport } from '../hooks/useNarrowViewport';
 import { usePersonnelBookings } from '../hooks/usePersonnelBookings';
@@ -176,18 +176,18 @@ export function PlanningPage() {
 
   /** Geplante/offene Überführungen auch nach Fall-Abschluss und in der Vergangenheit. */
   const sterbefaelleFuerKarten = useMemo(() => {
-    const activeIds = new Set(sterbefaelle.map((s) => s.id));
-    const plannedDocIds = new Set(
-      Object.values(plan.assignments)
-        .filter((a) => Boolean(a.plannedDayKey))
-        .map((a) => a.docId)
-    );
-    return sterbefaelleTermine.filter((s) => {
-      if (activeIds.has(s.id) || plannedDocIds.has(s.id)) return true;
-      // Abgeschlossen, aber noch Alamida-Überführung (auch vergangen — planbar/kombinierbar)
-      return getEffectiveAusstehend(s).length > 0;
-    });
-  }, [sterbefaelle, sterbefaelleTermine, plan.assignments]);
+    const plannedDocIds = new Set(Object.values(plan.assignments).map((a) => a.docId));
+    const fromFilter = filterSterbefaelleFuerPlanungTermine(sterbefaelleRaw);
+    const byId = new Map(fromFilter.map((s) => [s.id, s]));
+    for (const s of sterbefaelleRaw) {
+      if (byId.has(s.id)) continue;
+      if (!plannedDocIds.has(s.id)) continue;
+      if (istFehlerhafterPlatzhalterFall(s)) continue;
+      if (istManuellAusgeschlossen(s.historieGrund ?? s.abschlussGrund)) continue;
+      byId.set(s.id, s);
+    }
+    return [...byId.values()];
+  }, [sterbefaelleRaw, plan.assignments]);
 
   const cards = useMemo(
     () => buildPlanningCards(sterbefaelleFuerKarten, plan.assignments, settings, today),
@@ -746,14 +746,19 @@ export function PlanningPage() {
         clearDrag();
         return;
       }
-      const dayKey = target.plannedDayKey ?? card.plannedDayKey ?? focusDayKey;
+      const overdue =
+        (card.plannedDayKey != null && card.plannedDayKey < calendarDay) ||
+        (target.plannedDayKey != null && target.plannedDayKey < calendarDay);
+      const dayKey = overdue
+        ? calendarDay
+        : target.plannedDayKey ?? card.plannedDayKey ?? focusDayKey ?? calendarDay;
       if (!dayKey) {
         clearDrag();
         return;
       }
       const order = nextOrderInLane(cards, dayKey);
       const prev = plan.assignments[card.id];
-      const result = attachKremationToGroup(plan.assignments, card, target, order);
+      const result = attachKremationToGroup(plan.assignments, card, target, order, dayKey);
       clearDrag();
       if (!result) {
         handleDropOnDay(dayKey);
@@ -788,6 +793,7 @@ export function PlanningPage() {
       savePlan,
       handleDropOnDay,
       focusDayKey,
+      calendarDay,
     ]
   );
 
@@ -806,7 +812,12 @@ export function PlanningPage() {
         clearDrag();
         return;
       }
-      const dayKey = target.plannedDayKey ?? card.plannedDayKey ?? focusDayKey;
+      const overdue =
+        (card.plannedDayKey != null && card.plannedDayKey < calendarDay) ||
+        (target.plannedDayKey != null && target.plannedDayKey < calendarDay);
+      const dayKey = overdue
+        ? calendarDay
+        : target.plannedDayKey ?? card.plannedDayKey ?? focusDayKey ?? calendarDay;
       if (!dayKey) {
         clearDrag();
         return;
@@ -817,7 +828,8 @@ export function PlanningPage() {
         plan.assignments,
         card,
         target,
-        order
+        order,
+        dayKey
       );
       clearDrag();
       if (!result) {
@@ -853,6 +865,7 @@ export function PlanningPage() {
       savePlan,
       handleDropOnDay,
       focusDayKey,
+      calendarDay,
     ]
   );
 
@@ -1077,13 +1090,13 @@ export function PlanningPage() {
   const countsByDay = useMemo(() => {
     const out: Record<string, number> = {};
     for (const key of dayKeys) {
-      const transfers = cardsForLane(filteredCards, key).length;
+      const transfers = cardsForLane(filteredCards, key, calendarDay).length;
       const ceremonies = (ceremoniesByDay.get(key) ?? []).length;
       const zusatz = (zusatzByDay.get(key) ?? []).length;
       out[key] = transfers + ceremonies + zusatz;
     }
     return out;
-  }, [dayKeys, filteredCards, ceremoniesByDay, zusatzByDay]);
+  }, [dayKeys, filteredCards, ceremoniesByDay, zusatzByDay, calendarDay]);
 
   return (
     <div
@@ -1207,7 +1220,7 @@ export function PlanningPage() {
           calendarDay={calendarDay}
           locationGroups={locationGroups}
           krRails={krRails}
-          dayCards={cardsForLane(filteredCards, focusDayKey)}
+          dayCards={cardsForLane(filteredCards, focusDayKey, calendarDay)}
           dayCeremonies={ceremoniesByDay.get(focusDayKey) ?? []}
           dayZusatz={zusatzByDay.get(focusDayKey) ?? []}
           dayCaps={capacities.filter((c) => c.dayKey === focusDayKey)}
@@ -1288,7 +1301,7 @@ export function PlanningPage() {
             <div className="plan-center">
               <div className="plan-center-scroll">
                 {dayKeys.map((dayKey) => {
-                  const dayCards = cardsForLane(filteredCards, dayKey);
+                  const dayCards = cardsForLane(filteredCards, dayKey, calendarDay);
                   const dayCaps = capacities.filter((c) => c.dayKey === dayKey);
                   const dayCeremonies = ceremoniesByDay.get(dayKey) ?? [];
                   return (
