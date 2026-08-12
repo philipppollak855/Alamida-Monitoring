@@ -2,7 +2,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import type { WallCalendarDay, WallCalendarEntry } from '../board/wallCalendar';
 import { summarizeWallCalendarDay } from '../board/wallCalendar';
 import type { PersonnelAttention } from '../board/personnelBookingRules';
-import { WallCalendarEventCard } from './WallCalendarEventCard';
+import { WallCalendarEventCard, type WallCalendarKremationDnD } from './WallCalendarEventCard';
 
 interface Props {
   day: WallCalendarDay;
@@ -10,6 +10,7 @@ interface Props {
   traegerLines?: Record<string, string | null | undefined>;
   personnelAttentionById?: Record<string, PersonnelAttention>;
   onEntryClick?: (entry: WallCalendarEntry) => void;
+  kremationDnD?: WallCalendarKremationDnD | null;
   onAddTermin?: () => void;
   onOpenStandby?: () => void;
   onClose: () => void;
@@ -22,6 +23,7 @@ export function WallCalendarDayDialog({
   traegerLines,
   personnelAttentionById,
   onEntryClick,
+  kremationDnD,
   onAddTermin,
   onOpenStandby,
   onClose,
@@ -113,6 +115,7 @@ export function WallCalendarDayDialog({
                   traegerLine={traegerLines?.[e.id]}
                   personnelAttention={personnelAttentionById?.[e.id] ?? null}
                   onClick={onEntryClick}
+                  kremationDnD={kremationDnD}
                 />
               </li>
             ))}

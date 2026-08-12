@@ -1,5 +1,8 @@
+import type { DragEvent, KeyboardEvent, MouseEvent } from 'react';
+import { useRef } from 'react';
 import {
   calendarColorGroupFromArts,
+  isKremationTransferEntry,
   type WallCalendarEntry,
 } from '../board/wallCalendar';
 import {
@@ -7,7 +10,6 @@ import {
   type PersonnelAttention,
 } from '../board/personnelBookingRules';
 import { WallCalBestattungsBadge } from './WallCalBestattungsBadge';
-import type { KeyboardEvent, MouseEvent } from 'react';
 
 function isTransferGroupEntry(entry: WallCalendarEntry): {
   title: string;
@@ -32,6 +34,17 @@ function PersonnelAttentionMarker({ kind }: { kind: PersonnelAttention }) {
   );
 }
 
+export type WallCalendarKremationDnD = {
+  enabled: boolean;
+  draggingId: string | null;
+  dropTargetId: string | null;
+  onDragStart: (entry: WallCalendarEntry) => void;
+  onDragEnd: () => void;
+  onDragOver: (entry: WallCalendarEntry) => void;
+  onDragLeave: () => void;
+  onDrop: (entry: WallCalendarEntry) => void;
+};
+
 export function WallCalendarEventCard({
   entry,
   compact = false,
@@ -40,6 +53,7 @@ export function WallCalendarEventCard({
   traegerLine,
   personnelAttention = null,
   onClick,
+  kremationDnD,
 }: {
   entry: WallCalendarEntry;
   compact?: boolean;
@@ -50,12 +64,20 @@ export function WallCalendarEventCard({
   /** Kleiner Status-Marker: Personal offen / Bestätigung ausstehend */
   personnelAttention?: PersonnelAttention | null;
   onClick?: (entry: WallCalendarEntry) => void;
+  /** Kremationen per DnD kombinieren (wie in der Planung). */
+  kremationDnD?: WallCalendarKremationDnD | null;
 }) {
+  const suppressClickRef = useRef(false);
   const colorClass = `wall-cal-card--color-${calendarColorGroupFromArts(entry.arts)}`;
   const clickable = Boolean(onClick);
   const transferGroup = isTransferGroupEntry(entry);
   const memberNames = transferGroup?.memberNames ?? [];
   const groupTitle = transferGroup?.title ?? '';
+  const isKremation =
+    Boolean(entry.kremationGroupId) || isKremationTransferEntry(entry);
+  const canCombine = Boolean(kremationDnD?.enabled && isKremation);
+  const isDragging = canCombine && kremationDnD!.draggingId === entry.id;
+  const isDropTarget = canCombine && kremationDnD!.dropTargetId === entry.id;
   const attentionMarker = personnelAttention ? (
     <PersonnelAttentionMarker kind={personnelAttention} />
   ) : null;
@@ -89,6 +111,9 @@ export function WallCalendarEventCard({
     entry.grouped ? 'is-grouped' : '',
     transferGroup ? 'is-krem-group' : '',
     clickable ? 'is-clickable' : '',
+    canCombine ? 'is-kremation-draggable' : '',
+    isDragging ? 'is-dragging' : '',
+    isDropTarget ? 'is-drop-target' : '',
     personnelAttention ? `has-personnel-${personnelAttention}` : '',
   ]
     .filter(Boolean)
@@ -96,6 +121,12 @@ export function WallCalendarEventCard({
 
   const handleClick = (e: MouseEvent) => {
     if (!onClick) return;
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     e.stopPropagation();
     onClick(entry);
   };
@@ -109,6 +140,34 @@ export function WallCalendarEventCard({
     }
   };
 
+  const dragProps = canCombine
+    ? {
+        draggable: true as const,
+        title: 'Kremation auf andere Kremation ziehen zum Zusammenfassen',
+        onDragStart: (e: DragEvent) => {
+          suppressClickRef.current = false;
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', entry.id);
+          kremationDnD!.onDragStart(entry);
+        },
+        onDragEnd: () => {
+          suppressClickRef.current = true;
+          kremationDnD!.onDragEnd();
+        },
+        onDragOver: (e: DragEvent) => {
+          e.preventDefault();
+          e.stopPropagation();
+          kremationDnD!.onDragOver(entry);
+        },
+        onDragLeave: () => kremationDnD!.onDragLeave(),
+        onDrop: (e: DragEvent) => {
+          e.preventDefault();
+          e.stopPropagation();
+          kremationDnD!.onDrop(entry);
+        },
+      }
+    : {};
+
   const interactiveProps = clickable
     ? {
         role: 'button' as const,
@@ -117,14 +176,16 @@ export function WallCalendarEventCard({
         onKeyDown: handleKeyDown,
         'aria-label': transferGroup
           ? `Kombinierte ${groupTitle}: ${memberNames.join(', ')}, ${entry.timeLabel}`
-          : `Personal einbuchen: ${entry.name}, ${entry.timeLabel}`,
+          : canCombine
+            ? `Kremation ${entry.name}: ziehen zum Kombinieren oder tippen für Personal`
+            : `Personal einbuchen: ${entry.name}, ${entry.timeLabel}`,
       }
     : {};
 
   if (transferGroup) {
     const route = entry.subtitle?.trim() || null;
     return (
-      <article className={className} {...interactiveProps}>
+      <article className={className} {...interactiveProps} {...dragProps}>
         <div className={strip || mobile ? 'wall-cal-strip-top' : 'wall-cal-card-headline'}>
           {bestattungsBadge}
           {entry.timeLabel && entry.timeLabel !== '—' ? (
@@ -146,7 +207,7 @@ export function WallCalendarEventCard({
 
   if (mobile) {
     return (
-      <article className={className} {...interactiveProps}>
+      <article className={className} {...interactiveProps} {...dragProps}>
         <div className="wall-cal-card-headline">
           {bestattungsBadge}
           <time className="wall-cal-time">{entry.timeLabel}</time>
@@ -170,7 +231,7 @@ export function WallCalendarEventCard({
     const stripMeta = entry.subtitle || entry.title;
     const stripTypes = entry.badges.join(' · ');
     return (
-      <article className={className} {...interactiveProps}>
+      <article className={className} {...interactiveProps} {...dragProps}>
         <div className="wall-cal-strip-top">
           {bestattungsBadge}
           <time className="wall-cal-time">{entry.timeLabel}</time>
@@ -185,7 +246,7 @@ export function WallCalendarEventCard({
   }
 
   return (
-    <article className={className} {...interactiveProps}>
+    <article className={className} {...interactiveProps} {...dragProps}>
       <div className="wall-cal-card-top">
         <div className="wall-cal-card-headline">
           {bestattungsBadge}

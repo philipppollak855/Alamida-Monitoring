@@ -4828,6 +4828,27 @@ code {
   transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s;
 }
 
+.wall-cal-card.is-kremation-draggable {
+  cursor: grab;
+}
+
+.wall-cal-card.is-kremation-draggable:active {
+  cursor: grabbing;
+}
+
+.wall-cal-card.is-dragging {
+  opacity: 0.55;
+}
+
+.wall-cal-card.is-drop-target {
+  outline: 2px solid var(--accent, #1a6b5c);
+  outline-offset: 1px;
+}
+
+.plan-card.status-vergangen {
+  opacity: 0.88;
+}
+
 .wall-cal-card.is-clickable:hover,
 .wall-cal-card.is-clickable:focus-visible {
   border-color: var(--accent);

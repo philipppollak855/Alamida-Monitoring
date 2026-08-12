@@ -39,6 +39,7 @@ export function PlanningTransferCard({
   onDropOnCard,
 }: Props) {
   const attachedToCeremony =
+    !isKremationPlanningCard(card) &&
     !card.detachedFromCeremony &&
     (Boolean(card.attachedCeremony) ||
       Boolean(

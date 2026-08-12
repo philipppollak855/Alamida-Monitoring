@@ -32,6 +32,7 @@ import {
 
   mergeZusatzTermineIntoEntries,
   mergeTransferPlanIntoEntries,
+  isKremationTransferEntry,
 
   type WallCalendarDay,
 
@@ -72,7 +73,10 @@ import { useZusatzTermine } from '../hooks/useZusatzTermine';
 import { useDispositionSettings } from '../settings/SettingsProvider';
 
 import { WallCalendarDayDialog } from './WallCalendarDayDialog';
-import { WallCalendarEventCard } from './WallCalendarEventCard';
+import {
+  WallCalendarEventCard,
+  type WallCalendarKremationDnD,
+} from './WallCalendarEventCard';
 import { WallCalendarMonthOverview } from './WallCalendarMonthOverview';
 import { WallCalendarPeriodOverview } from './WallCalendarPeriodOverview';
 import { PersonnelBookingDialog } from './PersonnelBookingDialog';
@@ -88,6 +92,14 @@ import { setSterbefallBestattungsMarkerOverride } from '../services/bestattungsM
 import type { BestattungsMarker } from '../board/feierterminLogic';
 import type { DispositionPerson, HolidayRegion } from '../types/dispositionSettings';
 import type { PersonnelAbsence, PersonnelStandby } from '../types/personnelBooking';
+import {
+  assignmentSnapshotPayload,
+  attachKremationToGroup,
+  buildPlanningCards,
+  nextOrderInLane,
+  resolveKremationCardForCalendarEntry,
+  snapshotFromAssignment,
+} from '../planning/transferPlanning';
 
 type BereitschaftUiCtx = {
   standbys: Record<string, PersonnelStandby>;
@@ -174,7 +186,9 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
     clearTermin,
     setError: setZusatzError,
   } = useZusatzTermine();
-  const { plan: transferPlan } = useTransferPlan();
+  const { plan: transferPlan, saving: planSaving, savePlan } = useTransferPlan();
+  const [kremationDragEntry, setKremationDragEntry] = useState<WallCalendarEntry | null>(null);
+  const [kremationDropTargetId, setKremationDropTargetId] = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [dialogDayKey, setDialogDayKey] = useState<string | null>(null);
   const [bookingEntry, setBookingEntry] = useState<WallCalendarEntry | null>(null);
@@ -317,6 +331,117 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
     );
     return mergeTransferPlanIntoEntries(base, transferPlan.assignments, sterbefaelle);
   }, [sterbefaelle, zusatzTermine, transferPlan.assignments]);
+
+  const planningCards = useMemo(
+    () => buildPlanningCards(sterbefaelle, transferPlan.assignments, settings, now),
+    [sterbefaelle, transferPlan.assignments, settings, now]
+  );
+
+  const clearKremationDrag = useCallback(() => {
+    setKremationDragEntry(null);
+    setKremationDropTargetId(null);
+  }, []);
+
+  const handleKremationDropOnEntry = useCallback(
+    (targetEntry: WallCalendarEntry) => {
+      if (!kremationDragEntry || planSaving) {
+        clearKremationDrag();
+        return;
+      }
+      if (kremationDragEntry.id === targetEntry.id) {
+        clearKremationDrag();
+        return;
+      }
+      if (
+        !isKremationTransferEntry(kremationDragEntry) &&
+        !kremationDragEntry.kremationGroupId
+      ) {
+        clearKremationDrag();
+        return;
+      }
+      if (!isKremationTransferEntry(targetEntry) && !targetEntry.kremationGroupId) {
+        clearKremationDrag();
+        return;
+      }
+      const dragged = resolveKremationCardForCalendarEntry(
+        kremationDragEntry,
+        planningCards
+      );
+      const target = resolveKremationCardForCalendarEntry(targetEntry, planningCards);
+      clearKremationDrag();
+      if (!dragged || !target || dragged.id === target.id) return;
+
+      const dayKey = target.plannedDayKey ?? dragged.plannedDayKey ?? targetEntry.dayKey;
+      if (!dayKey) return;
+      const order = nextOrderInLane(planningCards, dayKey);
+      const prev = transferPlan.assignments[dragged.id];
+      const result = attachKremationToGroup(
+        transferPlan.assignments,
+        dragged,
+        target,
+        order
+      );
+      if (!result) return;
+      const assignment = result.assignments[dragged.id];
+      void savePlan({
+        assignments: result.assignments,
+        publish: {
+          type: prev ? 'ueberfuehrung_umgeplant' : 'ueberfuehrung_geplant',
+          docId: dragged.docId,
+          sterbefallId: dragged.sterbefallId,
+          name: dragged.name,
+          vonOrt: dragged.vonOrt,
+          nachOrt: dragged.nachOrt,
+          assignmentId: dragged.id,
+          plannedDayKey: dayKey,
+          plannedZeit: assignment?.plannedZeit ?? dragged.plannedZeit,
+          previousSnapshot: prev ? snapshotFromAssignment(prev) : null,
+          snapshot: assignment ? assignmentSnapshotPayload(assignment) : null,
+        },
+      });
+    },
+    [
+      kremationDragEntry,
+      planSaving,
+      clearKremationDrag,
+      planningCards,
+      transferPlan.assignments,
+      savePlan,
+    ]
+  );
+
+  const kremationDnD = useMemo((): WallCalendarKremationDnD | null => {
+    if (!access.canPlan) return null;
+    return {
+      enabled: true,
+      draggingId: kremationDragEntry?.id ?? null,
+      dropTargetId: kremationDropTargetId,
+      onDragStart: (entry) => {
+        setKremationDragEntry(entry);
+        setKremationDropTargetId(null);
+      },
+      onDragEnd: clearKremationDrag,
+      onDragOver: (entry) => {
+        if (!kremationDragEntry || kremationDragEntry.id === entry.id) {
+          setKremationDropTargetId(null);
+          return;
+        }
+        if (!isKremationTransferEntry(entry) && !entry.kremationGroupId) {
+          setKremationDropTargetId(null);
+          return;
+        }
+        setKremationDropTargetId(entry.id);
+      },
+      onDragLeave: () => setKremationDropTargetId(null),
+      onDrop: handleKremationDropOnEntry,
+    };
+  }, [
+    access.canPlan,
+    kremationDragEntry,
+    kremationDropTargetId,
+    clearKremationDrag,
+    handleKremationDropOnEntry,
+  ]);
 
   const traegerLines = useMemo(() => {
     const pool = settings.personnelPool ?? [];
@@ -960,6 +1085,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
             scrollToDayKey={focusDayKey}
             traegerLines={traegerLines} personnelAttentionById={personnelAttentionById}
             onEntryClick={handleEntryClick}
+            kremationDnD={kremationDnD}
           />
 
         </div>
@@ -1006,6 +1132,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
                   summaryOnly={monthSummaryOnly}
                   traegerLines={traegerLines} personnelAttentionById={personnelAttentionById}
                   onEntryClick={handleEntryClick}
+                  kremationDnD={kremationDnD}
                 />
 
               ))}
@@ -1034,6 +1161,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
                   traegerLines={traegerLines} personnelAttentionById={personnelAttentionById}
                   onEntryClick={handleEntryClick}
                   onOpenDay={openDayDialog}
+                  kremationDnD={kremationDnD}
                 />
 
               ))}
@@ -1048,6 +1176,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
               traegerLines={traegerLines} personnelAttentionById={personnelAttentionById}
               onEntryClick={handleEntryClick}
               onOpenDay={openDayDialog}
+              kremationDnD={kremationDnD}
             />
 
           )}
@@ -1062,6 +1191,7 @@ export function WallCalendarPanel({ sterbefaelle, now }: Props) {
           mobile={isNarrow}
           traegerLines={traegerLines} personnelAttentionById={personnelAttentionById}
           onEntryClick={handleEntryClick}
+          kremationDnD={kremationDnD}
           onAddTermin={() => {
             openZusatzDialog(dialogDay.dayKey);
           }}
@@ -1273,6 +1403,7 @@ function WallCalendarWeekStrip({
   personnelAttentionById,
   onEntryClick,
   onOpenDay,
+  kremationDnD,
 }: {
   days: WallCalendarDay[];
   focusDayKey: string | null;
@@ -1281,6 +1412,7 @@ function WallCalendarWeekStrip({
   personnelAttentionById?: Record<string, PersonnelAttention>;
   onEntryClick?: (entry: WallCalendarEntry) => void;
   onOpenDay?: (dayKey: string) => void;
+  kremationDnD?: WallCalendarKremationDnD | null;
 }) {
   return (
     <div className={`wall-cal-strip wall-cal-strip--week${weeksStack ? ' wall-cal-strip--stacked' : ''}`}>
@@ -1297,6 +1429,7 @@ function WallCalendarWeekStrip({
           personnelAttentionById={personnelAttentionById}
           onEntryClick={onEntryClick}
           onOpenDay={onOpenDay}
+          kremationDnD={kremationDnD}
         />
       ))}
     </div>
@@ -1390,6 +1523,7 @@ function WallCalendarMobileAgenda({
   traegerLines,
   personnelAttentionById,
   onEntryClick,
+  kremationDnD,
 }: {
   days: WallCalendarDay[];
   range: WallCalendarRange;
@@ -1397,6 +1531,7 @@ function WallCalendarMobileAgenda({
   traegerLines?: Record<string, string | null>;
   personnelAttentionById?: Record<string, PersonnelAttention>;
   onEntryClick?: (entry: WallCalendarEntry) => void;
+  kremationDnD?: WallCalendarKremationDnD | null;
 }) {
   const ber = useBereitschaftUi();
   return (
@@ -1452,6 +1587,7 @@ function WallCalendarMobileAgenda({
                     traegerLine={traegerLines?.[e.id]}
                     personnelAttention={personnelAttentionById?.[e.id] ?? null}
                     onClick={onEntryClick}
+                    kremationDnD={kremationDnD}
                   />
                 </li>
               ))}
@@ -1481,6 +1617,7 @@ function WallCalendarDaySection({
   traegerLines,
   personnelAttentionById,
   onEntryClick,
+  kremationDnD,
 
 }: {
 
@@ -1498,6 +1635,7 @@ function WallCalendarDaySection({
   traegerLines?: Record<string, string | null>;
   personnelAttentionById?: Record<string, PersonnelAttention>;
   onEntryClick?: (entry: WallCalendarEntry) => void;
+  kremationDnD?: WallCalendarKremationDnD | null;
 
 }) {
   const ber = useBereitschaftUi();
@@ -1547,6 +1685,7 @@ function WallCalendarDaySection({
               traegerLine={traegerLines?.[e.id]}
               personnelAttention={personnelAttentionById?.[e.id] ?? null}
               onClick={onEntryClick}
+              kremationDnD={kremationDnD}
             />
           </li>
         ))

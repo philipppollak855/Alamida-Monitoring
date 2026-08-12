@@ -125,6 +125,28 @@ describe('attachTransfersToCeremonyEntries', () => {
     expect(merged[0]?.id).toBe('c1');
     expect(merged[0]?.attachedTransfer).toBe(true);
   });
+
+  it('lässt Kremationen am gleichen Tag eigenständig (kein Feier-Merge)', () => {
+    const merged = attachTransfersToCeremonyEntries([
+      {
+        ...entry(['beisetzung']),
+        id: 'c1',
+        docId: 'd1',
+        dayKey: '2026-07-30',
+        title: 'Beisetzung',
+      },
+      {
+        ...entry(['ueberfuehrung_kremation']),
+        id: 'k1',
+        docId: 'd1',
+        dayKey: '2026-07-30',
+        title: 'Kremation',
+        subtitle: 'KR → Feba',
+      },
+    ]);
+    expect(merged).toHaveLength(2);
+    expect(merged.some((e) => e.id === 'k1')).toBe(true);
+  });
 });
 
 describe('Monats-Eintragsraster', () => {

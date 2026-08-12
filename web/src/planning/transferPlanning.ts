@@ -232,7 +232,7 @@ function cardFromAssignment(
   };
 }
 
-/** Offene Überführungen als Planungskarten (ohne vergangene), inkl. Canvas-Planungen. */
+/** Offene Überführungen als Planungskarten (inkl. vergangene), inkl. Canvas-Planungen. */
 export function buildPlanningCards(
   sterbefaelle: Sterbefall[],
   assignments: Record<string, PlanAssignment>,
@@ -254,7 +254,6 @@ export function buildPlanningCards(
       const zeile = a.zeile ?? zeilenFallback;
       const terminAmRaw = a.terminAm ?? a.abholungAm ?? 'ohne Datum';
       const status = resolveAusstehendStatus(terminAmRaw, a.status ?? 'geplant');
-      if (status === 'vergangen') continue;
 
       const id = planningCardId(s.id, zeile);
       covered.add(id);
@@ -993,6 +992,8 @@ export function isCardAttachedToCeremony(
 
 /** Ob die Karte an einen Feiertermin gebunden / verschmolzen dargestellt wird. */
 export function isCardAttachedToAnyCeremony(card: PlanningCard): boolean {
+  // Kremationen bleiben eigenständig kombinierbar (kein Same-Day-Merge an Feier).
+  if (isKremationPlanningCard(card)) return false;
   if (card.detachedFromCeremony) return false;
   if (card.attachedCeremony) return true;
   if (!card.plannedDayKey) return false;
@@ -1259,6 +1260,46 @@ export function partitionKremationGroups(cards: PlanningCard[]): {
   });
 
   return { groups, singles };
+}
+
+/**
+ * Findet die Planungskarte zu einem Kalender-Kremationseintrag (DnD-Kombinieren).
+ * Unterstützt Plan-IDs (`plan:…`), Gruppen (`kremationGroupId`) und Alamida-Einträge.
+ */
+export function resolveKremationCardForCalendarEntry(
+  entry: {
+    id: string;
+    docId: string;
+    dayKey: string;
+    kremationGroupId?: string;
+  },
+  cards: PlanningCard[]
+): PlanningCard | null {
+  const gid = entry.kremationGroupId?.trim();
+  if (gid) {
+    const members = cards.filter(
+      (c) => isKremationPlanningCard(c) && c.kremationGroupId?.trim() === gid
+    );
+    if (members.length === 0) return null;
+    return [...members].sort((a, b) => {
+      if (a.order !== b.order) return a.order - b.order;
+      return a.name.localeCompare(b.name, 'de');
+    })[0]!;
+  }
+
+  if (entry.id.startsWith('plan:') && !entry.id.includes('-group:')) {
+    const assignmentId = entry.id.slice('plan:'.length);
+    const byId = cards.find((c) => c.id === assignmentId && isKremationPlanningCard(c));
+    if (byId) return byId;
+  }
+
+  const candidates = cards.filter(
+    (c) =>
+      isKremationPlanningCard(c) &&
+      c.docId === entry.docId &&
+      (c.plannedDayKey === entry.dayKey || c.sourceDayKey === entry.dayKey)
+  );
+  return candidates[0] ?? null;
 }
 
 /** Nicht-Kremations-Überführung — kann zu einer Fahrt zusammengefasst werden. */

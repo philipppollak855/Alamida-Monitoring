@@ -594,7 +594,9 @@ export function attachTransfersToCeremonyEntries(
 
   for (const group of byFallDay.values()) {
     const hosts = group.filter(isCeremonyHostEntry);
-    const transfers = group.filter(isPureTransferEntry);
+    const transfers = group.filter(
+      (e) => isPureTransferEntry(e) && !isKremationTransferEntry(e)
+    );
     if (hosts.length === 0 || transfers.length === 0) continue;
 
     let host = hosts[0]!;

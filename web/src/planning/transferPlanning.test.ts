@@ -32,6 +32,7 @@ import {
   pickCeremonyHostForCard,
   planningCardId,
   resolveFreigabeState,
+  resolveKremationCardForCalendarEntry,
   scheduleToKuehlraum,
   undoOrRemoveAssignment,
   undoPlanEvent,
@@ -866,5 +867,76 @@ describe('transferPlanning board', () => {
         'fallA'
       )
     ).toBe(false);
+  });
+
+  it('buildPlanningCards behält vergangene Alamida-Termine', () => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const y = yesterday.getFullYear();
+    const m = String(yesterday.getMonth() + 1).padStart(2, '0');
+    const d = String(yesterday.getDate()).padStart(2, '0');
+    const dayKey = `${y}-${m}-${d}`;
+    const de = `${d}.${m}.${y}`;
+    const cards = buildPlanningCards(
+      [
+        {
+          id: 'past1',
+          sterbefallId: 'P1',
+          verstorbenerName: 'Past Fall',
+          ausstehend: [
+            {
+              zeile: 1,
+              schrittTyp: 'kremation',
+              vonOrt: 'KR',
+              nachOrt: 'Feba',
+              terminAm: `${de} 09:00`,
+              status: 'geplant',
+            },
+          ],
+        },
+      ],
+      {},
+      settings
+    );
+    expect(cards).toHaveLength(1);
+    expect(cards[0]?.status).toBe('vergangen');
+    expect(cards[0]?.sourceDayKey).toBe(dayKey);
+    expect(isCardAttachedToAnyCeremony(cards[0]!)).toBe(false);
+  });
+
+  it('resolveKremationCardForCalendarEntry findet Plan- und Gruppenkarten', () => {
+    const card = {
+      id: 'doc:1',
+      docId: 'doc',
+      zeile: 1,
+      sterbefallId: 'S',
+      name: 'Test',
+      schrittTyp: 'kremation',
+      vonOrt: 'KR',
+      nachOrt: 'Feba',
+      terminAm: '30.07.2026',
+      sourceDayKey: '2026-07-30' as string | null,
+      plannedDayKey: '2026-07-30' as string | null,
+      status: 'geplant',
+      targetsEigenerKr: false,
+      leavesEigenerKr: true,
+      kuehlraumId: null,
+      order: 10,
+      hasManualPlan: true,
+      kremationGroupId: 'g1' as string | null,
+      source: 'alamida' as const,
+    };
+    expect(
+      resolveKremationCardForCalendarEntry(
+        { id: 'plan:doc:1', docId: 'doc', dayKey: '2026-07-30' },
+        [card]
+      )?.id
+    ).toBe('doc:1');
+    expect(
+      resolveKremationCardForCalendarEntry(
+        { id: 'plan:krem-group:g1', docId: 'doc', dayKey: '2026-07-30', kremationGroupId: 'g1' },
+        [card]
+      )?.id
+    ).toBe('doc:1');
   });
 });
